@@ -1,0 +1,216 @@
+.collection-hero h1 {
+  font-size: 2rem;
+  color: var(--amber);
+}
+
+.collection-subtitle {
+  color: var(--text-muted);
+  margin-top: 0.25rem;
+}
+
+/* ── Stats ─────────────────────────────────────────────────────────────── */
+
+.shelf-stats {
+  display: flex;
+  gap: 1.5rem;
+  margin: 1.5rem 0;
+  flex-wrap: wrap;
+}
+
+.shelf-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.shelf-stat-val {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: var(--text);
+}
+
+.shelf-stat-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* ── Filters ───────────────────────────────────────────────────────────── */
+
+.shelf-filters {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.shelf-filter {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 0.35rem 0.9rem;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+
+.shelf-filter:hover {
+  border-color: var(--amber);
+  color: var(--amber-light);
+}
+
+.shelf-filter--active {
+  background: var(--amber);
+  color: #1a1208;
+  border-color: var(--amber);
+  font-weight: bold;
+}
+
+/* ── Grid ──────────────────────────────────────────────────────────────── */
+
+.shelf-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1rem;
+}
+
+/* ── Card ──────────────────────────────────────────────────────────────── */
+
+.shelf-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem;
+  transition: border-color 0.15s;
+}
+
+.shelf-card:hover {
+  border-color: var(--amber);
+}
+
+.shelf-card-header {
+  cursor: pointer;
+  margin-bottom: 0.5rem;
+}
+
+.shelf-card-name {
+  font-weight: bold;
+  font-size: 0.95rem;
+  color: var(--text);
+}
+
+.shelf-card-dist {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.shelf-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin-bottom: 0.6rem;
+}
+
+.shelf-badge {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  text-transform: capitalize;
+}
+
+.shelf-badge--paid {
+  color: var(--amber);
+  border-color: var(--amber);
+}
+
+/* ── Status row ────────────────────────────────────────────────────────── */
+
+.shelf-card-status-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.shelf-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.shelf-status-select {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 0.2rem 0.4rem;
+  border-radius: var(--radius);
+  font-size: 0.78rem;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.shelf-remove-btn {
+  margin-left: auto;
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  font-size: 0.9rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.shelf-remove-btn:hover {
+  border-color: #ef4444;
+  color: #ef4444;
+}
+
+/* ── Notes / location ──────────────────────────────────────────────────── */
+
+.shelf-notes {
+  margin-top: 0.5rem;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.shelf-location {
+  margin-top: 0.3rem;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+/* ── Empty state ───────────────────────────────────────────────────────── */
+
+.shelf-empty {
+  text-align: center;
+  padding: 3rem 1rem;
+}
+
+.shelf-empty-icon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+}
+
+.shelf-empty h2 {
+  font-size: 1.3rem;
+  color: var(--text);
+  margin-bottom: 0.5rem;
+}
+
+.shelf-empty p {
+  color: var(--text-muted);
+  max-width: 400px;
+  margin: 0 auto;
+}

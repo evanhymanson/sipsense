@@ -1,0 +1,191 @@
+/* ── Store Locator Section ─────────────────────────────────────────────── */
+.store-locator {
+  margin: 2rem 0;
+}
+.store-locator h3 {
+  font-size: 1rem;
+  color: var(--amber-light);
+  margin-bottom: 0.75rem;
+}
+.store-locator__denied {
+  color: var(--text-muted);
+  font-style: italic;
+}
+.store-locator__controls {
+  margin-bottom: 1rem;
+}
+.store-locator__controls select {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 0.4rem 0.6rem;
+  border-radius: var(--radius);
+  font-family: inherit;
+  font-size: 0.85rem;
+  margin-left: 0.5rem;
+}
+.store-locator__controls label {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+.store-locator__empty {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* ── Map ───────────────────────────────────────────────────────────────── */
+.store-map-container {
+  margin-bottom: 1rem;
+  border-radius: var(--radius);
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+
+/* ── Store List ────────────────────────────────────────────────────────── */
+.store-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.store-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.85rem 1rem;
+}
+.store-card__header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+.store-card__name {
+  font-weight: bold;
+  font-size: 0.95rem;
+}
+.store-card__distance {
+  margin-left: auto;
+  font-size: 0.8rem;
+  color: var(--amber);
+  font-weight: bold;
+}
+.store-card__address,
+.store-card__hours {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin: 0.15rem 0;
+}
+.store-card__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+  flex-wrap: wrap;
+}
+.store-card__reports {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+.store-card__report-btn {
+  background: var(--surface);
+  border: 1px solid var(--amber);
+  color: var(--amber-light);
+  padding: 0.3rem 0.7rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s;
+}
+.store-card__report-btn:hover {
+  background: var(--amber);
+  color: #1a1208;
+}
+.store-card__phone,
+.store-card__website {
+  font-size: 0.78rem;
+  color: var(--amber-light);
+  text-decoration: underline;
+}
+
+/* ── Status dots ───────────────────────────────────────────────────────── */
+.status-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.status-dot--green { background: #4caf50; }
+.status-dot--red { background: #e05050; }
+.status-dot--gray { background: var(--text-muted); }
+
+/* ── Report Modal ──────────────────────────────────────────────────────── */
+.report-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+.report-modal {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.5rem;
+  max-width: 400px;
+  width: 90%;
+}
+.report-modal h3 {
+  color: var(--amber);
+  margin-bottom: 0.5rem;
+}
+.report-modal__context {
+  font-size: 0.88rem;
+  color: var(--text);
+  margin-bottom: 1rem;
+}
+.report-modal__options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+.report-option {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 0.85rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: border-color 0.15s;
+}
+.report-option input { display: none; }
+.report-option--selected {
+  border-color: var(--amber);
+  background: #3a2810;
+}
+.report-modal__actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+}
+.report-modal__cancel {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-family: inherit;
+}
+.report-modal__cancel:hover {
+  border-color: var(--amber);
+  color: var(--text);
+  background: none;
+}

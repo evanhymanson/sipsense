@@ -1,0 +1,57 @@
+.feed-page h1 { margin-bottom: 0.25rem; }
+
+.feed-filters {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 1.5rem;
+}
+
+.feed-filter-btn {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  padding: 0.35rem 0.8rem;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  font-family: inherit;
+  cursor: pointer;
+  text-transform: capitalize;
+  transition: border-color 0.15s, color 0.15s;
+  align-self: auto;
+}
+.feed-filter-btn:hover {
+  border-color: var(--amber);
+  color: var(--amber-light);
+  background: var(--surface);
+}
+.feed-filter-btn--active {
+  border-color: var(--amber);
+  color: var(--amber);
+  background: #3a2810;
+}
+
+.feed-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.feed-load-more {
+  margin: 1.5rem auto 0;
+  display: block;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  padding: 0.55rem 1.5rem;
+  border-radius: var(--radius);
+  font-size: 0.9rem;
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+.feed-load-more:hover:not(:disabled) {
+  border-color: var(--amber);
+  color: var(--amber-light);
+  background: var(--surface);
+}

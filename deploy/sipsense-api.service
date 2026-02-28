@@ -1,0 +1,24 @@
+[Unit]
+Description=SipSense FastAPI Backend
+After=network.target postgresql.service
+Wants=postgresql.service
+
+[Service]
+Type=notify
+User=sipsense
+Group=sipsense
+WorkingDirectory=/opt/sipsense/backend
+EnvironmentFile=/opt/sipsense/.env
+ExecStart=/opt/sipsense/backend/.venv/bin/gunicorn app.main:app -c /opt/sipsense/deploy/gunicorn.conf.py
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=always
+RestartSec=5
+
+# Security hardening
+NoNewPrivileges=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/opt/sipsense/backend
+
+[Install]
+WantedBy=multi-user.target

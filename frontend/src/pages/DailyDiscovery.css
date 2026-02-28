@@ -1,0 +1,200 @@
+/* ── Daily Discovery page ─────────────────────────────────────────────── */
+.daily-page {
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+.daily-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  padding: 4rem 0;
+}
+
+.daily-loading-icon {
+  font-size: 3rem;
+  animation: pulse-glow 1.5s ease-in-out infinite;
+}
+
+/* ── Header ── */
+.daily-header {
+  text-align: center;
+  margin-bottom: 1.5rem;
+}
+
+.daily-date {
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+}
+
+.daily-weekday-msg {
+  font-size: 1rem;
+  color: var(--amber-light);
+  font-style: italic;
+  margin-top: 0.35rem;
+}
+
+/* ── Main card ── */
+.daily-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 2rem 1.75rem;
+  cursor: pointer;
+  transition: border-color 0.2s, transform 0.15s;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.daily-card:hover {
+  border-color: var(--amber);
+  transform: translateY(-2px);
+}
+
+.daily-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--amber);
+  font-weight: bold;
+}
+
+.daily-name {
+  font-size: 1.8rem;
+  color: var(--amber);
+  line-height: 1.2;
+  margin: 0;
+}
+
+.daily-distillery {
+  font-size: 0.95rem;
+  color: var(--text-muted);
+}
+
+.daily-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.25rem;
+}
+
+.daily-badge {
+  background: var(--border);
+  color: var(--text);
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  text-transform: capitalize;
+}
+
+.daily-rating {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.25rem;
+}
+
+.daily-stars {
+  color: var(--amber);
+  font-size: 0.95rem;
+}
+
+.daily-rating-text {
+  font-size: 0.95rem;
+  font-weight: bold;
+  color: var(--text);
+}
+
+.daily-rating-count {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.daily-description {
+  font-size: 0.9rem;
+  color: var(--text);
+  line-height: 1.6;
+  margin-top: 0.5rem;
+}
+
+.daily-flavors {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.5rem;
+}
+
+.daily-flavor-tag {
+  background: #3a2810;
+  border: 1px solid var(--amber);
+  color: var(--amber-light);
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  text-transform: capitalize;
+}
+
+.daily-view-cta {
+  font-size: 0.82rem;
+  color: var(--amber-light);
+  margin-top: 0.5rem;
+  align-self: flex-end;
+}
+
+/* ── Extras section ── */
+.daily-extras {
+  margin-top: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.daily-tip,
+.daily-fact,
+.daily-conversation {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem 1.25rem;
+}
+
+.daily-tip {
+  border-left: 3px solid var(--amber);
+  border-radius: 0 var(--radius) var(--radius) 0;
+}
+
+.daily-fact {
+  border-left: 3px solid #6d9dc5;
+  border-radius: 0 var(--radius) var(--radius) 0;
+}
+
+.daily-conversation {
+  border-left: 3px solid #b68fd0;
+  border-radius: 0 var(--radius) var(--radius) 0;
+}
+
+.extra-label {
+  display: block;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--amber);
+  margin-bottom: 0.35rem;
+  font-weight: bold;
+}
+
+.daily-fact .extra-label { color: #6d9dc5; }
+.daily-conversation .extra-label { color: #b68fd0; }
+
+.daily-tip p,
+.daily-fact p,
+.daily-conversation p {
+  font-size: 0.9rem;
+  color: var(--text);
+  line-height: 1.55;
+  margin: 0;
+}

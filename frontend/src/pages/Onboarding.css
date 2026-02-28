@@ -1,0 +1,143 @@
+.onboarding {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+  padding: 2rem;
+}
+
+.onboarding-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 3rem 2.5rem;
+  max-width: 420px;
+  width: 100%;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.onboarding-logo {
+  font-size: 3.5rem;
+  line-height: 1;
+  margin-bottom: 0.25rem;
+}
+
+.onboarding-title {
+  font-size: 2.5rem;
+  color: var(--amber);
+  letter-spacing: 0.05em;
+}
+
+.onboarding-subtitle {
+  font-size: 1rem;
+  color: var(--text-muted);
+  margin-top: -0.25rem;
+}
+
+.onboarding-desc {
+  font-size: 0.92rem;
+  color: var(--text);
+  line-height: 1.6;
+  margin: 0.5rem 0;
+}
+
+.onboarding-form {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.75rem;
+  width: 100%;
+  margin-top: 0.5rem;
+}
+
+.onboarding-label {
+  font-size: 0.88rem;
+  color: var(--text-muted);
+  text-align: left;
+}
+
+.onboarding-input {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius);
+  font-size: 1rem;
+  font-family: inherit;
+  transition: border-color 0.2s;
+  width: 100%;
+}
+
+.onboarding-input:focus {
+  outline: none;
+  border-color: var(--amber);
+}
+
+.onboarding-btn {
+  background: var(--amber);
+  color: #1a1208;
+  border: none;
+  padding: 0.8rem 1.5rem;
+  border-radius: var(--radius);
+  font-size: 1rem;
+  font-weight: bold;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.2s;
+  align-self: stretch;
+}
+
+.onboarding-btn:hover:not(:disabled) {
+  background: var(--amber-light);
+}
+
+.onboarding-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.onboarding-tabs {
+  display: flex;
+  width: 100%;
+  gap: 0;
+  border-radius: var(--radius);
+  overflow: hidden;
+  border: 1px solid var(--border);
+  margin-top: 0.5rem;
+}
+
+.onboarding-tab {
+  flex: 1;
+  padding: 0.6rem 1rem;
+  border: none;
+  background: var(--bg);
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+
+.onboarding-tab--active {
+  background: var(--amber);
+  color: #1a1208;
+  font-weight: bold;
+}
+
+.onboarding-error {
+  color: #e74c3c;
+  font-size: 0.88rem;
+  text-align: left;
+  margin: 0;
+}
+
+.onboarding-fine {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin-top: 0.25rem;
+}

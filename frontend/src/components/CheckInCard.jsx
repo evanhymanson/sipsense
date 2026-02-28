@@ -1,0 +1,96 @@
+import { useState } from 'react'
+import { Link } from 'react-router-dom'
+import { api, getUsername } from '../api/client'
+import './CheckInCard.css'
+
+const SERVING_EMOJI = {
+  neat: '🥃',
+  rocks: '🧊',
+  cocktail: '🍸',
+  highball: '🥂',
+}
+
+function timeAgo(dateStr) {
+  const seconds = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000)
+  if (seconds < 60) return 'just now'
+  const minutes = Math.floor(seconds / 60)
+  if (minutes < 60) return `${minutes}m ago`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `${hours}h ago`
+  const days = Math.floor(hours / 24)
+  if (days < 30) return `${days}d ago`
+  return new Date(dateStr).toLocaleDateString()
+}
+
+export default function CheckInCard({ item, onToastToggle }) {
+  const { rating, whiskey, username, toast_count, user_toasted } = item
+  const [toasted, setToasted] = useState(user_toasted)
+  const [count, setCount] = useState(toast_count)
+  const [busy, setBusy] = useState(false)
+  const currentUser = getUsername()
+  const isOwn = currentUser === username
+
+  const stars = '★'.repeat(Math.round(rating.score)) + '☆'.repeat(5 - Math.round(rating.score))
+
+  async function handleToast() {
+    if (busy || isOwn) return
+    setBusy(true)
+    try {
+      if (toasted) {
+        await api.removeToast(rating.id)
+        setToasted(false)
+        setCount(c => c - 1)
+      } else {
+        await api.addToast(rating.id)
+        setToasted(true)
+        setCount(c => c + 1)
+      }
+      onToastToggle?.()
+    } catch {
+      // silently fail
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="checkin-card">
+      <div className="checkin-top">
+        <Link to={`/user/${username}`} className="checkin-user">{username}</Link>
+        <span className="checkin-time">{timeAgo(rating.created_at)}</span>
+      </div>
+
+      <Link to={`/whiskey/${whiskey.id}`} className="checkin-whiskey">
+        <span className="checkin-whiskey-name">{whiskey.name}</span>
+        <span className="checkin-whiskey-meta">
+          {whiskey.distillery} · {whiskey.category}
+        </span>
+      </Link>
+
+      <div className="checkin-rating">
+        <span className="checkin-stars">{stars}</span>
+        {rating.serving_style && (
+          <span className="checkin-serving">
+            {SERVING_EMOJI[rating.serving_style] || ''} {rating.serving_style}
+          </span>
+        )}
+        {rating.location_note && (
+          <span className="checkin-location">📍 {rating.location_note}</span>
+        )}
+      </div>
+
+      {rating.notes && <p className="checkin-notes">{rating.notes}</p>}
+
+      <div className="checkin-actions">
+        <button
+          className={`toast-btn ${toasted ? 'toast-btn--active' : ''}`}
+          onClick={handleToast}
+          disabled={busy || isOwn || !currentUser}
+          title={isOwn ? "Can't toast your own" : toasted ? 'Remove toast' : 'Toast!'}
+        >
+          🍻 {count > 0 && <span className="toast-count">{count}</span>}
+        </button>
+      </div>
+    </div>
+  )
+}
