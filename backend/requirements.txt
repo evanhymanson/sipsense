@@ -5,7 +5,7 @@ pydantic==2.10.3
 email-validator>=2.0.0
 pydantic-settings==2.7.0
 python-multipart==0.0.20
-torch>=2.6.0
+# torch installed separately in Dockerfile (CPU-only)
 numpy==2.2.1
 scikit-learn==1.6.0
 alembic==1.14.0
@@ -30,5 +30,6 @@ transformers>=4.40.0
 rapidfuzz>=3.0.0
 typing-extensions>=4.0.0
 easyocr>=1.7.0
-playwright>=1.40.0
-pytest>=7.0.0
+# scraper/dev-only deps (not needed in production image)
+# playwright>=1.40.0
+# pytest>=7.0.0
