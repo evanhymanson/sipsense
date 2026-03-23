@@ -283,7 +283,7 @@
   border: 1px solid var(--amber);
   color: var(--amber-light);
 }
-.scan-action-btn--checkin:hover { background: var(--amber); color: #ffffff; }
+.scan-action-btn--checkin:hover { background: var(--amber); color: #1a1a1a; }
 
 .scan-shelf-msg {
   color: var(--amber-light);

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useSearchParams, Link } from 'react-router-dom'
 import { api } from '../api/client'
 import { useToast } from '../components/Toast'
@@ -6,17 +6,88 @@ import WhiskeyCard from '../components/WhiskeyCard'
 import SkeletonCard from '../components/SkeletonCard'
 import CompareDrawer from '../components/CompareDrawer'
 
+function Marquee({ children, reverse }) {
+  const outerRef = useRef(null)
+  const trackRef = useRef(null)
+  const dragging = useRef(false)
+  const startX = useRef(0)
+  const scrollStart = useRef(0)
+  const [paused, setPaused] = useState(false)
+  const [progress, setProgress] = useState(0)
+
+  const updateProgress = useCallback(() => {
+    const el = outerRef.current
+    if (!el) return
+    const max = el.scrollWidth - el.clientWidth
+    if (max > 0) setProgress(el.scrollLeft / max)
+  }, [])
+
+  const onPointerDown = useCallback((e) => {
+    dragging.current = true
+    startX.current = e.clientX
+    scrollStart.current = outerRef.current.scrollLeft
+    setPaused(true)
+    outerRef.current.setPointerCapture(e.pointerId)
+  }, [])
+
+  const onPointerMove = useCallback((e) => {
+    if (!dragging.current) return
+    const dx = e.clientX - startX.current
+    outerRef.current.scrollLeft = scrollStart.current - dx
+    updateProgress()
+  }, [updateProgress])
+
+  const onPointerUp = useCallback(() => {
+    dragging.current = false
+    setPaused(false)
+  }, [])
+
+  // Sync scroll position from CSS animation transform into scrollLeft when not dragging
+  useEffect(() => {
+    const el = outerRef.current
+    if (!el) return
+    const onScroll = () => updateProgress()
+    el.addEventListener('scroll', onScroll, { passive: true })
+    return () => el.removeEventListener('scroll', onScroll)
+  }, [updateProgress])
+
+  return (
+    <div className={`browse-marquee${reverse ? ' browse-marquee--reverse' : ''}`}>
+      <div
+        className="browse-marquee-scroll"
+        ref={outerRef}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerCancel={onPointerUp}
+        onMouseEnter={() => setPaused(true)}
+        onMouseLeave={() => { if (!dragging.current) setPaused(false) }}
+      >
+        <div
+          className={`browse-marquee-track${paused ? ' browse-marquee-track--paused' : ''}`}
+          ref={trackRef}
+        >
+          {children}
+        </div>
+      </div>
+      <div className="browse-marquee-bar">
+        <div className="browse-marquee-bar-fill" style={{ width: `${Math.max(5, progress * 100)}%` }} />
+      </div>
+    </div>
+  )
+}
+
 const PAGE_SIZE = 24
 
 const CATEGORIES = [
-  { value: 'bourbon',      label: 'Bourbon',      emoji: '🥃' },
-  { value: 'scotch',       label: 'Scotch',        emoji: '🏔' },
-  { value: 'irish',        label: 'Irish',         emoji: '☘️' },
-  { value: 'japanese',     label: 'Japanese',      emoji: '⛩' },
-  { value: 'rye',          label: 'Rye',           emoji: '🌾' },
-  { value: 'canadian',     label: 'Canadian',      emoji: '🍁' },
-  { value: 'single malt',  label: 'Single Malt',   emoji: '🥃' },
-  { value: 'blended',      label: 'Blended',       emoji: '🌀' },
+  { value: 'bourbon',      label: 'Bourbon' },
+  { value: 'scotch',       label: 'Scotch' },
+  { value: 'irish',        label: 'Irish' },
+  { value: 'japanese',     label: 'Japanese' },
+  { value: 'rye',          label: 'Rye' },
+  { value: 'canadian',     label: 'Canadian' },
+  { value: 'single malt',  label: 'Single Malt' },
+  { value: 'blended',      label: 'Blended' },
 ]
 
 const REGIONS = [
@@ -277,13 +348,13 @@ export default function Browse() {
           onClick={() => { setSpecialMode(null); toggleCategory('') }}>All</button>
         {CATEGORIES.map(c => (
           <button key={c.value} className={`cat-tab${!specialMode && filters.category === c.value ? ' cat-tab--active' : ''}`}
-            onClick={() => toggleCategory(c.value)}>{c.emoji} {c.label}</button>
+            onClick={() => toggleCategory(c.value)}>{c.label}</button>
         ))}
         <span className="cat-tab-divider">|</span>
         <button className={`cat-tab cat-tab--special${specialMode === 'foryou' ? ' cat-tab--active' : ''}`}
-          onClick={() => toggleSpecialMode('foryou')}>✦ For You</button>
+          onClick={() => toggleSpecialMode('foryou')}>For You</button>
         <button className={`cat-tab cat-tab--special${specialMode === 'favorites' ? ' cat-tab--active' : ''}`}
-          onClick={() => toggleSpecialMode('favorites')}>♡ Favorites</button>
+          onClick={() => toggleSpecialMode('favorites')}>Favorites</button>
       </div>
 
       {/* ── Secondary filters ─────────────────────────────── */}
@@ -312,7 +383,7 @@ export default function Browse() {
         <div className="active-filters">
           {filters.category && (
             <span className="filter-chip">
-              {CATEGORIES.find(c => c.value === filters.category)?.emoji} {filters.category}
+              {filters.category}
               <button className="chip-remove" onClick={() => toggleCategory(filters.category)}>×</button>
             </span>
           )}
@@ -333,12 +404,10 @@ export default function Browse() {
           <div className="browse-trending-section">
             <h3>Hot Right Now</h3>
             {trending.length > 0 ? (
-              <div className="browse-marquee">
-                <div className="browse-marquee-track">
-                  {trending.map(w => <WhiskeyCard key={w.id} whiskey={w} compareMode={compareMode} isCompared={compareIds.has(w.id)} onCompareToggle={toggleCompare} />)}
-                  {trending.map(w => <WhiskeyCard key={`dup-${w.id}`} whiskey={w} compareMode={compareMode} isCompared={compareIds.has(w.id)} onCompareToggle={toggleCompare} />)}
-                </div>
-              </div>
+              <Marquee>
+                {trending.map(w => <WhiskeyCard key={w.id} whiskey={w} compareMode={compareMode} isCompared={compareIds.has(w.id)} onCompareToggle={toggleCompare} />)}
+                {trending.map(w => <WhiskeyCard key={`dup-${w.id}`} whiskey={w} compareMode={compareMode} isCompared={compareIds.has(w.id)} onCompareToggle={toggleCompare} />)}
+              </Marquee>
             ) : (
               <p className="status">No trending whiskeys right now — check back soon!</p>
             )}
@@ -346,12 +415,10 @@ export default function Browse() {
           <div className="browse-trending-section">
             <h3>Recently Added</h3>
             {newArrivals.length > 0 ? (
-              <div className="browse-marquee">
-                <div className="browse-marquee-track">
-                  {newArrivals.map(w => <WhiskeyCard key={w.id} whiskey={w} compareMode={compareMode} isCompared={compareIds.has(w.id)} onCompareToggle={toggleCompare} />)}
-                  {newArrivals.map(w => <WhiskeyCard key={`dup-${w.id}`} whiskey={w} compareMode={compareMode} isCompared={compareIds.has(w.id)} onCompareToggle={toggleCompare} />)}
-                </div>
-              </div>
+              <Marquee reverse>
+                {newArrivals.map(w => <WhiskeyCard key={w.id} whiskey={w} compareMode={compareMode} isCompared={compareIds.has(w.id)} onCompareToggle={toggleCompare} />)}
+                {newArrivals.map(w => <WhiskeyCard key={`dup-${w.id}`} whiskey={w} compareMode={compareMode} isCompared={compareIds.has(w.id)} onCompareToggle={toggleCompare} />)}
+              </Marquee>
             ) : (
               <p className="status">No new arrivals yet.</p>
             )}

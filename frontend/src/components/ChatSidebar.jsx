@@ -209,6 +209,54 @@ const SidebarPriceAlternatives = memo(function SidebarPriceAlternatives({ refere
   )
 })
 
+// ── Thinking indicator (animated progress while AI works) ───────────────────
+
+const THINKING_PHRASES = [
+  'Nosing the cask\u2026',
+  'Swirling the glass\u2026',
+  'Checking tasting notes\u2026',
+  'Reading the label\u2026',
+  'Consulting the cellar\u2026',
+  'Sampling the barrel\u2026',
+  'Comparing vintages\u2026',
+  'Decanting thoughts\u2026',
+]
+
+function ThinkingIndicator({ toolStatus }) {
+  const [phraseIdx, setPhraseIdx] = useState(0)
+
+  useEffect(() => {
+    if (toolStatus) return // don't rotate when we have a real tool status
+    const id = setInterval(() => {
+      setPhraseIdx(i => (i + 1) % THINKING_PHRASES.length)
+    }, 2400)
+    return () => clearInterval(id)
+  }, [toolStatus])
+
+  const displayText = toolStatus || THINKING_PHRASES[phraseIdx]
+
+  return (
+    <div className="sb-thinking-indicator">
+      <div className="sb-thinking-visual">
+        <div className="sb-thinking-glass">
+          <div className="sb-thinking-liquid" />
+          <div className="sb-thinking-shine" />
+        </div>
+        <div className="sb-thinking-ripple" />
+        <div className="sb-thinking-ripple sb-thinking-ripple--delay" />
+      </div>
+      <div className="sb-thinking-text-area">
+        <span className="sb-thinking-label" key={displayText}>{displayText}</span>
+        <span className="sb-thinking-dots">
+          <span className="sb-thinking-dot" />
+          <span className="sb-thinking-dot" />
+          <span className="sb-thinking-dot" />
+        </span>
+      </div>
+    </div>
+  )
+}
+
 // ── Main ChatSidebar component ───────────────────────────────────────────────
 
 export default function ChatSidebar({ isOpen, onClose }) {
@@ -680,10 +728,7 @@ export default function ChatSidebar({ isOpen, onClose }) {
                   </p>
                 )}
                 {msg.isStreaming && !msg.content && (
-                  <p className="sb-bubble-text sb-thinking">
-                    {msg.toolStatus && <span className="sb-tool-status">{msg.toolStatus}</span>}
-                    {!msg.toolStatus && <span className="sb-cursor" />}
-                  </p>
+                  <ThinkingIndicator toolStatus={msg.toolStatus} />
                 )}
 
                 {/* Generative UI blocks */}

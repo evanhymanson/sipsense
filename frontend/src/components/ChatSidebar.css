@@ -250,7 +250,7 @@
 
 .sb-bubble--user {
   background: var(--amber);
-  color: #ffffff;
+  color: #1a1a1a;
   border-bottom-right-radius: 2px;
 }
 
@@ -268,20 +268,151 @@
   margin: 0;
 }
 
-.sb-thinking {
-  min-height: 1.2em;
+/* ── Thinking indicator ────────────────────────────────────────────────────── */
+
+.sb-thinking-indicator {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.3rem 0;
+  animation: sb-think-fade-in 0.3s ease;
 }
 
-.sb-tool-status {
+@keyframes sb-think-fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Animated whiskey glass */
+.sb-thinking-visual {
+  position: relative;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+}
+
+.sb-thinking-glass {
+  position: absolute;
+  bottom: 2px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 18px;
+  height: 16px;
+  border: 2px solid var(--amber);
+  border-top: none;
+  border-radius: 0 0 6px 6px;
+  overflow: hidden;
+}
+
+.sb-thinking-liquid {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 60%;
+  background: linear-gradient(
+    180deg,
+    rgba(201, 168, 76, 0.5) 0%,
+    rgba(201, 168, 76, 0.85) 100%
+  );
+  animation: sb-liquid-wave 2s ease-in-out infinite;
+  border-radius: 0 0 3px 3px;
+}
+
+@keyframes sb-liquid-wave {
+  0%, 100% { transform: translateX(-1px) skewX(-3deg); height: 55%; }
+  50%      { transform: translateX(1px) skewX(3deg); height: 65%; }
+}
+
+.sb-thinking-shine {
+  position: absolute;
+  top: 0;
+  left: 1px;
+  width: 3px;
+  height: 100%;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.35) 0%,
+    transparent 70%
+  );
+  border-radius: 1px;
+}
+
+/* Ripple rings emanating from glass */
+.sb-thinking-ripple {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 24px;
+  height: 24px;
+  border: 1.5px solid var(--amber);
+  border-radius: 50%;
+  transform: translate(-50%, -50%) scale(0.5);
+  opacity: 0;
+  animation: sb-ripple-out 2.4s ease-out infinite;
+}
+
+.sb-thinking-ripple--delay {
+  animation-delay: 1.2s;
+}
+
+@keyframes sb-ripple-out {
+  0%   { transform: translate(-50%, -50%) scale(0.5); opacity: 0.6; }
+  100% { transform: translate(-50%, -50%) scale(1.6); opacity: 0; }
+}
+
+/* Text area */
+.sb-thinking-text-area {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.sb-thinking-label {
   font-size: 0.82rem;
   color: var(--amber);
-  opacity: 0.85;
-  animation: sb-pulse-status 1.5s ease-in-out infinite;
+  font-weight: 500;
+  animation: sb-phrase-swap 0.35s ease;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-@keyframes sb-pulse-status {
-  0%, 100% { opacity: 0.6; }
-  50%      { opacity: 1; }
+@keyframes sb-phrase-swap {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Bouncing dots */
+.sb-thinking-dots {
+  display: flex;
+  gap: 3px;
+}
+
+.sb-thinking-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--amber);
+  opacity: 0.4;
+  animation: sb-dot-bounce 1.4s ease-in-out infinite;
+}
+
+.sb-thinking-dot:nth-child(2) { animation-delay: 0.2s; }
+.sb-thinking-dot:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes sb-dot-bounce {
+  0%, 80%, 100% { transform: translateY(0); opacity: 0.4; }
+  40%           { transform: translateY(-4px); opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sb-thinking-indicator { animation: none; }
+  .sb-thinking-liquid { animation: none; height: 60%; transform: none; }
+  .sb-thinking-ripple { animation: none; opacity: 0; }
+  .sb-thinking-label { animation: none; }
+  .sb-thinking-dot { animation: none; opacity: 0.6; }
 }
 
 /* ── Blinking cursor ─────────────────────────────────────────────────────── */
@@ -420,7 +551,7 @@
 
 .sb-send-btn {
   background: var(--amber);
-  color: #ffffff;
+  color: #1a1a1a;
   border: none;
   width: 36px;
   height: 36px;
@@ -449,7 +580,7 @@
   bottom: 1.5rem;
   right: 1.5rem;
   background: var(--amber);
-  color: #ffffff;
+  color: #1a1a1a;
   border: none;
   padding: 0.7rem 1.2rem;
   border-radius: 999px;
@@ -627,7 +758,7 @@
   height: 20px;
   border-radius: 50%;
   background: var(--amber);
-  color: #ffffff;
+  color: #1a1a1a;
   display: flex;
   align-items: center;
   justify-content: center;
