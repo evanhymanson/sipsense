@@ -71,6 +71,15 @@ def _run_migrations():
                     "UPDATE whiskeys SET created_at = CURRENT_TIMESTAMP WHERE created_at IS NULL"
                 ))
                 conn.commit()
+        # Upgrade osm_id from INTEGER to BIGINT for large OSM node IDs
+        if "liquor_stores" in inspector.get_table_names():
+            for col in inspector.get_columns("liquor_stores"):
+                if col["name"] == "osm_id" and str(col["type"]) == "INTEGER":
+                    conn.execute(sa.text(
+                        "ALTER TABLE liquor_stores ALTER COLUMN osm_id TYPE BIGINT"
+                    ))
+                    conn.commit()
+                    break
 
 _run_migrations()
 

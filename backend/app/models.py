@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, Text, ForeignKey, DateTime, Boolean, UniqueConstraint
+from sqlalchemy import Column, Integer, BigInteger, String, Float, Text, ForeignKey, DateTime, Boolean, UniqueConstraint
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from .database import Base
@@ -115,7 +115,7 @@ class LiquorStore(Base):
     __tablename__ = "liquor_stores"
 
     id = Column(Integer, primary_key=True, index=True)
-    osm_id = Column(Integer, unique=True, nullable=False, index=True)
+    osm_id = Column(BigInteger, unique=True, nullable=False, index=True)
     name = Column(String, default="Liquor Store")
     lat = Column(Float, nullable=False)
     lng = Column(Float, nullable=False)
