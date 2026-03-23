@@ -117,7 +117,7 @@ WHISKEYS = [
      "description": "Suntory's flagship blended Japanese whisky. Floral and honey-sweet.",
      "flavor_profile": "floral, honey, caramel, fruity, oak, vanilla"},
     {"name": "Yamazaki 12 Year", "distillery": "Suntory", "category": "japanese",
-     "region": "Japan", "age": 12, "abv": 43.0, "price_usd": 160.0,
+     "region": "Japan", "age": 12, "abv": 43.0, "price_usd": 185.0,
      "description": "Japan's first single malt. Delicate, fruity, and elegant.",
      "flavor_profile": "fruity, floral, honey, vanilla, oak, sweet"},
 ]

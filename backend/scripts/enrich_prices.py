@@ -662,14 +662,14 @@ def _build_msrp_dict() -> dict[str, float]:
         "Writers' Tears Copper Pot": 35,
         "Midleton Very Rare": 200,
 
-        # ── Japanese ─────────────────────────────────────────────
-        "Suntory Toki": 35, "Suntory Hibiki Harmony": 70,
-        "Suntory Hibiki 17 Year": 400, "Suntory Hibiki 21 Year": 800,
-        "Yamazaki 12 Year": 150, "Yamazaki 18 Year": 500,
-        "Hakushu 12 Year": 130, "Hakushu 18 Year": 450,
-        "Nikka From The Barrel": 65, "Nikka Coffey Grain": 65,
-        "Nikka Coffey Malt": 70, "Nikka Yoichi Single Malt": 80,
-        "Nikka Miyagikyo Single Malt": 75,
+        # ── Japanese (updated 2025 — post-Suntory April 2024 price hike)
+        "Suntory Toki": 40, "Suntory Hibiki Harmony": 80,
+        "Suntory Hibiki 17 Year": 900, "Suntory Hibiki 21 Year": 1200,
+        "Yamazaki 12 Year": 185, "Yamazaki 18 Year": 750,
+        "Hakushu 12 Year": 175, "Hakushu 18 Year": 650,
+        "Nikka From The Barrel": 70, "Nikka Coffey Grain": 70,
+        "Nikka Coffey Malt": 75, "Nikka Yoichi Single Malt": 90,
+        "Nikka Miyagikyo Single Malt": 80,
         "Taketsuru Pure Malt": 70,
         "Iwai Tradition": 35, "Iwai 45": 50,
         "Akashi White Oak": 30, "Togouchi Premium": 40,

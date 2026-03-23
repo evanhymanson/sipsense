@@ -234,6 +234,15 @@ PRICE_CORRECTIONS_BY_ID: dict[int, float] = {
     112: 350.0,     # JW Blue Ghost & Rare Port Ellen Edition
 }
 
+# ─────────────────────────────────────────────────────────────────────
+# Category corrections by database ID
+# Bottles with wrong category values in the database.
+# ─────────────────────────────────────────────────────────────────────
+
+CATEGORY_CORRECTIONS_BY_ID: dict[int, str] = {
+    2782: "japanese",  # Yamazaki Islay Peated Single Malt — distilled at Yamazaki, Japan
+}
+
 
 def get_displayed_whiskeys(db: Session) -> list[Whiskey]:
     """Get all whiskeys with images (the ones users see)."""
@@ -307,15 +316,33 @@ def apply_corrections(db: Session, dry_run: bool = False) -> dict:
                 "category": w.category,
             })
 
-    if not dry_run and changes:
+    # Apply category corrections
+    category_fixes = []
+    for w in displayed:
+        if w.id in CATEGORY_CORRECTIONS_BY_ID:
+            new_cat = CATEGORY_CORRECTIONS_BY_ID[w.id]
+            if w.category != new_cat:
+                category_fixes.append({
+                    "id": w.id,
+                    "name": w.name,
+                    "old_category": w.category,
+                    "new_category": new_cat,
+                })
+                if not dry_run:
+                    w.category = new_cat
+
+    if not dry_run and (changes or category_fixes):
         db.commit()
-        log.info("Committed %d price changes to database", len(changes))
+        log.info("Committed %d price changes and %d category fixes to database",
+                 len(changes), len(category_fixes))
 
     return {
         "total_displayed": len(displayed),
         "corrections_applied": len(changes),
+        "category_fixes_applied": len(category_fixes),
         "still_estimated": len(not_in_dict),
         "changes": changes,
+        "category_fixes": category_fixes,
         "not_in_dict": not_in_dict,
     }
 
