@@ -3,6 +3,9 @@ import os
 import sqlite3
 import sys
 
+# Ensure app module is importable
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 # Must be run from backend/ directory or provide path to sipsense.db
 SQLITE_PATH = os.environ.get("SQLITE_PATH", "sipsense.db")
 PG_URL = os.environ.get("DATABASE_URL")
