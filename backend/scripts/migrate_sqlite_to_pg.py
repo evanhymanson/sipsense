@@ -57,8 +57,19 @@ def migrate_table(table):
         # Only use columns that exist in both
         shared_cols = [c for c in columns if c in pg_columns]
 
+        # SQLite boolean columns store 0/1, PostgreSQL needs True/False
+        bool_cols = set()
+        for col_info in inspector.get_columns(table):
+            if str(col_info["type"]) == "BOOLEAN":
+                bool_cols.add(col_info["name"])
+
         for row in rows:
-            values = {c: row[c] for c in shared_cols}
+            values = {}
+            for c in shared_cols:
+                v = row[c]
+                if c in bool_cols and v is not None:
+                    v = bool(v)
+                values[c] = v
             placeholders = ", ".join(f":{c}" for c in shared_cols)
             col_names = ", ".join(shared_cols)
             # Use ON CONFLICT DO NOTHING to skip duplicates
