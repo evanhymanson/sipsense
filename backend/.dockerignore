@@ -1,0 +1,23 @@
+# Uploads (mounted as Docker volume at runtime)
+uploads/
+uploads.tar.gz
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+.env
+
+# Scraper data
+scraper/data/
+fetch_images.log
+fetch_checkpoint.json
+image_audit_report.json
+
+# Database
+*.db
+*.db-shm
+*.db-wal
+sipsense.db*
+*.backup*
