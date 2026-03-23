@@ -333,8 +333,11 @@ export default function Browse() {
           <div className="browse-trending-section">
             <h3>Hot Right Now</h3>
             {trending.length > 0 ? (
-              <div className="browse-trending-scroll">
-                {trending.map(w => <WhiskeyCard key={w.id} whiskey={w} compareMode={compareMode} isCompared={compareIds.has(w.id)} onCompareToggle={toggleCompare} />)}
+              <div className="browse-marquee">
+                <div className="browse-marquee-track">
+                  {trending.map(w => <WhiskeyCard key={w.id} whiskey={w} compareMode={compareMode} isCompared={compareIds.has(w.id)} onCompareToggle={toggleCompare} />)}
+                  {trending.map(w => <WhiskeyCard key={`dup-${w.id}`} whiskey={w} compareMode={compareMode} isCompared={compareIds.has(w.id)} onCompareToggle={toggleCompare} />)}
+                </div>
               </div>
             ) : (
               <p className="status">No trending whiskeys right now — check back soon!</p>
@@ -343,8 +346,11 @@ export default function Browse() {
           <div className="browse-trending-section">
             <h3>Recently Added</h3>
             {newArrivals.length > 0 ? (
-              <div className="browse-trending-scroll">
-                {newArrivals.map(w => <WhiskeyCard key={w.id} whiskey={w} compareMode={compareMode} isCompared={compareIds.has(w.id)} onCompareToggle={toggleCompare} />)}
+              <div className="browse-marquee">
+                <div className="browse-marquee-track">
+                  {newArrivals.map(w => <WhiskeyCard key={w.id} whiskey={w} compareMode={compareMode} isCompared={compareIds.has(w.id)} onCompareToggle={toggleCompare} />)}
+                  {newArrivals.map(w => <WhiskeyCard key={`dup-${w.id}`} whiskey={w} compareMode={compareMode} isCompared={compareIds.has(w.id)} onCompareToggle={toggleCompare} />)}
+                </div>
               </div>
             ) : (
               <p className="status">No new arrivals yet.</p>
