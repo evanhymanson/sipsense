@@ -25,6 +25,10 @@ backend/sipsense.db*
 .idea/
 *.sw?
 
+# Uploads (mounted as Docker volume, not baked into image)
+backend/uploads/
+backend/uploads.tar.gz
+
 # Scraper data and logs
 backend/scraper/data/
 backend/fetch_images.log
