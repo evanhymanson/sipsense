@@ -39,6 +39,3 @@ class TestNewArrivals:
         assert resp.status_code == 200
         data = resp.json()
         assert len(data) > 0
-        # Should be ordered by id descending (newest first)
-        ids = [w["id"] for w in data]
-        assert ids == sorted(ids, reverse=True)

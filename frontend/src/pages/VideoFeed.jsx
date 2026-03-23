@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { api, getUsername } from '../api/client'
+import { api } from '../api/client'
 import VideoUpload from '../components/VideoUpload'
 import VideoComments from '../components/VideoComments'
 import './VideoFeed.css'

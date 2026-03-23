@@ -1,6 +1,6 @@
 """Tests for store locator endpoints (Overpass API mocked)."""
 
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, AsyncMock
 from app import models
 
 
@@ -34,22 +34,24 @@ MOCK_OVERPASS_RESPONSE = {
 }
 
 
-def _mock_overpass_post(*args, **kwargs):
-    mock_resp = MagicMock()
-    mock_resp.status_code = 200
-    mock_resp.raise_for_status = MagicMock()
-    mock_resp.json.return_value = MOCK_OVERPASS_RESPONSE
-    return mock_resp
+def _make_mock_async_client():
+    """Create a properly mocked httpx.AsyncClient for async context manager."""
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.raise_for_status = MagicMock()
+    mock_response.json.return_value = MOCK_OVERPASS_RESPONSE
+
+    mock_client = AsyncMock()
+    mock_client.post = AsyncMock(return_value=mock_response)
+    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+    mock_client.__aexit__ = AsyncMock(return_value=False)
+    return mock_client
 
 
 class TestNearbyStores:
-    @patch("app.routers.stores.httpx.Client")
-    def test_nearby_stores(self, mock_client_cls, client, db_session):
-        mock_client = MagicMock()
-        mock_client.post = _mock_overpass_post
-        mock_client.__enter__ = lambda s: mock_client
-        mock_client.__exit__ = MagicMock(return_value=False)
-        mock_client_cls.return_value = mock_client
+    @patch("app.routers.stores.httpx.AsyncClient")
+    def test_nearby_stores(self, mock_async_cls, client, db_session):
+        mock_async_cls.return_value = _make_mock_async_client()
 
         resp = client.get("/stores/nearby", params={
             "lat": 40.7580,
@@ -62,14 +64,10 @@ class TestNearbyStores:
         assert data[0]["name"] == "Times Square Liquors"
         assert "distance_m" in data[0]
 
-    @patch("app.routers.stores.httpx.Client")
-    def test_cached_results(self, mock_client_cls, client, db_session):
+    @patch("app.routers.stores.httpx.AsyncClient")
+    def test_cached_results(self, mock_async_cls, client, db_session):
         """Second call should use cache, not hit Overpass."""
-        mock_client = MagicMock()
-        mock_client.post = _mock_overpass_post
-        mock_client.__enter__ = lambda s: mock_client
-        mock_client.__exit__ = MagicMock(return_value=False)
-        mock_client_cls.return_value = mock_client
+        mock_async_cls.return_value = _make_mock_async_client()
 
         # First call populates cache
         client.get("/stores/nearby", params={"lat": 40.758, "lng": -73.9855, "radius": 5000})
@@ -77,7 +75,7 @@ class TestNearbyStores:
         resp = client.get("/stores/nearby", params={"lat": 40.758, "lng": -73.9855, "radius": 5000})
         assert resp.status_code == 200
         # Overpass should only be called once (the first request)
-        assert mock_client_cls.call_count == 1
+        assert mock_async_cls.call_count == 1
 
     def test_invalid_coordinates(self, client):
         resp = client.get("/stores/nearby", params={"lat": 999, "lng": -73.9855})
@@ -85,13 +83,9 @@ class TestNearbyStores:
 
 
 class TestStoreAvailability:
-    @patch("app.routers.stores.httpx.Client")
-    def test_report_availability(self, mock_client_cls, client, auth_headers, sample_whiskeys, db_session):
-        mock_client = MagicMock()
-        mock_client.post = _mock_overpass_post
-        mock_client.__enter__ = lambda s: mock_client
-        mock_client.__exit__ = MagicMock(return_value=False)
-        mock_client_cls.return_value = mock_client
+    @patch("app.routers.stores.httpx.AsyncClient")
+    def test_report_availability(self, mock_async_cls, client, auth_headers, sample_whiskeys, db_session):
+        mock_async_cls.return_value = _make_mock_async_client()
 
         # First, fetch stores to populate DB
         client.get("/stores/nearby", params={"lat": 40.758, "lng": -73.9855, "radius": 5000})
@@ -111,13 +105,9 @@ class TestStoreAvailability:
         }, headers=auth_headers)
         assert resp.status_code == 404
 
-    @patch("app.routers.stores.httpx.Client")
-    def test_get_store_availability(self, mock_client_cls, client, auth_headers, sample_whiskeys, db_session):
-        mock_client = MagicMock()
-        mock_client.post = _mock_overpass_post
-        mock_client.__enter__ = lambda s: mock_client
-        mock_client.__exit__ = MagicMock(return_value=False)
-        mock_client_cls.return_value = mock_client
+    @patch("app.routers.stores.httpx.AsyncClient")
+    def test_get_store_availability(self, mock_async_cls, client, auth_headers, sample_whiskeys, db_session):
+        mock_async_cls.return_value = _make_mock_async_client()
 
         client.get("/stores/nearby", params={"lat": 40.758, "lng": -73.9855, "radius": 5000})
         client.post("/stores/12345/report", json={

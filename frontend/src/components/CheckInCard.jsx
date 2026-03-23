@@ -25,7 +25,6 @@ function timeAgo(dateStr) {
 
 export default memo(function CheckInCard({ item, onToastToggle }) {
   const { rating, whiskey, username, toast_count, user_toasted } = item
-  if (!whiskey) return null
   const [toasted, setToasted] = useState(user_toasted)
   const [count, setCount] = useState(toast_count)
   useEffect(() => { setToasted(user_toasted) }, [user_toasted])
@@ -34,6 +33,8 @@ export default memo(function CheckInCard({ item, onToastToggle }) {
   const currentUser = getUsername()
   const isOwn = currentUser === username
   const addToast = useToast()
+
+  if (!whiskey) return null
 
   const roundedScore = Math.round(rating.score || 0)
   const stars = '★'.repeat(roundedScore) + '☆'.repeat(Math.max(0, 5 - roundedScore))

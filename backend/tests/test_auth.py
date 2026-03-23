@@ -26,7 +26,7 @@ class TestRegister:
             "password": "secret123",
         })
         assert resp.status_code == 409
-        assert "Username already taken" in resp.json()["detail"]
+        assert "already in use" in resp.json()["detail"]
 
     def test_register_duplicate_email(self, client):
         client.post("/auth/register", json={
@@ -40,7 +40,7 @@ class TestRegister:
             "password": "secret123",
         })
         assert resp.status_code == 409
-        assert "Email already registered" in resp.json()["detail"]
+        assert "already in use" in resp.json()["detail"]
 
     def test_register_invalid_username(self, client):
         resp = client.post("/auth/register", json={
@@ -79,18 +79,18 @@ class TestLogin:
         client.post("/auth/register", json={
             "username": "wrongpw",
             "email": "wp@example.com",
-            "password": "correct",
+            "password": "correct_password",
         })
         resp = client.post("/auth/login", json={
             "username": "wrongpw",
-            "password": "wrong",
+            "password": "wrong_password",
         })
         assert resp.status_code == 401
 
     def test_login_nonexistent_user(self, client):
         resp = client.post("/auth/login", json={
             "username": "ghost",
-            "password": "whatever",
+            "password": "whatever123",
         })
         assert resp.status_code == 401
 

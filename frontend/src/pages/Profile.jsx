@@ -541,7 +541,6 @@ const SCORE_FILTERS = [
 ]
 
 function JournalTab() {
-  const navigate = useNavigate()
   const [entries, setEntries] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)

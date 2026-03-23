@@ -26,7 +26,7 @@ function UserSearch() {
       }
     }, 300)
     return () => clearTimeout(t)
-  }, [query])
+  }, [query, addToast])
 
   // Close on outside click
   useEffect(() => {
@@ -73,7 +73,7 @@ export default function Feed() {
   const [error, setError] = useState(null)
 
   let currentUser = null
-  try { currentUser = localStorage.getItem('sipsense_user') } catch {}
+  try { currentUser = localStorage.getItem('sipsense_user') } catch { /* private browsing */ }
 
   const loadFeed = useCallback(async (skip = 0, append = false) => {
     try {

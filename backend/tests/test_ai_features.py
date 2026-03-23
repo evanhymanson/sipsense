@@ -62,7 +62,7 @@ class TestBlindTastingCoach:
         "next_tip": "Look for vanilla and caramel — that's the new oak talking.",
     })
 
-    def test_correct_guess_with_ai(self, client, bourbon):
+    def test_correct_guess_with_ai(self, client, auth_headers, bourbon):
         with patch(
             "app.routers.ai_features._get_client",
             return_value=MagicMock(
@@ -74,6 +74,7 @@ class TestBlindTastingCoach:
             resp = client.post(
                 "/blind-tasting/coach",
                 json={"whiskey_id": bourbon.id, "user_guess": "bourbon", "difficulty": "easy"},
+                headers=auth_headers,
             )
         assert resp.status_code == 200
         data = resp.json()
@@ -83,7 +84,7 @@ class TestBlindTastingCoach:
         assert "production_insight" in data
         assert "next_tip" in data
 
-    def test_wrong_guess_correct_flag(self, client, bourbon):
+    def test_wrong_guess_correct_flag(self, client, auth_headers, bourbon):
         with patch(
             "app.routers.ai_features._get_client",
             return_value=MagicMock(
@@ -95,6 +96,7 @@ class TestBlindTastingCoach:
             resp = client.post(
                 "/blind-tasting/coach",
                 json={"whiskey_id": bourbon.id, "user_guess": "scotch", "difficulty": "medium"},
+                headers=auth_headers,
             )
         assert resp.status_code == 200
         data = resp.json()
@@ -102,7 +104,7 @@ class TestBlindTastingCoach:
         assert data["whiskey_category"] == "bourbon"
         assert data["user_guess"] == "scotch"
 
-    def test_fallback_on_bad_json(self, client, bourbon):
+    def test_fallback_on_bad_json(self, client, auth_headers, bourbon):
         """If Claude returns non-JSON, the fallback response is used (no 500)."""
         with patch(
             "app.routers.ai_features._get_client",
@@ -115,6 +117,7 @@ class TestBlindTastingCoach:
             resp = client.post(
                 "/blind-tasting/coach",
                 json={"whiskey_id": bourbon.id, "user_guess": "bourbon"},
+                headers=auth_headers,
             )
         assert resp.status_code == 200
         data = resp.json()
@@ -122,14 +125,15 @@ class TestBlindTastingCoach:
         assert "production_insight" in data
         assert "next_tip" in data
 
-    def test_whiskey_not_found(self, client):
+    def test_whiskey_not_found(self, client, auth_headers):
         resp = client.post(
             "/blind-tasting/coach",
             json={"whiskey_id": 99999, "user_guess": "bourbon"},
+            headers=auth_headers,
         )
         assert resp.status_code == 404
 
-    def test_coach_contains_whiskey_name(self, client, bourbon):
+    def test_coach_contains_whiskey_name(self, client, auth_headers, bourbon):
         with patch(
             "app.routers.ai_features._get_client",
             return_value=MagicMock(
@@ -141,6 +145,7 @@ class TestBlindTastingCoach:
             resp = client.post(
                 "/blind-tasting/coach",
                 json={"whiskey_id": bourbon.id, "user_guess": "bourbon"},
+                headers=auth_headers,
             )
         data = resp.json()
         assert data["whiskey_name"] == bourbon.name
@@ -165,7 +170,7 @@ class TestAIBespokeCocktail:
         "why": "Honey and lemon round out the aggressive peat. Bitters add depth without fighting the smoke.",
     })
 
-    def test_happy_path(self, client, scotch):
+    def test_happy_path(self, client, auth_headers, scotch):
         with patch(
             "app.routers.ai_features._get_client",
             return_value=MagicMock(
@@ -174,7 +179,7 @@ class TestAIBespokeCocktail:
                 )
             ),
         ):
-            resp = client.get(f"/pairings/{scotch.id}/ai-cocktail")
+            resp = client.get(f"/pairings/{scotch.id}/ai-cocktail", headers=auth_headers)
         assert resp.status_code == 200
         data = resp.json()
         assert data["whiskey_id"] == scotch.id
@@ -186,7 +191,7 @@ class TestAIBespokeCocktail:
         assert "instructions" in data
         assert "why" in data
 
-    def test_ingredients_have_required_keys(self, client, scotch):
+    def test_ingredients_have_required_keys(self, client, auth_headers, scotch):
         with patch(
             "app.routers.ai_features._get_client",
             return_value=MagicMock(
@@ -195,13 +200,13 @@ class TestAIBespokeCocktail:
                 )
             ),
         ):
-            resp = client.get(f"/pairings/{scotch.id}/ai-cocktail")
+            resp = client.get(f"/pairings/{scotch.id}/ai-cocktail", headers=auth_headers)
         data = resp.json()
         for ingredient in data["ingredients"]:
             assert "amount" in ingredient
             assert "item" in ingredient
 
-    def test_fallback_on_bad_json(self, client, scotch):
+    def test_fallback_on_bad_json(self, client, auth_headers, scotch):
         with patch(
             "app.routers.ai_features._get_client",
             return_value=MagicMock(
@@ -210,7 +215,7 @@ class TestAIBespokeCocktail:
                 )
             ),
         ):
-            resp = client.get(f"/pairings/{scotch.id}/ai-cocktail")
+            resp = client.get(f"/pairings/{scotch.id}/ai-cocktail", headers=auth_headers)
         assert resp.status_code == 200
         data = resp.json()
         # Fallback returns a simple highball recipe
@@ -218,11 +223,11 @@ class TestAIBespokeCocktail:
         assert "ingredients" in data
         assert len(data["ingredients"]) > 0
 
-    def test_whiskey_not_found(self, client):
-        resp = client.get("/pairings/99999/ai-cocktail")
+    def test_whiskey_not_found(self, client, auth_headers):
+        resp = client.get("/pairings/99999/ai-cocktail", headers=auth_headers)
         assert resp.status_code == 404
 
-    def test_bourbon_cocktail(self, client, bourbon):
+    def test_bourbon_cocktail(self, client, auth_headers, bourbon):
         with patch(
             "app.routers.ai_features._get_client",
             return_value=MagicMock(
@@ -231,7 +236,7 @@ class TestAIBespokeCocktail:
                 )
             ),
         ):
-            resp = client.get(f"/pairings/{bourbon.id}/ai-cocktail")
+            resp = client.get(f"/pairings/{bourbon.id}/ai-cocktail", headers=auth_headers)
         assert resp.status_code == 200
         data = resp.json()
         assert data["whiskey_category"] == "bourbon"

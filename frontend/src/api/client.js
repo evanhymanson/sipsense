@@ -20,7 +20,7 @@ export function clearAuth() {
   try {
     localStorage.removeItem('sipsense_token')
     localStorage.removeItem('sipsense_user')
-  } catch {}
+  } catch { /* private browsing */ }
 }
 
 export function getUsername() {

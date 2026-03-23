@@ -17,11 +17,11 @@ export default function UserProfile() {
   const [followLoading, setFollowLoading] = useState(false)
   const [confirmUnfollow, setConfirmUnfollow] = useState(false)
   const [videos, setVideos] = useState([])
-  const [videosLoading, setVideosLoading] = useState(false)
+  const [_videosLoading, setVideosLoading] = useState(false)
   const [videosError, setVideosError] = useState(false)
 
   let currentUser = null
-  try { currentUser = localStorage.getItem('sipsense_user') } catch {}
+  try { currentUser = localStorage.getItem('sipsense_user') } catch { /* private browsing */ }
   const isSelf = currentUser === username
   const unfollowTimerRef = useRef(null)
   useEffect(() => () => { if (unfollowTimerRef.current) clearTimeout(unfollowTimerRef.current) }, [])

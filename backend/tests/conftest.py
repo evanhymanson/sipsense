@@ -82,9 +82,11 @@ def client(db_session):
 
     app.dependency_overrides[get_db] = _override_get_db
 
-    # Clear rate limiter between tests so we don't hit 429s
+    # Clear rate limiters between tests so we don't hit 429s
     from app.main import _rate_buckets
     _rate_buckets.clear()
+    from app.rate_limit import auth_rate_limit
+    auth_rate_limit._attempts.clear()
 
     with TestClient(app, raise_server_exceptions=False) as c:
         yield c
@@ -131,6 +133,7 @@ SAMPLE_WHISKEYS = [
         "flavor_profile": "vanilla, caramel, sweet, oak",
         "rating_avg": 4.2,
         "rating_count": 0,
+        "image_url": "/uploads/bottles_nobg/buffalo_trace.png",
     },
     {
         "name": "Laphroaig 10",
@@ -143,6 +146,7 @@ SAMPLE_WHISKEYS = [
         "flavor_profile": "smoky, peaty, medicinal, brine",
         "rating_avg": 4.5,
         "rating_count": 0,
+        "image_url": "/uploads/bottles_nobg/laphroaig_10.png",
     },
     {
         "name": "Jameson",
@@ -155,6 +159,7 @@ SAMPLE_WHISKEYS = [
         "flavor_profile": "smooth, light, vanilla, fruity",
         "rating_avg": 3.8,
         "rating_count": 0,
+        "image_url": "/uploads/bottles_nobg/jameson.png",
     },
     {
         "name": "Yamazaki 12",
@@ -167,6 +172,7 @@ SAMPLE_WHISKEYS = [
         "flavor_profile": "floral, fruity, honey, delicate",
         "rating_avg": 4.6,
         "rating_count": 0,
+        "image_url": "/uploads/bottles_nobg/yamazaki_12.png",
     },
     {
         "name": "Rittenhouse Rye",
@@ -179,6 +185,7 @@ SAMPLE_WHISKEYS = [
         "flavor_profile": "spicy, pepper, rye bread, herbal",
         "rating_avg": 4.0,
         "rating_count": 0,
+        "image_url": "/uploads/bottles_nobg/rittenhouse_rye.png",
     },
     {
         "name": "Crown Royal Northern Harvest",
@@ -191,6 +198,7 @@ SAMPLE_WHISKEYS = [
         "flavor_profile": "smooth, vanilla, caramel, gentle spice",
         "rating_avg": 3.9,
         "rating_count": 0,
+        "image_url": "/uploads/bottles_nobg/crown_royal.png",
     },
 ]
 
