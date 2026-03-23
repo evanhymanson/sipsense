@@ -1,0 +1,46 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: sipsense
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-sipsense_dev}
+      POSTGRES_DB: sipsense
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sipsense"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://sipsense:${POSTGRES_PASSWORD:-sipsense_dev}@db:5432/sipsense
+    volumes:
+      - uploads:/opt/sipsense/backend/uploads
+      - ./deploy:/opt/sipsense/deploy:ro
+    expose:
+      - "8000"
+
+  frontend:
+    build: ./frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    # Ports are defined in environment-specific compose files:
+    #   docker-compose.staging.yml    → 8080:80
+    #   docker-compose.production.yml → 80:80
+    # For local Docker dev, use: docker compose -f docker-compose.yml -f docker-compose.production.yml up
+    expose:
+      - "80"
+
+volumes:
+  pgdata:
+  uploads:

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ============================================================
-# SipSense — Full scraper pipeline (~65-70k quality whiskeys)
+# SipSense — Full scraper pipeline (target: 250k whiskeys)
 #
 # Usage:
 #   ./scrape_all.sh          # fresh run (or resume from progress.json)
@@ -9,28 +9,7 @@
 #   Progress is saved to scraper/progress.json automatically.
 #   If you stop the script mid-run, just run ./scrape_all.sh again
 #   and it will skip completed sources and resume paginated ones
-#   (distiller, whiskybase, masterofmalt, whiskyexchange) from where
-#   they left off. Other sources (openfoodfacts, vinmonopolet, github)
-#   are fast enough to re-run from the start — duplicates are skipped.
-#
-# Sources (in order):
-#   1. Distiller.com      — detail page scraper, resumable by slug index
-#   2. OpenFoodFacts      — whiskeys with UPC barcodes
-#   3. Whiskybase         — community ratings + large catalog, resumable
-#   4. Master of Malt     — UK retailer, ~20k, rich data, resumable
-#   5. Whisky Exchange    — UK retailer, ~15k, resumable
-#   6. Vinmonopolet       — Norway state monopoly, free JSON API
-#   7. GitHub CSV         — fast top-up, instant dedup
-#
-# Removed:
-#   - Connosr: listing pages don't show ABV; would insert fake
-#     abv=43.0 for every new entry — pollutes the recommender
-#   - TTB: FOIA URL dead as of Feb 2026
-#   - Wikidata: entity IDs broken, only ~40 results
-#
-# Notes:
-#   - Run sources one at a time (SQLite is single-writer)
-#   - MoM and TWE use 2-4s delays; expect ~6-10 hours for full runs
+#   from where they left off. Duplicates are always skipped.
 # ============================================================
 
 set -e
@@ -49,57 +28,214 @@ db.close()
 " 2>/dev/null
 }
 
+breakdown() {
+    $PYTHON -c "
+import sys; sys.path.insert(0,'.')
+from sqlalchemy import func
+from app.database import SessionLocal; from app import models
+db = SessionLocal()
+rows = db.query(models.Whiskey.source, func.count()).group_by(models.Whiskey.source).all()
+for src, cnt in sorted(rows, key=lambda x: -x[1]):
+    print(f'    {src}: {cnt:,}')
+db.close()
+" 2>/dev/null
+}
+
+elapsed() {
+    local end=$(date +%s)
+    local dur=$((end - START_TIME))
+    local hrs=$((dur / 3600))
+    local mins=$(((dur % 3600) / 60))
+    local secs=$((dur % 60))
+    echo "${hrs}h ${mins}m ${secs}s"
+}
+
+step_elapsed() {
+    local end=$(date +%s)
+    local dur=$((end - STEP_START))
+    local mins=$((dur / 60))
+    local secs=$((dur % 60))
+    echo "${mins}m ${secs}s"
+}
+
 separator() {
+    local before=$(count)
     echo ""
     echo "============================================================"
     echo "  $1"
-    echo "  DB total before: $(count) whiskeys"
+    echo "------------------------------------------------------------"
+    echo "  DB before this step:  $before whiskeys"
+    echo "  Total elapsed:        $(elapsed)"
+    echo "  Time now:             $(date '+%H:%M:%S')"
     echo "============================================================"
+    echo ""
+    STEP_START=$(date +%s)
+    BEFORE_COUNT=$before
+}
+
+step_done() {
+    local after=$(count)
+    local added=$((after - BEFORE_COUNT))
+    echo ""
+    echo "  >> Step complete in $(step_elapsed)"
+    echo "  >> Added $added new whiskeys (total now: $after)"
     echo ""
 }
 
+progress_bar() {
+    local current=$(count)
+    local target=250000
+    local pct=$((current * 100 / target))
+    local filled=$((pct / 2))
+    local empty=$((50 - filled))
+    printf "  Progress: ["
+    printf "%${filled}s" | tr ' ' '#'
+    printf "%${empty}s" | tr ' ' '-'
+    printf "] %d%% (%s / %s)\n" "$pct" "$current" "$target"
+}
+
 # ── start ────────────────────────────────────────────────────
-echo ""
-echo "SipSense scraper pipeline starting at $(date '+%H:%M:%S')"
-echo "Starting DB count: $(count) whiskeys"
-echo "(Completed sources in progress.json will be skipped automatically)"
-echo ""
-
-# All steps pass --resume so run.py reads progress.json and skips
-# sources already marked as complete.
-
-# ── 1. Distiller ─────────────────────────────────────────────
-separator "STEP 1/7: Distiller.com (resumable by slug index)"
-$PYTHON -m scraper.run --source distiller --resume --limit 10000
-
-# ── 2. OpenFoodFacts ─────────────────────────────────────────
-separator "STEP 2/7: OpenFoodFacts (~3-5k whiskeys with UPC barcodes)"
-$PYTHON -m scraper.run --source openfoodfacts --resume
-
-# ── 3. Whiskybase ────────────────────────────────────────────
-separator "STEP 3/7: Whiskybase.com (~20k whiskeys with community ratings)"
-$PYTHON -m scraper.run --source whiskybase --resume --limit 20000
-
-# ── 4. Master of Malt ────────────────────────────────────────
-separator "STEP 4/7: Master of Malt (~20k whiskeys, rich data, 2-4s delay)"
-$PYTHON -m scraper.run --source masterofmalt --resume --limit 20000
-
-# ── 5. Whisky Exchange ───────────────────────────────────────
-separator "STEP 5/7: The Whisky Exchange (~15k whiskeys, UK retailer)"
-$PYTHON -m scraper.run --source whiskyexchange --resume --limit 15000
-
-# ── 6. Vinmonopolet ──────────────────────────────────────────
-separator "STEP 6/7: Vinmonopolet (~2-3k whiskeys, Norway public API)"
-$PYTHON -m scraper.run --source vinmonopolet --resume
-
-# ── 7. GitHub CSV top-up ─────────────────────────────────────
-separator "STEP 7/7: GitHub CSV (top-up, fast, duplicates auto-skipped)"
-$PYTHON -m scraper.run --source github --resume
-
-# ── done ─────────────────────────────────────────────────────
+START_TIME=$(date +%s)
+STEP_START=$START_TIME
+BEFORE_COUNT=0
 echo ""
 echo "============================================================"
-echo "  ALL DONE at $(date '+%H:%M:%S')"
-echo "  Final DB count: $(count) whiskeys"
+echo "  SipSense Scraper Pipeline"
+echo "  Started:  $(date '+%Y-%m-%d %H:%M:%S')"
+echo "  DB count: $(count) whiskeys"
+echo "  Target:   250,000 whiskeys"
+echo "============================================================"
+progress_bar
+echo ""
+echo "  (Completed sources in progress.json will be skipped)"
+echo ""
+
+# ════════════════════════════════════════════════════════════
+#  PHASE 1: Quick wins (CSV imports, no scraping needed)
+# ════════════════════════════════════════════════════════════
+
+separator "PHASE 1 — STEP 1/12: GitHub CSV (~2,636 whiskeys, ~5s)"
+$PYTHON -m scraper.run --source github --resume
+step_done
+
+separator "PHASE 1 — STEP 2/12: Kaggle CSV datasets (~2,500 whiskeys)"
+if [ -d "scraper/data/kaggle" ] && [ "$(ls -A scraper/data/kaggle 2>/dev/null)" ]; then
+    $PYTHON -m scraper.run --source kaggle --resume --kaggle-dir scraper/data/kaggle
+    step_done
+else
+    echo "  !! SKIPPED — No Kaggle CSVs found in scraper/data/kaggle/"
+    echo "  !! Download datasets from Kaggle and place CSVs in that directory:"
+    echo "  !!   - koki25ando/22000-scotch-whisky-reviews"
+    echo "  !!   - shivd24coder/wiskey-price-dataset"
+    echo "  !!   - avis02/meta-critic-whisky-database"
+    echo ""
+fi
+
+separator "PHASE 1 — STEP 3/12: TTB COLA Kaggle demo (~5-10k whiskeys)"
+TTB_FILE="${TTB_FILE:-scraper/data/ttb-colas-demo.csv}"
+if [ -f "$TTB_FILE" ]; then
+    $PYTHON -m scraper.run --source ttb_kaggle --resume --ttb-file "$TTB_FILE"
+    step_done
+else
+    echo "  !! SKIPPED — TTB file not found at $TTB_FILE"
+    echo "  !! Download from: https://www.kaggle.com/datasets/colacloud/ttb-colas-demo"
+    echo "  !! Place CSV at: scraper/data/ttb-colas-demo.csv"
+    echo "  !! Or set: TTB_FILE=/path/to/file.csv ./scrape_all.sh"
+    echo ""
+fi
+
+echo ""
+echo "  ---- Phase 1 complete ----"
+progress_bar
+echo ""
+
+# ════════════════════════════════════════════════════════════
+#  PHASE 2: Resume existing scrapers
+# ════════════════════════════════════════════════════════════
+
+separator "PHASE 2 — STEP 4/12: Distiller.com (resume, ~2-3k remaining)"
+$PYTHON -m scraper.run --source distiller --resume --limit 10000
+step_done
+
+echo ""
+echo "  ---- Phase 2 complete ----"
+progress_bar
+echo ""
+
+# ════════════════════════════════════════════════════════════
+#  PHASE 3: Major volume sources (slow, resumable)
+# ════════════════════════════════════════════════════════════
+
+separator "PHASE 3 — STEP 5/12: Whisky.com (~41k bottles, ~30 hours)"
+echo "  (This is the big one — safe to Ctrl+C and resume later)"
+$PYTHON -m scraper.run --source whiskycom --resume --limit 50000
+step_done
+progress_bar
+
+separator "PHASE 3 — STEP 6/12: TTB COLA Online Registry (~15-40k whiskeys)"
+echo "  (Government site — using conservative 3-5s delays)"
+$PYTHON -m scraper.run --source ttb_online --resume --limit 100000
+step_done
+progress_bar
+
+separator "PHASE 3 — STEP 7/12: Whisky Advocate (~7k expert reviews)"
+$PYTHON -m scraper.run --source whiskyadvocate --resume --limit 10000
+step_done
+
+echo ""
+echo "  ---- Phase 3 complete ----"
+progress_bar
+echo ""
+
+# ════════════════════════════════════════════════════════════
+#  PHASE 4: API sources
+# ════════════════════════════════════════════════════════════
+
+separator "PHASE 4 — STEP 8/12: OpenFoodFacts (~3-5k with UPC barcodes)"
+$PYTHON -m scraper.run --source openfoodfacts --resume
+step_done
+
+separator "PHASE 4 — STEP 9/12: Vinmonopolet (~2-3k, Norway API)"
+$PYTHON -m scraper.run --source vinmonopolet --resume
+step_done
+
+echo ""
+echo "  ---- Phase 4 complete ----"
+progress_bar
+echo ""
+
+# ════════════════════════════════════════════════════════════
+#  PHASE 5: Blocked sources (need Playwright — will auto-skip)
+# ════════════════════════════════════════════════════════════
+
+separator "PHASE 5 — STEP 10/12: Whiskybase (~220k, needs Playwright)"
+$PYTHON -m scraper.run --source whiskybase --resume --limit 250000
+step_done
+
+separator "PHASE 5 — STEP 11/12: Master of Malt (~20k, needs Playwright)"
+$PYTHON -m scraper.run --source masterofmalt --resume --limit 25000
+step_done
+
+separator "PHASE 5 — STEP 12/12: Whisky Exchange (~15k, needs Playwright)"
+$PYTHON -m scraper.run --source whiskyexchange --resume --limit 20000
+step_done
+
+# ════════════════════════════════════════════════════════════
+#  DONE
+# ════════════════════════════════════════════════════════════
+echo ""
+echo "============================================================"
+echo "  ALL DONE!"
+echo "------------------------------------------------------------"
+echo "  Finished: $(date '+%Y-%m-%d %H:%M:%S')"
+echo "  Elapsed:  $(elapsed)"
+echo "  Final DB: $(count) whiskeys"
+echo ""
+progress_bar
+echo ""
+echo "  Breakdown by source:"
+breakdown
+echo ""
+echo "  To resume if interrupted: ./scrape_all.sh"
 echo "============================================================"
 echo ""

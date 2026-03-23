@@ -1,0 +1,19 @@
+# Staging overrides — run with:
+#   docker compose -f docker-compose.yml -f docker-compose.staging.yml up -d --build
+# Or use: ./scripts/start-staging.sh
+
+services:
+  db:
+    environment:
+      POSTGRES_DB: sipsense_staging
+
+  backend:
+    env_file: .env.staging
+    environment:
+      DATABASE_URL: postgresql://sipsense:${POSTGRES_PASSWORD:-sipsense_dev}@db:5432/sipsense_staging
+      SIPSENSE_ENV: staging
+
+  frontend:
+    ports:
+      - "8080:80"
+    # Override the default port 80 mapping from the base file

@@ -24,7 +24,7 @@
 .sb-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.45);
+  background: rgba(0, 0, 0, 0.2);
   z-index: 99;
 }
 
@@ -41,9 +41,111 @@
 }
 
 .sb-title {
-  font-size: 1rem;
-  font-weight: bold;
-  color: var(--amber);
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--amber-light);
+  font-family: 'Dancing Script', cursive;
+  letter-spacing: 0.02em;
+}
+
+.sb-title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+/* GPS status indicator (clickable) */
+.sb-gps-indicator {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  background: none;
+  border: none;
+  padding: 0.15rem 0.4rem;
+  border-radius: 999px;
+  cursor: default;
+  font-family: inherit;
+}
+
+.sb-gps-indicator--denied,
+.sb-gps-indicator--unavailable,
+.sb-gps-indicator--pending {
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: var(--bg);
+}
+
+.sb-gps-indicator--denied:hover,
+.sb-gps-indicator--unavailable:hover {
+  border-color: var(--amber);
+}
+
+.sb-gps-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.sb-gps-indicator--pending .sb-gps-dot {
+  background: var(--text-muted);
+  animation: sb-gps-pulse 1.2s ease-in-out infinite;
+}
+
+.sb-gps-indicator--active .sb-gps-dot {
+  background: var(--green, #4ade80);
+  box-shadow: 0 0 4px var(--green, #4ade80);
+}
+
+.sb-gps-indicator--denied .sb-gps-dot {
+  background: var(--red, #f87171);
+}
+
+.sb-gps-indicator--unavailable .sb-gps-dot {
+  background: var(--text-muted);
+  opacity: 0.5;
+}
+
+.sb-gps-label {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+@keyframes sb-gps-pulse {
+  0%, 100% { opacity: 0.4; }
+  50%      { opacity: 1; }
+}
+
+/* GPS denied banner */
+.sb-gps-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.45rem 0.65rem;
+  background: rgba(248, 113, 113, 0.1);
+  border: 1px solid rgba(248, 113, 113, 0.3);
+  border-radius: var(--radius);
+  font-size: 0.75rem;
+  color: var(--red-light);
+  flex-shrink: 0;
+}
+
+.sb-gps-banner button {
+  background: none;
+  border: 1px solid var(--red-light);
+  color: var(--red-light);
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.sb-gps-banner button:hover {
+  background: rgba(248, 113, 113, 0.15);
 }
 
 .sb-header-actions {
@@ -56,7 +158,7 @@
   background: none;
   border: 1px solid var(--border);
   color: var(--text-muted);
-  padding: 0.2rem 0.6rem;
+  padding: 0.4rem 0.7rem;
   border-radius: 999px;
   font-size: 0.72rem;
   cursor: pointer;
@@ -74,7 +176,7 @@
   color: var(--text-muted);
   font-size: 1.2rem;
   cursor: pointer;
-  padding: 0.15rem 0.4rem;
+  padding: 0.5rem 0.6rem;
   line-height: 1;
 }
 .sb-close-btn:hover {
@@ -148,7 +250,7 @@
 
 .sb-bubble--user {
   background: var(--amber);
-  color: #1a1208;
+  color: #ffffff;
   border-bottom-right-radius: 2px;
 }
 
@@ -170,6 +272,18 @@
   min-height: 1.2em;
 }
 
+.sb-tool-status {
+  font-size: 0.82rem;
+  color: var(--amber);
+  opacity: 0.85;
+  animation: sb-pulse-status 1.5s ease-in-out infinite;
+}
+
+@keyframes sb-pulse-status {
+  0%, 100% { opacity: 0.6; }
+  50%      { opacity: 1; }
+}
+
 /* ── Blinking cursor ─────────────────────────────────────────────────────── */
 
 .sb-cursor {
@@ -187,6 +301,12 @@
   50%       { opacity: 0; }
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .sb-cursor { animation: none; }
+  .sb-gps-indicator--pending .sb-gps-dot { animation: none; }
+  .sb-tool-status { animation: none; opacity: 0.8; }
+}
+
 /* ── Inline whiskey cards (generative UI) ────────────────────────────────── */
 
 .sb-cards {
@@ -202,10 +322,11 @@
   border-radius: 8px;
   padding: 0.5rem 0.65rem;
   cursor: pointer;
-  transition: border-color 0.15s, transform 0.1s;
+  transition: box-shadow 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
 }
 .sb-whiskey-card:hover {
   border-color: var(--amber);
+  box-shadow: var(--shadow-hover);
   transform: translateX(2px);
 }
 
@@ -299,7 +420,7 @@
 
 .sb-send-btn {
   background: var(--amber);
-  color: #1a1208;
+  color: #ffffff;
   border: none;
   width: 36px;
   height: 36px;
@@ -328,16 +449,17 @@
   bottom: 1.5rem;
   right: 1.5rem;
   background: var(--amber);
-  color: #1a1208;
+  color: #ffffff;
   border: none;
   padding: 0.7rem 1.2rem;
   border-radius: 999px;
-  font-size: 0.9rem;
-  font-weight: bold;
-  font-family: inherit;
+  font-size: 1.1rem;
+  font-weight: 700;
+  font-family: 'Dancing Script', cursive;
+  letter-spacing: 0.02em;
   cursor: pointer;
   z-index: 90;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
   transition: background 0.15s, transform 0.15s;
   display: flex;
   align-items: center;
@@ -505,7 +627,7 @@
   height: 20px;
   border-radius: 50%;
   background: var(--amber);
-  color: #1a1208;
+  color: #ffffff;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -700,7 +822,7 @@
 
 .sb-price-alt-savings {
   font-size: 0.66rem;
-  color: #4ade80;
+  color: var(--green-light);
   margin-left: 0.3rem;
 }
 

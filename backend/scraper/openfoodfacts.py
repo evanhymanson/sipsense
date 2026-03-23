@@ -35,6 +35,23 @@ SEARCH_TERMS = [
     "single malt",
     "rye whiskey",
     "blended whisky",
+    # Expanded terms for broader coverage
+    "tennessee whiskey",
+    "corn whiskey",
+    "wheat whiskey",
+    "american whiskey",
+    "grain whisky",
+    "malt whisky",
+    "Macallan",
+    "Glenfiddich",
+    "Buffalo Trace",
+    "Jack Daniels",
+    "Jameson",
+    "Maker's Mark",
+    "Johnnie Walker",
+    "Laphroaig",
+    "Ardbeg",
+    "Highland Park",
 ]
 
 # Category tags that confirm it's an actual whiskey product

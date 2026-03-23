@@ -10,10 +10,13 @@ SSE event types:
   {"type": "comparison", "whiskeys": [...], "rows": []} — side-by-side comparison
   {"type": "flight",   "story": "...", "whiskeys": []}  — tasting flight visualization
   {"type": "palate_profile", "profile": {...}}          — palate radar chart
+  {"type": "thinking"}                                   — agent is processing
+  {"type": "tool_start", "tool": "search_whiskeys"}      — tool execution started
   {"type": "done"}                                      — stream complete
   {"type": "error",    "message": "..."}                — on exception
 """
 
+import asyncio
 import json
 from typing import Optional
 
@@ -50,7 +53,7 @@ def _sse(payload: dict) -> str:
     return f"data: {json.dumps(payload)}\n\n"
 
 
-def _load_user_memory(user_id: str) -> str:
+def _load_user_memory_sync(user_id: str) -> str:
     """Return a plain-English summary of the user's remembered preferences, or empty string."""
     db = SessionLocal()
     try:
@@ -67,6 +70,11 @@ def _load_user_memory(user_id: str) -> str:
         return " | ".join(parts)
     finally:
         db.close()
+
+
+async def _load_user_memory(user_id: str) -> str:
+    """Async wrapper — runs the DB query in a thread to avoid blocking the event loop."""
+    return await asyncio.to_thread(_load_user_memory_sync, user_id)
 
 
 # ── Generative UI type mapping ────────────────────────────────────────────────
@@ -146,12 +154,15 @@ async def _stream_agent(messages: list[ChatMessage], user_id: str, user_location
                                 + whiskey card data
     """
     lc_messages = [{"role": m.role, "content": m.content} for m in messages]
-    user_memory = _load_user_memory(user_id)
+    user_memory = await _load_user_memory(user_id)
 
     configurable = {"user_id": user_id, "user_memory": user_memory}
     if user_location:
         configurable["user_lat"] = user_location["lat"]
         configurable["user_lng"] = user_location["lng"]
+
+    # Immediate feedback so the frontend can show a thinking indicator
+    yield _sse({"type": "thinking"})
 
     try:
         async for event in agent_graph.astream_events(
@@ -181,6 +192,12 @@ async def _stream_agent(messages: list[ChatMessage], user_id: str, user_location
                                 if text:
                                     yield _sse({"type": "text", "content": text})
 
+            # ── Tool start → show activity indicator ──────────────────────────
+            elif event_type == "on_tool_start":
+                tool_name = event.get("name", "")
+                if tool_name:
+                    yield _sse({"type": "tool_start", "tool": tool_name})
+
             # ── Tool result → generative UI events ────────────────────────────
             elif event_type == "on_tool_end":
                 tool_output = event["data"].get("output", "")
@@ -198,14 +215,19 @@ async def _stream_agent(messages: list[ChatMessage], user_id: str, user_location
         yield _sse({"type": "done"})
 
     except Exception as exc:
-        yield _sse({"type": "error", "message": str(exc)})
+        import logging, traceback
+        logging.getLogger(__name__).exception("Chat stream error")
+        tb = traceback.format_exception(type(exc), exc, exc.__traceback__)
+        short = f"{type(exc).__name__}: {exc}"
+        yield _sse({"type": "error", "message": short})
         yield _sse({"type": "done"})
 
 
 @router.post("/")
 async def chat(request: ChatRequest, authorization: str | None = Header(None)):
     # Extract user from Authorization header, fall back to body token
-    user_id = "chat_user"
+    import uuid
+    user_id = f"anon_{uuid.uuid4().hex[:12]}"
     token = None
     if authorization and authorization.startswith("Bearer "):
         token = authorization[7:]

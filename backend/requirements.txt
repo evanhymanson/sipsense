@@ -2,9 +2,10 @@ fastapi==0.115.6
 uvicorn[standard]==0.34.0
 sqlalchemy==2.0.36
 pydantic==2.10.3
+email-validator>=2.0.0
 pydantic-settings==2.7.0
 python-multipart==0.0.20
-torch==2.5.1
+torch>=2.6.0
 numpy==2.2.1
 scikit-learn==1.6.0
 alembic==1.14.0
@@ -23,3 +24,10 @@ langchain-anthropic>=0.3.0
 langchain-core>=0.3.0
 psycopg2-binary>=2.9.0
 gunicorn>=22.0.0
+Pillow>=10.0.0
+rembg>=2.0.50
+transformers>=4.40.0
+rapidfuzz>=3.0.0
+typing-extensions>=4.0.0
+easyocr>=1.7.0
+playwright>=1.40.0

@@ -1,0 +1,63 @@
+name: Deploy
+
+on:
+  # Auto-deploy staging on push to main (after CI passes)
+  push:
+    branches: [main]
+
+  # Manual trigger for production deploys
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Environment to deploy to"
+        required: true
+        type: choice
+        options:
+          - staging
+          - production
+
+jobs:
+  # Run tests before any deploy
+  test:
+    uses: ./.github/workflows/ci.yml
+
+  deploy-staging:
+    needs: test
+    if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'staging')
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy to staging
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.STAGING_HOST }}
+          username: ubuntu
+          key: ${{ secrets.STAGING_SSH_KEY }}
+          script: |
+            cd /opt/sipsense
+            git pull origin main
+            docker compose -f docker-compose.yml -f docker-compose.staging.yml up -d --build
+            echo "Staging deploy complete"
+
+  deploy-production:
+    needs: test
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'production'
+    runs-on: ubuntu-latest
+    environment: production  # Requires manual approval in GitHub settings
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy to production
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.PRODUCTION_HOST }}
+          username: ubuntu
+          key: ${{ secrets.PRODUCTION_SSH_KEY }}
+          script: |
+            cd /opt/sipsense
+            ./scripts/backup-db.sh production
+            git pull origin main
+            docker compose -f docker-compose.yml -f docker-compose.production.yml up -d --build
+            echo "Production deploy complete"

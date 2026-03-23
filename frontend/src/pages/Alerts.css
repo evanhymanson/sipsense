@@ -1,0 +1,75 @@
+/* ── Alerts / Notifications Page ──────────────────────────────────── */
+
+.alerts-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.alert-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.85rem 1rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  transition: border-color 0.15s;
+}
+
+.alert-item--unread {
+  border-left: 3px solid var(--amber);
+  background: var(--surface-2);
+}
+
+.alert-item--read {
+  opacity: 0.65;
+}
+
+.alert-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.alert-whiskey-name {
+  font-weight: 600;
+  font-size: 0.92rem;
+  color: var(--amber-light);
+  text-decoration: none;
+}
+.alert-whiskey-name:hover {
+  text-decoration: underline;
+}
+
+.alert-message {
+  font-size: 0.85rem;
+  color: var(--text-soft);
+  margin: 0.2rem 0;
+  line-height: 1.4;
+}
+
+.alert-time {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.alert-read-btn {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  font-size: 1rem;
+  cursor: pointer;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 0.15s, color 0.15s;
+}
+.alert-read-btn:hover {
+  border-color: var(--amber);
+  color: var(--amber);
+}

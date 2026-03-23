@@ -1,5 +1,109 @@
 .feed-page h1 { margin-bottom: 0.25rem; }
 
+/* Header row: title + user search */
+.feed-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+  flex-wrap: wrap;
+}
+
+/* Everyone / Friends mode toggle */
+.feed-mode-toggle {
+  display: flex;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 3px;
+  gap: 2px;
+  margin-bottom: 1rem;
+  width: fit-content;
+}
+
+.feed-mode-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  padding: 0.5rem 0.9rem;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.feed-mode-btn--active {
+  background: var(--amber);
+  color: #ffffff;
+  font-weight: 600;
+}
+.feed-mode-btn:not(.feed-mode-btn--active):hover { color: var(--text); }
+
+/* User search */
+.user-search {
+  position: relative;
+  width: 200px;
+}
+
+.user-search-input {
+  width: 100%;
+  padding: 0.45rem 0.75rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 0.85rem;
+}
+.user-search-input::placeholder { color: var(--text-muted); }
+.user-search-input:focus {
+  outline: none;
+  border-color: var(--amber);
+  box-shadow: 0 0 0 2px var(--amber-dim);
+}
+
+.user-search-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  z-index: 50;
+  overflow: hidden;
+  box-shadow: var(--shadow);
+}
+
+.user-search-result {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.55rem 0.75rem;
+  text-decoration: none;
+  color: var(--text);
+  border-bottom: 1px solid var(--border);
+  transition: background 0.1s;
+}
+.user-search-result:last-child { border-bottom: none; }
+.user-search-result:hover { background: var(--border); }
+
+.usr-name { font-size: 0.9rem; font-weight: 600; }
+.usr-meta { font-size: 0.75rem; color: var(--text-muted); }
+
+/* Empty friends state */
+.feed-empty-friends {
+  text-align: center;
+  padding: 2.5rem 1rem;
+  color: var(--text-muted);
+}
+.feed-empty-hint {
+  font-size: 0.9rem;
+  margin-top: 0.5rem;
+  color: var(--text-muted);
+}
+
 .feed-filters {
   display: flex;
   gap: 0.5rem;
@@ -28,7 +132,7 @@
 .feed-filter-btn--active {
   border-color: var(--amber);
   color: var(--amber);
-  background: #3a2810;
+  background: rgba(200, 154, 43, 0.12);
 }
 
 .feed-list {

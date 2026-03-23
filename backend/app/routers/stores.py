@@ -35,13 +35,17 @@ def _haversine(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
 
 def _build_overpass_query(lat: float, lng: float, radius: int) -> str:
     return (
-        f'[out:json][timeout:10];'
+        f'[out:json][timeout:15];'
         f'('
         f'node["shop"="alcohol"](around:{radius},{lat},{lng});'
+        f'way["shop"="alcohol"](around:{radius},{lat},{lng});'
         f'node["shop"="wine"](around:{radius},{lat},{lng});'
+        f'way["shop"="wine"](around:{radius},{lat},{lng});'
         f'node["shop"="beverages"]["drink:alcohol"="yes"](around:{radius},{lat},{lng});'
+        f'node["shop"="spirits"](around:{radius},{lat},{lng});'
+        f'way["shop"="spirits"](around:{radius},{lat},{lng});'
         f');'
-        f'out body;'
+        f'out center body;'
     )
 
 
@@ -57,11 +61,19 @@ def _parse_osm_node(element: dict) -> dict:
     if tags.get("addr:state"):
         addr_parts.append(tags["addr:state"])
 
+    # Nodes have lat/lon directly; ways have center.lat/center.lon
+    if "center" in element:
+        lat = element["center"]["lat"]
+        lng = element["center"]["lon"]
+    else:
+        lat = element["lat"]
+        lng = element["lon"]
+
     return {
         "osm_id": element["id"],
         "name": tags.get("name", "Liquor Store"),
-        "lat": element["lat"],
-        "lng": element["lon"],
+        "lat": lat,
+        "lng": lng,
         "address": ", ".join(addr_parts) if addr_parts else None,
         "phone": tags.get("phone") or tags.get("contact:phone"),
         "website": tags.get("website") or tags.get("contact:website"),
@@ -91,7 +103,7 @@ def _upsert_stores(db: Session, parsed_stores: list[dict]) -> list[models.Liquor
     return result
 
 
-def _fetch_nearby(lat: float, lng: float, radius: int, db: Session) -> list[dict]:
+async def _fetch_nearby(lat: float, lng: float, radius: int, db: Session) -> list[dict]:
     """Find nearby stores (cache-first, Overpass fallback). Returns dicts with distance_m."""
     delta_lat = radius / 111_000
     delta_lng = radius / (111_000 * max(math.cos(math.radians(lat)), 0.01))
@@ -119,18 +131,28 @@ def _fetch_nearby(lat: float, lng: float, radius: int, db: Session) -> list[dict
             results.append(d)
         return results
 
-    # Fallback: query Overpass API
+    # Fallback: query Overpass API (try main + mirror)
     query = _build_overpass_query(lat, lng, radius)
-    try:
-        with httpx.Client(timeout=15.0) as client:
-            resp = client.post(OVERPASS_URL, data={"data": query})
-            resp.raise_for_status()
-            data = resp.json()
-    except httpx.TimeoutException:
-        raise HTTPException(status_code=504, detail="Store location service timed out. Try again or reduce radius.")
-    except httpx.HTTPError as e:
-        logger.error("Overpass API error: %s", e)
-        raise HTTPException(status_code=502, detail="Failed to reach store location service.")
+    overpass_urls = [OVERPASS_URL, "https://overpass.kumi.systems/api/interpreter"]
+    data = None
+    had_timeout = False
+    for api_url in overpass_urls:
+        try:
+            async with httpx.AsyncClient(timeout=20.0) as client:
+                resp = await client.post(api_url, data={"data": query})
+                resp.raise_for_status()
+                data = resp.json()
+                break
+        except httpx.TimeoutException:
+            had_timeout = True
+            logger.warning("Overpass timeout from %s", api_url)
+        except Exception as e:
+            logger.warning("Overpass error from %s: %s", api_url, e)
+
+    if data is None:
+        if had_timeout:
+            raise HTTPException(status_code=504, detail="Store location service timed out. Try again or reduce radius.")
+        raise HTTPException(status_code=502, detail="Failed to reach store location service. Please try again.")
 
     elements = data.get("elements", [])
     if not elements:
@@ -154,19 +176,19 @@ def _fetch_nearby(lat: float, lng: float, radius: int, db: Session) -> list[dict
 
 
 @router.get("/nearby", response_model=list[schemas.LiquorStoreRead])
-def get_nearby_stores(
+async def get_nearby_stores(
     lat: float = Query(..., ge=-90, le=90),
     lng: float = Query(..., ge=-180, le=180),
     radius: int = Query(DEFAULT_RADIUS_M, ge=500, le=MAX_RADIUS_M),
     db: Session = Depends(get_db),
 ):
     """Find nearby liquor stores via OpenStreetMap. Results are cached for 7 days."""
-    store_dicts = _fetch_nearby(lat, lng, radius, db)
+    store_dicts = await _fetch_nearby(lat, lng, radius, db)
     return [schemas.LiquorStoreRead(**d) for d in store_dicts]
 
 
 @router.get("/whiskey/{whiskey_id}", response_model=list[schemas.StoreWithAvailability])
-def get_stores_for_whiskey(
+async def get_stores_for_whiskey(
     whiskey_id: int,
     lat: float = Query(..., ge=-90, le=90),
     lng: float = Query(..., ge=-180, le=180),
@@ -178,7 +200,7 @@ def get_stores_for_whiskey(
     if not whiskey:
         raise HTTPException(status_code=404, detail="Whiskey not found")
 
-    store_dicts = _fetch_nearby(lat, lng, radius, db)
+    store_dicts = await _fetch_nearby(lat, lng, radius, db)
 
     results = []
     for sd in store_dicts:

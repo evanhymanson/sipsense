@@ -1,0 +1,21 @@
+# Production overrides — run with:
+#   docker compose -f docker-compose.yml -f docker-compose.production.yml up -d --build
+# Or use: ./scripts/start-production.sh
+
+services:
+  backend:
+    env_file: .env.production
+    environment:
+      SIPSENSE_ENV: production
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+
+  frontend:
+    ports:
+      - "80:80"

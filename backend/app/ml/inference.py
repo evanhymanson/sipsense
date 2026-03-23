@@ -13,13 +13,12 @@ Usage from application code:
 
 import json
 import logging
+import threading
 from pathlib import Path
 
-import torch
 from sqlalchemy.orm import Session
 
 from .. import models
-from .collaborative_filter import NCFModel
 
 logger = logging.getLogger(__name__)
 
@@ -28,48 +27,60 @@ MODEL_PATH = MODEL_DIR / "model.pt"
 META_PATH = MODEL_DIR / "model_meta.json"
 
 # Module-level cache so we don't reload the model on every request
-_cached_model: NCFModel | None = None
+_cached_model = None
 _cached_meta: dict | None = None
+_model_lock = threading.Lock()
 
 
-def _load_model() -> tuple[NCFModel | None, dict | None]:
-    """Load model + metadata from disk. Returns (None, None) if not available."""
+def _load_model():
+    """Load model + metadata from disk. Returns (None, None) if not available.
+    Lazy-imports torch and NCFModel to avoid loading ~500MB at server startup.
+    Uses double-checked locking to prevent concurrent threads from loading twice."""
     global _cached_model, _cached_meta
 
     if _cached_model is not None:
         return _cached_model, _cached_meta
 
-    if not MODEL_PATH.exists() or not META_PATH.exists():
-        return None, None
+    with _model_lock:
+        # Double-check after acquiring lock
+        if _cached_model is not None:
+            return _cached_model, _cached_meta
 
-    try:
-        meta = json.loads(META_PATH.read_text())
-        model = NCFModel(
-            n_users=meta["n_users"],
-            n_items=meta["n_items"],
-            embedding_dim=meta.get("embedding_dim", 32),
-        )
-        model.load_state_dict(torch.load(MODEL_PATH, weights_only=True))
-        model.eval()
+        if not MODEL_PATH.exists() or not META_PATH.exists():
+            return None, None
 
-        _cached_model = model
-        _cached_meta = meta
-        logger.info(
-            "NCF model loaded: %d users, %d items, RMSE=%.4f",
-            meta["n_users"], meta["n_items"], meta.get("rmse", 0),
-        )
-        return model, meta
+        try:
+            import torch
+            from .collaborative_filter import NCFModel
 
-    except Exception as e:
-        logger.warning("Failed to load NCF model: %s", e)
-        return None, None
+            meta = json.loads(META_PATH.read_text())
+            model = NCFModel(
+                n_users=meta["n_users"],
+                n_items=meta["n_items"],
+                embedding_dim=meta.get("embedding_dim", 32),
+            )
+            model.load_state_dict(torch.load(MODEL_PATH, weights_only=True))
+            model.eval()
+
+            _cached_model = model
+            _cached_meta = meta
+            logger.info(
+                "NCF model loaded: %d users, %d items, RMSE=%.4f",
+                meta["n_users"], meta["n_items"], meta.get("rmse", 0),
+            )
+            return model, meta
+
+        except Exception as e:
+            logger.warning("Failed to load NCF model: %s", e)
+            return None, None
 
 
 def reload_model():
     """Force-reload the model from disk (e.g. after retraining)."""
     global _cached_model, _cached_meta
-    _cached_model = None
-    _cached_meta = None
+    with _model_lock:
+        _cached_model = None
+        _cached_meta = None
     return _load_model()
 
 
@@ -119,6 +130,7 @@ def get_ncf_recommendations(
             exclude_indices.add(item2idx[str_wid])
 
     # Build tensor of all item indices
+    import torch
     all_item_indices = torch.arange(meta["n_items"], dtype=torch.long)
 
     # Get predictions
@@ -129,17 +141,31 @@ def get_ncf_recommendations(
         top_n=top_n,
     )
 
-    # Convert item indices back to Whiskey DB objects
+    # Batch load all candidate whiskeys in a single query (avoids N+1)
+    whiskey_ids_to_load = []
+    for item_idx, score in top_items:
+        str_idx = str(item_idx)
+        if str_idx in idx2item:
+            whiskey_ids_to_load.append(int(idx2item[str_idx]))
+
+    whiskeys_map = {
+        w.id: w
+        for w in db.query(models.Whiskey)
+        .filter(models.Whiskey.id.in_(whiskey_ids_to_load))
+        .all()
+    } if whiskey_ids_to_load else {}
+
     results = []
     for item_idx, score in top_items:
         str_idx = str(item_idx)
         if str_idx not in idx2item:
             continue
-        whiskey_id = idx2item[str_idx]
-        whiskey = db.query(models.Whiskey).get(whiskey_id)
+        whiskey_id = int(idx2item[str_idx])
+        whiskey = whiskeys_map.get(whiskey_id)
         if whiskey:
-            # Normalize score to 0-1 range for consistency with cosine similarity
-            normalized = (score - 1.0) / 4.0
+            # Clamp score to expected [1, 5] range then normalize to [0, 1]
+            clamped = max(1.0, min(5.0, score))
+            normalized = (clamped - 1.0) / 4.0
             results.append((whiskey, round(normalized, 4)))
 
     return results

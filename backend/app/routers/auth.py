@@ -12,23 +12,19 @@ from sqlalchemy.orm import Session
 from .. import models, schemas
 from ..database import get_db
 from ..auth import hash_password, verify_password, create_access_token, get_current_user
+from ..rate_limit import auth_rate_limit
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 @router.post("/register", response_model=schemas.TokenResponse, status_code=201)
-def register(body: schemas.UserRegister, db: Session = Depends(get_db)):
-    # Check for existing username
-    if db.query(models.User).filter(models.User.username == body.username).first():
+def register(body: schemas.UserRegister, db: Session = Depends(get_db), _: None = Depends(auth_rate_limit)):
+    # Check for existing username or email (generic message to prevent enumeration)
+    if db.query(models.User).filter(models.User.username == body.username).first() or \
+       db.query(models.User).filter(models.User.email == body.email).first():
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="Username already taken",
-        )
-    # Check for existing email
-    if db.query(models.User).filter(models.User.email == body.email).first():
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Email already registered",
+            detail="Username or email already in use",
         )
 
     user = models.User(
@@ -45,7 +41,7 @@ def register(body: schemas.UserRegister, db: Session = Depends(get_db)):
 
 
 @router.post("/login", response_model=schemas.TokenResponse)
-def login(body: schemas.UserLogin, db: Session = Depends(get_db)):
+def login(body: schemas.UserLogin, db: Session = Depends(get_db), _: None = Depends(auth_rate_limit)):
     user = db.query(models.User).filter(models.User.username == body.username).first()
     if not user or not verify_password(body.password, user.hashed_password):
         raise HTTPException(

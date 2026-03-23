@@ -14,7 +14,8 @@ router = APIRouter(prefix="/feed", tags=["feed"])
 @router.get("/", response_model=schemas.FeedResponse)
 def get_feed(
     category: Optional[str] = Query(None, description="Filter by whiskey category"),
-    skip: int = Query(0, ge=0),
+    following_only: bool = Query(False, description="Only show check-ins from followed users"),
+    skip: int = Query(0, ge=0, le=10000),
     limit: int = Query(20, ge=1, le=50),
     current_user: Optional[models.User] = Depends(get_optional_user),
     db: Session = Depends(get_db),
@@ -25,12 +26,19 @@ def get_feed(
         .order_by(models.UserRating.created_at.desc())
     )
 
+    if following_only and current_user:
+        from sqlalchemy import select
+        following_ids = select(models.Follow.following_id).where(
+            models.Follow.follower_id == current_user.username
+        )
+        query = query.filter(models.UserRating.user_id.in_(following_ids))
+
     if category:
+        cat_safe = category.replace("%", "\\%").replace("_", "\\_")
         query = query.join(models.Whiskey).filter(
-            models.Whiskey.category.ilike(f"%{category}%")
+            models.Whiskey.category.ilike(f"%{cat_safe}%")
         )
 
-    total = query.count()
     ratings = query.offset(skip).limit(limit + 1).all()
     has_more = len(ratings) > limit
     ratings = ratings[:limit]
@@ -63,6 +71,8 @@ def get_feed(
 
     items = []
     for r in ratings:
+        if r.whiskey is None:
+            continue
         items.append(schemas.FeedItem(
             rating=schemas.RatingRead(
                 id=r.id,
@@ -72,6 +82,7 @@ def get_feed(
                 notes=r.notes,
                 serving_style=r.serving_style,
                 location_note=r.location_note,
+                image_url=r.image_url,
                 created_at=r.created_at,
                 toast_count=toast_counts.get(r.id, 0),
             ),

@@ -1,0 +1,229 @@
+/* ── Journey Detail Page ───────────────────────────────────────────── */
+.journey-detail-page {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.journeys-loading {
+  color: var(--text-muted);
+  text-align: center;
+  padding: 3rem 0;
+}
+
+.journey-back {
+  display: inline-block;
+  color: var(--amber);
+  font-size: 0.88rem;
+  margin-bottom: 1.25rem;
+  text-decoration: none;
+}
+.journey-back:hover { text-decoration: underline; }
+
+.journey-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.journey-hero-emoji {
+  font-size: 3rem;
+  flex-shrink: 0;
+}
+
+.journey-header h1 {
+  font-size: 1.6rem;
+  color: var(--amber);
+  margin: 0 0 0.3rem;
+}
+
+.journey-hero-desc {
+  color: var(--text-soft);
+  font-size: 0.92rem;
+  line-height: 1.5;
+  margin: 0 0 0.5rem;
+}
+
+.journey-meta {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+
+.difficulty-badge {
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+.difficulty--beginner { background: rgba(76, 175, 80, 0.15); color: var(--green); }
+.difficulty--intermediate { background: rgba(255, 193, 7, 0.15); color: #ffc107; }
+.difficulty--advanced { background: rgba(244, 67, 54, 0.15); color: var(--red); }
+
+.journey-bottles {
+  color: var(--text-muted);
+}
+
+.journey-start-btn {
+  margin-bottom: 1.5rem;
+}
+
+.journey-complete-banner {
+  background: rgba(76, 175, 80, 0.12);
+  border: 1px solid rgba(76, 175, 80, 0.3);
+  border-radius: var(--radius);
+  padding: 0.75rem 1rem;
+  color: var(--green);
+  font-weight: 600;
+  font-size: 0.92rem;
+  margin-bottom: 1.5rem;
+  text-align: center;
+}
+
+.journey-progress-bar-wrap {
+  margin-bottom: 1.5rem;
+}
+
+.progress-bar {
+  background: var(--border);
+  border-radius: 999px;
+  height: 6px;
+  overflow: hidden;
+}
+.progress-bar--lg { height: 10px; }
+
+.progress-fill {
+  height: 100%;
+  background: var(--amber);
+  border-radius: 999px;
+  transition: width 0.3s ease;
+}
+
+.progress-label {
+  display: block;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin-top: 0.35rem;
+}
+
+/* ── Steps ────────────────────────────────────────────────────────── */
+.journey-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.journey-step {
+  display: flex;
+  gap: 1rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem 1.25rem;
+  transition: border-color 0.2s;
+}
+.journey-step.step--current {
+  border-color: var(--amber);
+}
+.journey-step.step--done {
+  opacity: 0.7;
+}
+.journey-step.step--locked {
+  opacity: 0.5;
+}
+
+.step-indicator {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--border);
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.step--current .step-indicator {
+  background: var(--amber);
+  color: #fff;
+}
+.step--done .step-indicator {
+  background: var(--green);
+  color: #fff;
+}
+
+.step-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.step-whiskey-header {
+  margin-bottom: 0.75rem;
+}
+
+.step-whiskey-name {
+  font-weight: 600;
+  color: var(--amber-light);
+  font-size: 1rem;
+  text-decoration: none;
+}
+.step-whiskey-name:hover { text-decoration: underline; }
+
+.step-whiskey-meta {
+  display: flex;
+  gap: 0.5rem;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin-top: 0.2rem;
+}
+.step-whiskey-meta span + span::before {
+  content: '·';
+  margin-right: 0.5rem;
+}
+
+.step-lesson,
+.step-prompt {
+  margin-bottom: 0.75rem;
+}
+.step-lesson h4,
+.step-prompt h4 {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--amber);
+  margin: 0 0 0.25rem;
+}
+.step-lesson p,
+.step-prompt p {
+  font-size: 0.88rem;
+  color: var(--text-soft);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.step-locked-msg {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  font-style: italic;
+}
+
+.step-complete-btn {
+  margin-top: 0.5rem;
+  font-size: 0.85rem;
+  padding: 0.45rem 1rem;
+}
+
+@media (max-width: 600px) {
+  .journey-header {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  .journey-hero-emoji {
+    font-size: 2.4rem;
+  }
+}

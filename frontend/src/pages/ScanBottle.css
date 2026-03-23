@@ -1,0 +1,518 @@
+.scan-page {
+  max-width: 500px;
+  margin: 0 auto;
+  padding: 1rem;
+  text-align: center;
+}
+
+.scan-page h1 {
+  margin-bottom: 0.25rem;
+}
+
+.scan-subtitle {
+  color: var(--text-muted);
+  margin-bottom: 1.5rem;
+}
+
+/* Camera region */
+.scanner-hidden {
+  display: none;
+}
+
+.scanner-active {
+  margin: 1rem 0;
+  border-radius: var(--radius);
+  overflow: hidden;
+  border: 2px solid var(--amber);
+}
+
+/* Buttons */
+.scan-start-btn,
+.scan-stop-btn {
+  display: inline-block;
+  padding: 0.75rem 2rem;
+  border: none;
+  border-radius: var(--radius);
+  font-family: Georgia, serif;
+  font-size: 1rem;
+  cursor: pointer;
+  margin-bottom: 1.5rem;
+}
+
+.scan-start-btn {
+  background: var(--amber);
+  color: var(--bg);
+}
+
+.scan-start-btn:hover {
+  background: var(--amber-light);
+}
+
+.scan-stop-btn {
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+/* Manual entry */
+.manual-entry {
+  border-top: 1px solid var(--border);
+  padding-top: 1.25rem;
+  margin-top: 0.5rem;
+}
+
+.manual-label {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  margin-bottom: 0.5rem;
+}
+
+.manual-form {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.manual-input {
+  flex: 1;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  font-family: Georgia, serif;
+  font-size: 0.95rem;
+}
+
+.manual-input::placeholder {
+  color: var(--text-muted);
+}
+
+.manual-submit {
+  padding: 0.6rem 1.25rem;
+  background: var(--amber);
+  color: var(--bg);
+  border: none;
+  border-radius: var(--radius);
+  font-family: Georgia, serif;
+  cursor: pointer;
+}
+
+.manual-submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Loading */
+.scan-loading {
+  padding: 2rem 0;
+  color: var(--amber);
+  font-size: 1.1rem;
+}
+
+/* Error */
+.scan-error {
+  padding: 1.5rem;
+  background: var(--surface);
+  border: 1px solid var(--red);
+  border-radius: var(--radius);
+  color: var(--red);
+  margin: 1rem 0;
+}
+
+.scan-retry-btn {
+  margin-top: 0.75rem;
+  padding: 0.5rem 1.5rem;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-family: Georgia, serif;
+}
+
+/* Result card */
+.scan-result {
+  margin-top: 1rem;
+}
+
+.scan-result-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  text-align: left;
+}
+
+/* Bottle hero image area */
+.scan-bottle-hero {
+  position: relative;
+  height: 200px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.scan-bottle-hero--bourbon   { background: linear-gradient(160deg, #f5e6d0 0%, #e8c896 100%); }
+.scan-bottle-bg--bourbon     { background: linear-gradient(160deg, #f5e6d0 0%, #e8c896 100%); }
+.scan-bottle-bg--scotch      { background: linear-gradient(160deg, #e8e0f0 0%, #c8b8e0 100%); }
+.scan-bottle-bg--irish       { background: linear-gradient(160deg, #d8f0e0 0%, #a8d8b8 100%); }
+.scan-bottle-bg--japanese    { background: linear-gradient(160deg, #f0e0f5 0%, #d8b8e8 100%); }
+.scan-bottle-bg--rye         { background: linear-gradient(160deg, #e8f0d8 0%, #c0d8a0 100%); }
+.scan-bottle-bg--canadian    { background: linear-gradient(160deg, #f0d8e8 0%, #e0a8c8 100%); }
+.scan-bottle-bg--single-malt { background: linear-gradient(160deg, #f0e0c8 0%, #e0c0a0 100%); }
+.scan-bottle-bg--blended     { background: linear-gradient(160deg, #f0ead0 0%, #d8c8a0 100%); }
+.scan-bottle-bg--default     { background: linear-gradient(160deg, #f5f0e8 0%, #e8e0d0 100%); }
+
+.scan-bottle-icon {
+  font-size: 4rem;
+  opacity: 0.3;
+  user-select: none;
+}
+
+.scan-bottle-img {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  max-height: 90%;
+  max-width: 55%;
+  object-fit: contain;
+  filter: drop-shadow(0 6px 18px rgba(0,0,0,0.15));
+}
+
+.scan-score-badge {
+  position: absolute;
+  top: 0.65rem;
+  right: 0.65rem;
+  background: var(--amber);
+  color: #ffffff;
+  font-weight: 800;
+  font-size: 0.9rem;
+  padding: 0.3rem 0.55rem;
+  border-radius: 999px;
+}
+
+.scan-result-body {
+  padding: 1.25rem 1.5rem 1.5rem;
+}
+
+.scan-result-body h2 {
+  margin: 0 0 0.2rem;
+  font-size: 1.3rem;
+}
+
+.scan-distillery {
+  color: var(--text-muted);
+  margin: 0 0 0.75rem;
+  font-size: 0.9rem;
+}
+
+.scan-result-details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 0.75rem;
+}
+
+.scan-badge {
+  display: inline-block;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+}
+
+.scan-price {
+  font-size: 1.5rem;
+  color: var(--amber);
+  font-weight: bold;
+  margin: 0.5rem 0;
+}
+
+.scan-rating {
+  color: var(--amber-light);
+  margin: 0.25rem 0;
+}
+
+.scan-flavors {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin: 0.75rem 0;
+}
+
+.flavor-tag {
+  display: inline-block;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  background: rgba(200, 135, 42, 0.15);
+  color: var(--amber-light);
+  border: 1px solid rgba(200, 135, 42, 0.3);
+}
+
+/* Quick action buttons */
+.scan-actions {
+  display: flex;
+  gap: 0.6rem;
+  margin: 1rem 0 0.5rem;
+}
+
+.scan-action-btn {
+  flex: 1;
+  padding: 0.6rem 0.75rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  border: none;
+}
+
+.scan-action-btn--shelf {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+.scan-action-btn--shelf:hover { border-color: var(--amber); color: var(--amber-light); background: var(--surface-2); }
+
+.scan-action-btn--checkin {
+  background: var(--amber-dim);
+  border: 1px solid var(--amber);
+  color: var(--amber-light);
+}
+.scan-action-btn--checkin:hover { background: var(--amber); color: #ffffff; }
+
+.scan-shelf-msg {
+  color: var(--amber-light);
+  font-size: 0.85rem;
+  margin: 0.25rem 0;
+}
+
+.scan-detail-btn {
+  display: block;
+  text-align: center;
+  margin-top: 0.75rem;
+  padding: 0.75rem;
+  background: var(--amber);
+  color: var(--bg);
+  border-radius: var(--radius);
+  text-decoration: none;
+  font-family: Georgia, serif;
+  font-weight: bold;
+}
+
+.scan-detail-btn:hover {
+  background: var(--amber-light);
+}
+
+/* Recent scans */
+.recent-scans {
+  margin-top: 2rem;
+  text-align: left;
+}
+
+.recent-scans h3 {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 0.75rem;
+}
+
+.recent-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.recent-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.5rem 0.75rem;
+  text-decoration: none;
+  color: var(--text);
+  transition: border-color 0.15s;
+}
+.recent-item:hover { border-color: var(--amber); }
+
+.recent-img {
+  width: 44px;
+  height: 44px;
+  border-radius: 6px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.recent-emoji {
+  font-size: 1.3rem;
+  opacity: 0.5;
+}
+
+.recent-bottle-img {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  max-height: 90%;
+  max-width: 60%;
+  object-fit: contain;
+}
+
+.recent-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.recent-name {
+  font-size: 0.9rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.recent-distillery {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.scan-another-btn {
+  display: block;
+  width: 100%;
+  margin-top: 1rem;
+  padding: 0.6rem;
+  background: transparent;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-family: Georgia, serif;
+}
+
+.scan-another-btn:hover {
+  color: var(--text);
+  border-color: var(--text-muted);
+}
+
+/* ── Label drop zone ─────────────────────────────────────────────────── */
+.label-drop-zone {
+  border: 2px dashed var(--border);
+  border-radius: var(--radius);
+  padding: 2.5rem 1.5rem;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  margin-bottom: 1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  background: var(--surface);
+  min-height: 180px;
+  justify-content: center;
+}
+.label-drop-zone:hover {
+  border-color: var(--amber);
+  background: var(--amber-dim);
+}
+.label-drop-zone--has-preview {
+  padding: 0;
+  border-color: var(--amber);
+  overflow: hidden;
+  min-height: 220px;
+}
+.label-drop-icon { font-size: 2.5rem; }
+.label-drop-text { font-size: 1rem; color: var(--text-soft); font-weight: 600; }
+.label-drop-hint { font-size: 0.82rem; color: var(--text-muted); }
+.label-preview-img {
+  width: 100%;
+  max-height: 280px;
+  object-fit: cover;
+  display: block;
+}
+
+/* ── Barcode toggle link ──────────────────────────────────────────────── */
+.scan-toggle-link {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  cursor: pointer;
+  padding: 0;
+  margin-bottom: 1rem;
+  text-decoration: underline;
+  font-family: inherit;
+}
+.scan-toggle-link:hover { color: var(--amber-light); }
+
+/* ── Loading state ───────────────────────────────────────────────────── */
+.scan-loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.25rem;
+  padding: 2rem 0;
+}
+.label-scanning-preview {
+  width: 100%;
+  max-height: 200px;
+  object-fit: cover;
+  border-radius: var(--radius);
+  opacity: 0.6;
+  filter: blur(1px);
+}
+.scan-loading-spinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid var(--border);
+  border-top-color: var(--amber);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.scan-loading-text { color: var(--amber-light); font-size: 1rem; }
+
+/* ── Match badge ─────────────────────────────────────────────────────── */
+.scan-match-badge {
+  display: inline-block;
+  padding: 0.3rem 0.8rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  background: rgba(60, 160, 80, 0.15);
+  color: var(--green);
+  border: 1px solid rgba(60, 160, 80, 0.3);
+  margin-bottom: 0.75rem;
+  letter-spacing: 0.02em;
+}
+.scan-match-badge--ai {
+  background: rgba(200, 135, 42, 0.12);
+  color: var(--amber-light);
+  border-color: rgba(200, 135, 42, 0.3);
+}
+
+/* ── Not in DB note ──────────────────────────────────────────────────── */
+.scan-not-in-db {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin: 0.75rem 0;
+}
+
+/* ── Error hint ──────────────────────────────────────────────────────── */
+.scan-error-hint {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  margin-top: 0.5rem;
+}
+.scan-error-hint a { color: var(--amber-light); }

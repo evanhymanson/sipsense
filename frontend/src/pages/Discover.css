@@ -1,0 +1,195 @@
+.discover-page {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 1.5rem 2rem;
+}
+
+/* ── Daily Discovery Banner ───────────────────────── */
+.discover-daily {
+  position: relative;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.5rem;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+.discover-daily:hover { border-color: var(--amber); }
+
+.discover-daily-main {
+  display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;
+}
+.discover-daily-badge {
+  padding: 0.2rem 0.6rem; background: var(--amber-dim); color: var(--amber);
+  border-radius: 999px; font-size: 0.7rem; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.discover-daily-name { font-weight: 600; color: var(--amber-light); font-size: 1rem; }
+.discover-daily-meta { font-size: 0.82rem; color: var(--text-muted); }
+
+.discover-daily-tip {
+  margin-top: 0.6rem; padding-top: 0.6rem; border-top: 1px solid var(--border);
+  font-size: 0.82rem; color: var(--text-soft);
+}
+.discover-daily-tip span { color: var(--amber); font-weight: 600; }
+
+.discover-daily-toggle {
+  position: absolute; top: 0.75rem; right: 0.75rem;
+  background: none; border: none; color: var(--text-muted); cursor: pointer;
+  font-size: 0.75rem;
+}
+
+.discover-daily--collapsed .discover-daily-tip { display: none; }
+
+/* ── Page Header ─────────────────────────────────── */
+.discover-graph-header {
+  margin-bottom: 1rem;
+}
+.discover-graph-header h1 {
+  font-size: 1.5rem;
+  color: var(--amber-light);
+  margin: 0;
+}
+.discover-graph-header p {
+  font-size: 0.88rem;
+  color: var(--text-muted);
+  margin: 0.25rem 0 0;
+}
+
+/* ── Whiskey Compass ─────────────────────────────── */
+.category-map-section {
+  margin-bottom: 1.5rem;
+}
+.category-map-section h2 {
+  font-size: 1.1rem;
+  color: var(--text-soft);
+  margin: 0 0 0.25rem;
+}
+.category-map-section > p {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  margin: 0 0 0.75rem;
+}
+
+.category-map {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  max-width: 600px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.cm-crosshair-h {
+  position: absolute;
+  top: 50%;
+  left: 10%;
+  right: 10%;
+  height: 1px;
+  background: var(--border);
+}
+.cm-crosshair-v {
+  position: absolute;
+  left: 50%;
+  top: 10%;
+  bottom: 10%;
+  width: 1px;
+  background: var(--border);
+}
+
+.cm-axis {
+  position: absolute;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 600;
+}
+.cm-axis--top    { top: 4%;    left: 50%; transform: translateX(-50%); }
+.cm-axis--bottom { bottom: 4%; left: 50%; transform: translateX(-50%); }
+.cm-axis--left   { left: 3%;   top: 50%;  transform: translateY(-50%); }
+.cm-axis--right  { right: 3%;  top: 50%;  transform: translateY(-50%); }
+
+.cm-node {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.4rem;
+  border-radius: var(--radius);
+  transition: transform 0.2s, background 0.2s;
+  font-family: inherit;
+}
+.cm-node:hover {
+  transform: translate(-50%, -50%) scale(1.15);
+  background: var(--amber-dim);
+}
+.cm-node-emoji {
+  font-size: 1.6rem;
+}
+.cm-node-label {
+  font-size: 0.68rem;
+  color: var(--amber-light);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* ── Quick Access Cards ───────────────────────────── */
+.discover-quick h2 {
+  font-size: 1.1rem;
+  color: var(--text-soft);
+  margin: 0 0 0.75rem;
+}
+
+.discover-quick-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 0.75rem;
+}
+
+.discover-quick-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 1rem 0.75rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  color: var(--text);
+  transition: all 0.2s ease;
+}
+.discover-quick-card:hover {
+  border-color: var(--amber);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow);
+}
+
+.dqc-emoji { font-size: 1.8rem; }
+.dqc-label { font-weight: 600; font-size: 0.88rem; color: var(--amber-light); }
+.dqc-desc { font-size: 0.72rem; color: var(--text-muted); text-align: center; }
+
+/* ── Responsive ───────────────────────────────────── */
+@media (max-width: 768px) {
+  .discover-quick-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .category-map {
+    aspect-ratio: 1 / 1;
+  }
+  .cm-node-emoji {
+    font-size: 1.4rem;
+  }
+  .cm-node-label {
+    font-size: 0.62rem;
+  }
+}

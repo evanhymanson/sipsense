@@ -6,52 +6,96 @@ const BASE = '/api'
 // ── Auth token helpers ───────────────────────────────────────────────────
 
 export function getToken() {
-  return localStorage.getItem('sipsense_token')
+  try { return localStorage.getItem('sipsense_token') } catch { return null }
 }
 
 export function setAuth(token, username) {
-  localStorage.setItem('sipsense_token', token)
-  localStorage.setItem('sipsense_user', username)
+  try {
+    localStorage.setItem('sipsense_token', token)
+    localStorage.setItem('sipsense_user', username)
+  } catch { /* private browsing — auth won't persist across reloads */ }
 }
 
 export function clearAuth() {
-  localStorage.removeItem('sipsense_token')
-  localStorage.removeItem('sipsense_user')
+  try {
+    localStorage.removeItem('sipsense_token')
+    localStorage.removeItem('sipsense_user')
+  } catch {}
 }
 
 export function getUsername() {
-  return localStorage.getItem('sipsense_user')
+  try { return localStorage.getItem('sipsense_user') } catch { return null }
 }
 
 export function isLoggedIn() {
   return !!getToken()
 }
 
-// ── Core request with auth ───────────────────────────────────────────────
+// ── Core request with auth, timeout, and retry ─────────────────────────
 
-async function request(path, options = {}) {
+const REQUEST_TIMEOUT_MS = 30000
+
+async function request(path, options = {}, _retryCount = 0) {
   const token = getToken()
-  const headers = { 'Content-Type': 'application/json', ...options.headers }
+  const isFormData = options.body instanceof FormData
+  const headers = { ...(isFormData ? {} : { 'Content-Type': 'application/json' }), ...options.headers }
   if (token) {
     headers['Authorization'] = `Bearer ${token}`
   }
 
-  const res = await fetch(`${BASE}${path}`, { ...options, headers })
+  // Set up timeout via AbortController (unless caller provided their own signal)
+  let timeoutId
+  const fetchOpts = { ...options, headers }
+  if (!fetchOpts.signal) {
+    const controller = new AbortController()
+    fetchOpts.signal = controller.signal
+    timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
+  }
 
-  // If token expired / invalid, clear auth so UI can redirect to login
+  let res
+  try {
+    res = await fetch(`${BASE}${path}`, fetchOpts)
+  } catch (err) {
+    if (timeoutId) clearTimeout(timeoutId)
+    // Retry once on network error (not on user-initiated abort)
+    if (_retryCount === 0 && err.name !== 'AbortError') {
+      return request(path, options, 1)
+    }
+    if (err.name === 'AbortError' && !options.signal) {
+      throw new Error('Request timed out. Please try again.')
+    }
+    throw err
+  }
+  if (timeoutId) clearTimeout(timeoutId)
+
+  // If token expired / invalid, clear auth and redirect to login
   if (res.status === 401) {
     clearAuth()
+    window.location.href = '/onboarding'
     throw new Error('Session expired. Please log in again.')
+  }
+
+  // Retry once on server errors (5xx)
+  if (res.status >= 500 && _retryCount === 0) {
+    return request(path, options, 1)
   }
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: res.statusText }))
-    throw new Error(err.detail || 'Request failed')
+    throw new Error(err.detail || `Request failed (${res.status})`)
   }
   // 204 No Content — return null
   if (res.status === 204) return null
   return res.json()
 }
+
+/**
+ * Helper for components to create an AbortController-linked fetch.
+ * Usage in useEffect:
+ *   const controller = new AbortController()
+ *   api.listWhiskeys(params, { signal: controller.signal })
+ *   return () => controller.abort()
+ */
 
 export const api = {
   // ── Auth ─────────────────────────────────────────────────────────────────
@@ -68,23 +112,24 @@ export const api = {
   getMe: () => request('/auth/me'),
 
   // ── Whiskeys ─────────────────────────────────────────────────────────────
-  listWhiskeys: (params = {}) => {
+  listWhiskeys: (params = {}, opts = {}) => {
     const qs = new URLSearchParams(
       Object.entries(params).filter(([, v]) => v !== '' && v != null)
     ).toString()
-    return request(`/whiskeys/${qs ? '?' + qs : ''}`)
+    return request(`/whiskeys/${qs ? '?' + qs : ''}`, opts)
   },
+  getWhiskeyCount: () => request('/whiskeys/count'),
   getWhiskey: (id) => request(`/whiskeys/${id}`),
   getSimilar: (id, top_n = 5) => request(`/whiskeys/${id}/similar?top_n=${top_n}`),
   getBlurb: (id) => request(`/whiskeys/${id}/blurb`),
   getRatings: (id) => request(`/whiskeys/${id}/ratings`),
   rateWhiskey: (id, body) =>
     request(`/whiskeys/${id}/rate`, { method: 'POST', body: JSON.stringify(body) }),
-  getValuePicks: (params = {}) => {
+  getValuePicks: (params = {}, opts = {}) => {
     const qs = new URLSearchParams(
       Object.entries(params).filter(([, v]) => v !== '' && v != null)
     ).toString()
-    return request(`/whiskeys/value-picks${qs ? '?' + qs : ''}`)
+    return request(`/whiskeys/value-picks${qs ? '?' + qs : ''}`, opts)
   },
 
   // ── Recommendations (now GET, uses token for user identity) ──────────────
@@ -105,21 +150,6 @@ export const api = {
     request(`/favorites/${whiskey_id}`, { method: 'DELETE' }),
   getFavorites: () => request('/favorites/me'),
   getFavoriteIds: () => request('/favorites/me/ids'),
-
-  // ── Learn ────────────────────────────────────────────────────────────────
-  listCategories: () => request('/learn/categories'),
-  getCategory: (slug) => request(`/learn/categories/${slug}`),
-  listDistilleries: () => request('/learn/distilleries'),
-  getDistillery: (slug) => request(`/learn/distilleries/${slug}`),
-  getGlossary: () => request('/learn/glossary'),
-
-  // ── Flight Builder ───────────────────────────────────────────────────────
-  listFlightThemes: () => request('/flights/'),
-  getFlight: (theme, max_price = 0, count = 4) =>
-    request(`/flights/${theme}?max_price=${max_price}&count=${count}`),
-
-  // ── Gift Finder ──────────────────────────────────────────────────────────
-  findGift: (body) => request('/gift/', { method: 'POST', body: JSON.stringify(body) }),
 
   // ── My Palate (now uses token) ───────────────────────────────────────────
   getPalate: () => request('/palate/me'),
@@ -167,20 +197,15 @@ export const api = {
   // ── Personality ───────────────────────────────────────────────────────────
   getPersonality: () => request('/personality/me'),
 
-  // ── Blind Tasting ────────────────────────────────────────────────────────
-  getChallenge: (difficulty = 'easy') => request(`/blind-tasting/challenge?difficulty=${difficulty}`),
-  submitGuess: (body) =>
-    request('/blind-tasting/guess', { method: 'POST', body: JSON.stringify(body) }),
-
   // ── Daily Discovery ──────────────────────────────────────────────────────
   getDailyDiscovery: () => request('/daily/'),
 
   // ── Feed ───────────────────────────────────────────────────────────────
-  getFeed: (params = {}) => {
+  getFeed: (params = {}, opts = {}) => {
     const qs = new URLSearchParams(
       Object.entries(params).filter(([, v]) => v !== '' && v != null)
     ).toString()
-    return request(`/feed/${qs ? '?' + qs : ''}`)
+    return request(`/feed/${qs ? '?' + qs : ''}`, opts)
   },
 
   // ── Social (Toasts & Profiles) ────────────────────────────────────────
@@ -190,6 +215,16 @@ export const api = {
     request(`/ratings/${ratingId}/toast`, { method: 'DELETE' }),
   getUserProfile: (username) =>
     request(`/users/${username}/profile`),
+  followUser: (username) =>
+    request(`/users/${username}/follow`, { method: 'POST' }),
+  unfollowUser: (username) =>
+    request(`/users/${username}/follow`, { method: 'DELETE' }),
+  getFollowers: (username) =>
+    request(`/users/${username}/followers`),
+  getFollowing: (username) =>
+    request(`/users/${username}/following`),
+  searchUsers: (q) =>
+    request(`/users/search?q=${encodeURIComponent(q)}`),
 
   // ── AI Features ─────────────────────────────────────────────────────────
   getAiTastingNotes: (whiskeyId) => request(`/whiskeys/${whiskeyId}/ai-tasting-notes`),
@@ -197,8 +232,127 @@ export const api = {
   getExplainedRecommendations: (top_n = 6) =>
     request(`/recommendations/explained?top_n=${top_n}`),
 
+  // ── Barcode Scanner ─────────────────────────────────────────────────────
+  lookupBarcode: (upc) => request(`/whiskeys/barcode/${encodeURIComponent(upc)}`),
+
+  // ── Price Context ──────────────────────────────────────────────────────
+  getPriceContext: (whiskeyId) => request(`/whiskeys/${whiskeyId}/price-context`),
+
+  // ── Buy Links ──────────────────────────────────────────────────────────
+  getBuyLinks: (whiskeyId) => request(`/whiskeys/${whiskeyId}/buy-links`),
+
+  // ── Journal / Image Upload ─────────────────────────────────────────────
+  uploadRatingImage: (ratingId, file) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    const token = getToken()
+    const headers = {}
+    if (token) headers['Authorization'] = `Bearer ${token}`
+    return fetch(`${BASE}/ratings/${ratingId}/image`, {
+      method: 'POST',
+      headers,
+      body: formData,
+    }).then(res => {
+      if (!res.ok) throw new Error('Image upload failed')
+      return res.json()
+    })
+  },
+  getJournal: () => request('/journal/me'),
+
+  // ── Share Card ─────────────────────────────────────────────────────────
+  getShareCardUrl: (ratingId) => `${BASE}/share/rating/${ratingId}`,
+  getWhiskeyShareCardUrl: (whiskeyId) => `${BASE}/share/whiskey/${whiskeyId}`,
+
+  // ── Label scan ─────────────────────────────────────────────────────────
+  scanLabel: (imageFile) => {
+    const form = new FormData()
+    form.append('file', imageFile)
+    return request('/scan/label', { method: 'POST', body: form })
+  },
+
+  // ── Watchlist & Alerts ─────────────────────────────────────────────────
+  watchWhiskey: (id) => request(`/watchlist/${id}`, { method: 'POST' }),
+  unwatchWhiskey: (id) => request(`/watchlist/${id}`, { method: 'DELETE' }),
+  getWatchStatus: (id) => request(`/watchlist/status/${id}`),
+  getWatchlist: () => request('/watchlist/'),
+  getAlerts: ({ skip = 0, limit = 50 } = {}) => request(`/watchlist/alerts?skip=${skip}&limit=${limit}`),
+  getUnreadAlertCount: () => request('/watchlist/alerts/unread-count'),
+  markAlertRead: (alertId) => request(`/watchlist/alerts/${alertId}/read`, { method: 'POST' }),
+  markAllAlertsRead: () => request('/watchlist/alerts/read-all', { method: 'POST' }),
+
+  // ── Discover ──────────────────────────────────────────────────────────
+  getGraphData: () => request('/discover/graph'),
+
+  // ── Journeys ───────────────────────────────────────────────────────────
+  listJourneys: () => request('/journeys/'),
+  getJourney: (slug) => request(`/journeys/${slug}`),
+  startJourney: (slug) => request(`/journeys/${slug}/start`, { method: 'POST' }),
+  completeStep: (slug, stepNumber) =>
+    request(`/journeys/${slug}/steps/${stepNumber}/complete`, { method: 'POST' }),
+  getMyJourneys: () => request('/journeys/me'),
+
+  // ── Videos ──────────────────────────────────────────────────────────────
+  getVideoFeed: (params = {}) => {
+    const qs = new URLSearchParams(
+      Object.entries(params).filter(([, v]) => v !== '' && v != null)
+    ).toString()
+    return request(`/videos/feed${qs ? '?' + qs : ''}`)
+  },
+  getVideo: (id) => request(`/videos/${id}`),
+  deleteVideo: (id) => request(`/videos/${id}`, { method: 'DELETE' }),
+  uploadVideo: (formData) => {
+    const token = getToken()
+    const headers = {}
+    if (token) headers['Authorization'] = `Bearer ${token}`
+    return fetch(`${BASE}/videos/upload`, {
+      method: 'POST',
+      headers,
+      body: formData,
+    }).then(res => {
+      if (!res.ok) throw new Error('Video upload failed')
+      return res.json()
+    })
+  },
+  toastVideo: (id) => request(`/videos/${id}/toast`, { method: 'POST' }),
+  untoastVideo: (id) => request(`/videos/${id}/toast`, { method: 'DELETE' }),
+  addVideoComment: (id, text) =>
+    request(`/videos/${id}/comment`, { method: 'POST', body: JSON.stringify({ text }) }),
+  getVideoComments: (id, { skip = 0, limit = 50 } = {}) =>
+    request(`/videos/${id}/comments?skip=${skip}&limit=${limit}`),
+  deleteVideoComment: (commentId) =>
+    request(`/videos/comments/${commentId}`, { method: 'DELETE' }),
+  recordVideoView: (id) => request(`/videos/${id}/view`, { method: 'POST' }),
+  getUserVideos: (username, params = {}) => {
+    const qs = new URLSearchParams(
+      Object.entries(params).filter(([, v]) => v !== '' && v != null)
+    ).toString()
+    return request(`/videos/user/${username}${qs ? '?' + qs : ''}`)
+  },
+  getWhiskeyVideos: (whiskeyId, params = {}) => {
+    const qs = new URLSearchParams(
+      Object.entries(params).filter(([, v]) => v !== '' && v != null)
+    ).toString()
+    return request(`/videos/whiskey/${whiskeyId}${qs ? '?' + qs : ''}`)
+  },
+
+  // ── Affiliate ──────────────────────────────────────────────────────────
+  recordAffiliateClick: (body) =>
+    request('/affiliate/click', { method: 'POST', body: JSON.stringify(body) }),
+
+  // ── Sponsored ────────────────────────────────────────────────────────
+  trackSponsoredImpression: (placementId) =>
+    request(`/sponsored/${placementId}/impression`, { method: 'POST' }),
+  trackSponsoredClick: (placementId) =>
+    request(`/sponsored/${placementId}/click`, { method: 'POST' }),
+
+  // ── Subscription ──────────────────────────────────────────────────────
+  getSubscriptionStatus: () => request('/subscription/status'),
+  getFeatureComparison: () => request('/subscription/features'),
+  activatePremium: () => request('/subscription/activate', { method: 'POST' }),
+  cancelSubscription: () => request('/subscription/cancel', { method: 'POST' }),
+
   // ── Chat — returns raw Response for SSE stream ───────────────────────────
-  chatStream: (messages, session_id = null, user_location = null) => {
+  chatStream: (messages, session_id = null, user_location = null, signal = null) => {
     const headers = { 'Content-Type': 'application/json' }
     const token = getToken()
     if (token) {
@@ -208,10 +362,8 @@ export const api = {
     if (user_location) {
       body.user_location = user_location
     }
-    return fetch(`${BASE}/chat/`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify(body),
-    })
+    const opts = { method: 'POST', headers, body: JSON.stringify(body) }
+    if (signal) opts.signal = signal
+    return fetch(`${BASE}/chat/`, opts)
   },
 }

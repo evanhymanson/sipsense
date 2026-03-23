@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect, memo } from 'react'
 import { Link } from 'react-router-dom'
 import { api, getUsername } from '../api/client'
+import { useToast } from './Toast'
 import './CheckInCard.css'
 
 const SERVING_EMOJI = {
@@ -22,18 +23,27 @@ function timeAgo(dateStr) {
   return new Date(dateStr).toLocaleDateString()
 }
 
-export default function CheckInCard({ item, onToastToggle }) {
+export default memo(function CheckInCard({ item, onToastToggle }) {
   const { rating, whiskey, username, toast_count, user_toasted } = item
+  if (!whiskey) return null
   const [toasted, setToasted] = useState(user_toasted)
   const [count, setCount] = useState(toast_count)
+  useEffect(() => { setToasted(user_toasted) }, [user_toasted])
+  useEffect(() => { setCount(toast_count) }, [toast_count])
   const [busy, setBusy] = useState(false)
   const currentUser = getUsername()
   const isOwn = currentUser === username
+  const addToast = useToast()
 
-  const stars = '★'.repeat(Math.round(rating.score)) + '☆'.repeat(5 - Math.round(rating.score))
+  const roundedScore = Math.round(rating.score || 0)
+  const stars = '★'.repeat(roundedScore) + '☆'.repeat(Math.max(0, 5 - roundedScore))
 
   async function handleToast() {
-    if (busy || isOwn) return
+    if (busy) return
+    if (isOwn) {
+      addToast("Can't toast your own check-in", 'info')
+      return
+    }
     setBusy(true)
     try {
       if (toasted) {
@@ -47,7 +57,7 @@ export default function CheckInCard({ item, onToastToggle }) {
       }
       onToastToggle?.()
     } catch {
-      // silently fail
+      addToast('Failed to update toast. Please try again.', 'error')
     } finally {
       setBusy(false)
     }
@@ -63,7 +73,7 @@ export default function CheckInCard({ item, onToastToggle }) {
       <Link to={`/whiskey/${whiskey.id}`} className="checkin-whiskey">
         <span className="checkin-whiskey-name">{whiskey.name}</span>
         <span className="checkin-whiskey-meta">
-          {whiskey.distillery} · {whiskey.category}
+          {whiskey.distillery || ''}{whiskey.distillery && whiskey.category ? ' · ' : ''}{whiskey.category || ''}
         </span>
       </Link>
 
@@ -79,18 +89,36 @@ export default function CheckInCard({ item, onToastToggle }) {
         )}
       </div>
 
+      {rating.image_url && (
+        <img
+          src={`/api${rating.image_url}`}
+          alt={`${username}'s tasting photo`}
+          className="checkin-photo"
+          loading="lazy"
+          decoding="async"
+          onError={(e) => { e.target.style.display = 'none' }}
+        />
+      )}
+
       {rating.notes && <p className="checkin-notes">{rating.notes}</p>}
 
       <div className="checkin-actions">
-        <button
-          className={`toast-btn ${toasted ? 'toast-btn--active' : ''}`}
-          onClick={handleToast}
-          disabled={busy || isOwn || !currentUser}
-          title={isOwn ? "Can't toast your own" : toasted ? 'Remove toast' : 'Toast!'}
-        >
-          🍻 {count > 0 && <span className="toast-count">{count}</span>}
-        </button>
+        {!isOwn && (
+          <button
+            className={`toast-btn ${toasted ? 'toast-btn--active' : ''}`}
+            onClick={handleToast}
+            disabled={busy || !currentUser}
+            aria-label={toasted ? 'Remove toast' : 'Toast this check-in'}
+          >
+            🍻 {count > 0 && <span className="toast-count">{count}</span>}
+          </button>
+        )}
+        {isOwn && count > 0 && (
+          <span className="toast-btn toast-btn--own" aria-label="Toasts received">
+            🍻 <span className="toast-count">{count}</span>
+          </span>
+        )}
       </div>
     </div>
   )
-}
+})

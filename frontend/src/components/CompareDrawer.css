@@ -1,0 +1,98 @@
+.compare-drawer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: var(--surface);
+  border-top: 2px solid var(--amber);
+  box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.5);
+  padding: 1rem 2rem;
+  z-index: 50;
+  animation: slideUp 0.25s ease-out;
+}
+
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+.cd-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+.cd-header h3 { margin: 0; font-size: 1rem; color: var(--amber-light); }
+.cd-header-actions { display: flex; align-items: center; gap: 0.75rem; }
+.cd-hint { font-size: 0.78rem; color: var(--text-muted); }
+.cd-close {
+  background: none; border: none; color: var(--text-muted);
+  font-size: 1.3rem; cursor: pointer;
+}
+.cd-close:hover { color: var(--text); }
+.cd-clear-all {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  cursor: pointer;
+  font-family: inherit;
+}
+.cd-clear-all:hover { border-color: var(--amber); color: var(--amber-light); }
+
+.cd-bottles {
+  display: flex;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+.cd-bottle {
+  position: relative;
+  flex: 1;
+  padding: 0.5rem 0.75rem;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.cd-bottle-remove {
+  position: absolute; top: 0.25rem; right: 0.35rem;
+  background: none; border: none; color: var(--text-muted);
+  font-size: 0.95rem; cursor: pointer;
+}
+.cd-bottle-remove:hover { color: var(--red-light); }
+.cd-bottle-name { font-weight: 600; font-size: 0.85rem; color: var(--text); padding-right: 1rem; }
+.cd-bottle-dist { font-size: 0.75rem; color: var(--text-muted); }
+
+.cd-table {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  background: var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+.cd-row {
+  display: flex;
+  background: var(--surface-2);
+}
+.cd-row-label {
+  flex: 0 0 80px;
+  padding: 0.4rem 0.6rem;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+}
+.cd-row-val {
+  flex: 1;
+  padding: 0.4rem 0.6rem;
+  font-size: 0.85rem;
+  color: var(--text-soft);
+  text-align: center;
+}
+.cd-row-val--winner {
+  color: var(--amber-light);
+  font-weight: 600;
+}

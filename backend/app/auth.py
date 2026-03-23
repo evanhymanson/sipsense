@@ -16,9 +16,27 @@ from . import models
 
 # ── Config ────────────────────────────────────────────────────────────────
 
-SECRET_KEY = os.getenv("JWT_SECRET_KEY", "dev-secret-change-in-production")
+_ENV = os.getenv("SIPSENSE_ENV", "development").lower()
+_raw_secret = os.getenv("JWT_SECRET_KEY", "")
+
+if not _raw_secret:
+    if _ENV == "production":
+        raise RuntimeError(
+            "FATAL: JWT_SECRET_KEY must be set in production. "
+            "Generate one with: python -c \"import secrets; print(secrets.token_urlsafe(64))\""
+        )
+    # Auto-generate an ephemeral secret for local dev (tokens won't survive restarts)
+    import secrets as _secrets
+    import logging as _logging
+    _raw_secret = _secrets.token_urlsafe(64)
+    _logging.getLogger(__name__).warning(
+        "JWT_SECRET_KEY is not set — using auto-generated ephemeral secret. "
+        "Set JWT_SECRET_KEY env var before deploying."
+    )
+
+SECRET_KEY = _raw_secret
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # 7 days
+ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 24 hours
 
 # ── Password hashing ─────────────────────────────────────────────────────
 
@@ -71,7 +89,7 @@ def get_current_user(
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="User not found",
+            detail="Invalid or expired token",
             headers={"WWW-Authenticate": "Bearer"},
         )
     if not user.is_active:
@@ -94,3 +112,21 @@ def get_optional_user(
     if username is None:
         return None
     return db.query(models.User).filter(models.User.username == username, models.User.is_active == True).first()
+
+
+def require_premium(
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> models.User:
+    """Dependency that requires the user to have an active premium subscription."""
+    # Check if premium has expired
+    if current_user.is_premium and current_user.premium_until:
+        if current_user.premium_until < datetime.now(timezone.utc):
+            current_user.is_premium = False
+            db.commit()
+    if not current_user.is_premium:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="This feature requires SipSense Premium",
+        )
+    return current_user

@@ -23,8 +23,8 @@ CATEGORY_MAP = [
     ("rye",           "rye"),
     ("wheat",         "bourbon"),        # wheated whiskey
     ("single malt",   "single malt"),
-    ("single grain",  "scotch"),
-    ("blended malt",  "scotch"),
+    ("single grain",  "single grain"),
+    ("blended malt",  "blended"),
     ("blended scotch","scotch"),
     ("scotch",        "scotch"),
     ("irish",         "irish"),
@@ -64,15 +64,24 @@ _SOURCE_CURRENCY: dict[str, str] = {
 }
 
 # Keywords in product names that indicate non-whiskey products
-NON_WHISKEY_KEYWORDS = [
-    "beer", "ale", "stout", "porter", "lager", "ipa", "pilsner",
-    "wine", "merlot", "cabernet", "chardonnay", "pinot", "zinfandel",
-    "cocktail", "sour", "margarita", "mojito",
-    "protein", "supplement", "powder",
-    "liqueur", "creme de", "cream de",
-    "fireball", "regal apple",
-    "barley wine", "barleywine",
-]
+# Only flag products that are clearly NOT whiskey.
+# Conservative: words like "rum", "wine", "port", "ale", "brandy", "cognac"
+# are NOT flagged because they appear in cask finishes and distillery names.
+_ALWAYS_REJECT_RE = re.compile(
+    r"\b(?:vodka|tequila|mezcal|absinthe|schnapps|sake|soju|baijiu"
+    r"|grappa|vermouth|cachaca|liqueur|creme de|cream de"
+    r"|fireball|regal apple|barley\s*wine"
+    r"|cocktail|margarita|mojito|cola\b.*\bblik"
+    r"|new\s*make|new\s*spirit|new[\s-]*malt\s*spirit|poit[ií]n|poteen"
+    r"|protein|supplement|powder"
+    r"|merlot|cabernet|chardonnay|pinot|zinfandel)\b", re.I
+)
+# "Gin" needs special care — flag unless whiskey-related words present
+_GIN_RE = re.compile(r"\bgin\b", re.I)
+_GIN_SAFE_RE = re.compile(r"\b(?:whisk|bourbon|scotch|malt|begin|ginger|engine|origin|virgin)\b", re.I)
+
+# RTD (ready-to-drink) mixed products: "Whiskey & Cola", "Bourbon & Soda", etc.
+_RTD_RE = re.compile(r"\b(?:whisky|whiskey|bourbon)\b.*&\s*(?:cola|soda|lemonade|ginger\s*ale)\b", re.I)
 
 # Maps country / region → normalized region label
 REGION_MAP = {
@@ -179,8 +188,11 @@ def normalize(raw: dict) -> Optional[dict]:
         return None
 
     # Reject products that are not actual whiskey based on name keywords
-    name_lower = name.lower()
-    if any(kw in name_lower for kw in NON_WHISKEY_KEYWORDS):
+    if _ALWAYS_REJECT_RE.search(name):
+        return None
+    if _GIN_RE.search(name) and not _GIN_SAFE_RE.search(name):
+        return None
+    if _RTD_RE.search(name):
         return None
 
     distillery = _clean_str(raw.get("distillery")) or _clean_str(raw.get("brand")) or "Unknown"
@@ -316,7 +328,7 @@ def _normalize_category(category_raw: str, country: str) -> str:
             return mapped
 
     # Fall back to country-based inference
-    return COUNTRY_CATEGORY_MAP.get(country, "scotch")  # scotch is the most common default
+    return COUNTRY_CATEGORY_MAP.get(country, "world")  # 'world' for unknown origin
 
 
 def _normalize_region(region_raw: str) -> Optional[str]:

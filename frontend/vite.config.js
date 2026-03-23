@@ -14,6 +14,24 @@ export default defineConfig({
         proxyTimeout: 0,
         timeout: 0,
       },
+      // Forward /uploads/* for bottle images and other static assets
+      '/uploads': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+      },
     },
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // Split heavy vendor libraries into separate cacheable chunks
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          'vendor-leaflet': ['leaflet', 'react-leaflet'],
+        },
+      },
+    },
+    // Enable CSS code splitting for route-level styles
+    cssCodeSplit: true,
   },
 })

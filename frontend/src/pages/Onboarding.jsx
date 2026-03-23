@@ -8,6 +8,7 @@ export default function Onboarding() {
   const [username, setUsername] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState(null)
   const [loading, setLoading] = useState(false)
   const navigate = useNavigate()
@@ -90,15 +91,28 @@ export default function Onboarding() {
           )}
 
           <label className="onboarding-label" htmlFor="password">Password</label>
-          <input
-            id="password"
-            className="onboarding-input"
-            type="password"
-            placeholder="At least 6 characters"
-            value={password}
-            onChange={e => setPassword(e.target.value)}
-            minLength={6}
-          />
+          <div className="password-wrapper">
+            <input
+              id="password"
+              className="onboarding-input"
+              type={showPassword ? 'text' : 'password'}
+              placeholder="At least 6 characters"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              minLength={6}
+            />
+            <button
+              type="button"
+              className="password-toggle"
+              onClick={() => setShowPassword(v => !v)}
+              aria-label={showPassword ? 'Hide password' : 'Show password'}
+            >
+              {showPassword ? '🙈' : '👁'}
+            </button>
+          </div>
+          {mode === 'register' && password.length > 0 && password.length < 6 && (
+            <p className="onboarding-error">Password must be at least 6 characters</p>
+          )}
 
           {error && <p className="onboarding-error">{error}</p>}
 

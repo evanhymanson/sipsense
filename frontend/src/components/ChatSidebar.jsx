@@ -1,9 +1,11 @@
-import { useState, useRef, useEffect, lazy, Suspense } from 'react'
+import { useState, useRef, useEffect, useCallback, memo, lazy, Suspense } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
+import { getCategoryEmoji } from '../constants'
 import './ChatSidebar.css'
 
 const CHAT_STORAGE_KEY = 'sipsense_chat_messages'
+const MAX_CHAT_MESSAGES = 200
 
 const STARTER_PROMPTS = [
   "Good beginner bourbon under $40?",
@@ -19,14 +21,10 @@ const SidebarMap = lazy(() => import('./SidebarMap'))
 
 // ── Compact whiskey card for the sidebar ─────────────────────────────────────
 
-function SidebarWhiskeyCard({ whiskey }) {
+const SidebarWhiskeyCard = memo(function SidebarWhiskeyCard({ whiskey }) {
   const navigate = useNavigate()
   const stars = Math.round(whiskey.rating_avg || 0)
-  const emoji = {
-    bourbon: '\u{1F943}', scotch: '\u{1F3F4}\u{E0067}\u{E0062}\u{E0073}\u{E0063}\u{E0074}\u{E007F}', irish: '\u2618\uFE0F',
-    japanese: '\u{1F5FE}', rye: '\u{1F33E}', canadian: '\u{1F341}',
-    'single malt': '\u{1F3F0}', blended: '\u{1F943}',
-  }[whiskey.category] || '\u{1F943}'
+  const emoji = getCategoryEmoji(whiskey.category)
 
   return (
     <div
@@ -45,7 +43,7 @@ function SidebarWhiskeyCard({ whiskey }) {
       </div>
       <div className="sb-card-meta">
         {whiskey.category && <span className="sb-badge">{whiskey.category}</span>}
-        {whiskey.price_usd && <span className="sb-badge">${whiskey.price_usd}</span>}
+        {whiskey.price_usd && <span className={`sb-badge${whiskey.price_is_estimated ? ' sb-badge--estimated' : ''}`}>{whiskey.price_is_estimated ? '~' : ''}${Number(whiskey.price_usd).toFixed(2)}{whiskey.price_is_estimated ? ' Est.' : ''}</span>}
         {whiskey.rating_avg > 0 && (
           <span className="sb-badge sb-badge--rating">
             {'\u2605'.repeat(stars)}{'\u2606'.repeat(5 - stars)} {whiskey.rating_avg.toFixed(1)}
@@ -54,11 +52,11 @@ function SidebarWhiskeyCard({ whiskey }) {
       </div>
     </div>
   )
-}
+})
 
 // ── Comparison table (generative UI) ─────────────────────────────────────────
 
-function SidebarComparison({ whiskeys, rows }) {
+const SidebarComparison = memo(function SidebarComparison({ whiskeys, rows }) {
   const navigate = useNavigate()
   if (!whiskeys || whiskeys.length < 2) return null
   const [w1, w2] = whiskeys
@@ -83,11 +81,11 @@ function SidebarComparison({ whiskeys, rows }) {
       ))}
     </div>
   )
-}
+})
 
 // ── Flight visualization (generative UI) ─────────────────────────────────────
 
-function SidebarFlight({ story, whiskeys }) {
+const SidebarFlight = memo(function SidebarFlight({ story, whiskeys }) {
   const navigate = useNavigate()
   if (!whiskeys || whiskeys.length === 0) return null
 
@@ -108,7 +106,7 @@ function SidebarFlight({ story, whiskeys }) {
               <div className="sb-flight-name">{w.name}</div>
               <div className="sb-flight-detail">
                 {w.category}{w.region ? ` \u2022 ${w.region}` : ''}
-                {w.price_usd ? ` \u2022 $${w.price_usd}` : ''}
+                {w.price_usd ? ` \u2022 ${w.price_is_estimated ? '~' : ''}$${Number(w.price_usd).toFixed(2)}${w.price_is_estimated ? ' Est.' : ''}` : ''}
               </div>
             </div>
             {i < whiskeys.length - 1 && <div className="sb-flight-arrow">\u2192</div>}
@@ -117,11 +115,11 @@ function SidebarFlight({ story, whiskeys }) {
       </div>
     </div>
   )
-}
+})
 
 // ── Palate profile chart (generative UI) ──────────────────────────────────────
 
-function SidebarPalateProfile({ profile }) {
+const SidebarPalateProfile = memo(function SidebarPalateProfile({ profile }) {
   if (!profile) return null
 
   const flavors = (profile.top_flavors || []).slice(0, 6)
@@ -163,16 +161,16 @@ function SidebarPalateProfile({ profile }) {
           <span>{profile.favorites_count} favorites</span>
         )}
         {profile.avg_price_usd > 0 && (
-          <span>~${Math.round(profile.avg_price_usd)} avg</span>
+          <span>~${Number(profile.avg_price_usd).toFixed(2)} avg</span>
         )}
       </div>
     </div>
   )
-}
+})
 
 // ── Price alternatives (generative UI) ───────────────────────────────────────
 
-function SidebarPriceAlternatives({ reference, whiskeys }) {
+const SidebarPriceAlternatives = memo(function SidebarPriceAlternatives({ reference, whiskeys }) {
   const navigate = useNavigate()
   if (!reference || !whiskeys?.length) return null
 
@@ -186,7 +184,7 @@ function SidebarPriceAlternatives({ reference, whiskeys }) {
         >
           {reference.name}
         </span>
-        <span className="sb-price-alt-price">${reference.price_usd}</span>
+        <span className="sb-price-alt-price">{reference.price_is_estimated ? '~' : ''}${Number(reference.price_usd).toFixed(2)}{reference.price_is_estimated ? ' Est.' : ''}</span>
       </div>
       <div className="sb-price-alt-arrow">\u2193 Save money with</div>
       {whiskeys.slice(0, 4).map(w => (
@@ -200,16 +198,16 @@ function SidebarPriceAlternatives({ reference, whiskeys }) {
         >
           <span className="sb-price-alt-item-name">{w.name}</span>
           <span className="sb-price-alt-item-price">
-            ${w.price_usd}
+            {w.price_is_estimated ? '~' : ''}${Number(w.price_usd).toFixed(2)}{w.price_is_estimated ? ' Est.' : ''}
             <span className="sb-price-alt-savings">
-              (-${Math.round(reference.price_usd - w.price_usd)})
+              (-${(reference.price_usd - w.price_usd).toFixed(2)})
             </span>
           </span>
         </div>
       ))}
     </div>
   )
-}
+})
 
 // ── Main ChatSidebar component ───────────────────────────────────────────────
 
@@ -227,30 +225,131 @@ export default function ChatSidebar({ isOpen, onClose }) {
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [userLocation, setUserLocation] = useState(null)
+  const [gpsStatus, setGpsStatus] = useState('pending') // pending | active | denied | unavailable
   const bottomRef = useRef(null)
   const textareaRef = useRef(null)
 
-  // Grab user's real GPS location once on mount
-  useEffect(() => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-        () => { /* permission denied or unavailable — geocoding fallback still works */ },
-        { timeout: 5000 }
-      )
-    }
+  // ── Streaming text buffer: accumulate SSE text chunks in a ref, flush via RAF ──
+  const streamBufferRef = useRef('')
+  const rafIdRef = useRef(null)
+
+  const flushStreamBuffer = useCallback(() => {
+    rafIdRef.current = null
+    const text = streamBufferRef.current
+    if (!text) return
+    streamBufferRef.current = ''
+    setMessages(prev => {
+      const updated = [...prev]
+      const last = { ...updated[updated.length - 1] }
+      last.content += text
+      updated[updated.length - 1] = last
+      return updated
+    })
   }, [])
 
+  const appendStreamText = useCallback((text) => {
+    streamBufferRef.current += text
+    if (rafIdRef.current == null) {
+      rafIdRef.current = requestAnimationFrame(flushStreamBuffer)
+    }
+  }, [flushStreamBuffer])
+
+  function requestLocation(signal) {
+    if (!navigator.geolocation) {
+      fallbackIpLocation(signal)
+      return
+    }
+    // If already denied, the browser won't re-prompt — check via Permissions API first
+    if (navigator.permissions) {
+      navigator.permissions.query({ name: 'geolocation' }).then(result => {
+        if (signal?.aborted) return
+        if (result.state === 'denied') {
+          setGpsStatus('denied')
+          return
+        }
+        doGeoRequest(signal)
+      }).catch(() => { if (!signal?.aborted) doGeoRequest(signal) })
+    } else {
+      doGeoRequest(signal)
+    }
+  }
+
+  async function fallbackIpLocation(signal) {
+    const services = [
+      { url: 'https://ipapi.co/json/', parse: (d) => d.latitude && d.longitude ? { lat: d.latitude, lng: d.longitude } : null },
+      { url: 'https://ip-api.com/json/?fields=lat,lon,status', parse: (d) => d.status === 'success' ? { lat: d.lat, lng: d.lon } : null },
+    ]
+    for (const svc of services) {
+      if (signal?.aborted) return
+      try {
+        const res = await fetch(svc.url, { signal })
+        if (!res.ok) continue
+        const data = await res.json()
+        const pos = svc.parse(data)
+        if (pos) {
+          setUserLocation(pos)
+          setGpsStatus('active')
+          return
+        }
+      } catch { /* try next or aborted */ }
+    }
+    if (!signal?.aborted) setGpsStatus('unavailable')
+  }
+
+  function doGeoRequest(signal) {
+    setGpsStatus('pending')
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        if (signal?.aborted) return
+        setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude })
+        setGpsStatus('active')
+      },
+      (err) => {
+        if (signal?.aborted) return
+        if (err.code === err.PERMISSION_DENIED) {
+          setGpsStatus('denied')
+        } else {
+          fallbackIpLocation(signal)
+        }
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 }
+    )
+  }
+
+  // Grab user's real GPS location once on mount
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+    const controller = new AbortController()
+    requestLocation(controller.signal)
+    return () => controller.abort()
+  }, [])
+
+  // ── Throttled scroll: at most once per animation frame ──
+  const scrollRafRef = useRef(null)
+  useEffect(() => {
+    if (scrollRafRef.current) return
+    scrollRafRef.current = requestAnimationFrame(() => {
+      scrollRafRef.current = null
+      bottomRef.current?.scrollIntoView({ behavior: 'auto' })
+    })
   }, [messages])
 
-  // Persist completed messages to localStorage
+  // Persist completed messages to localStorage — skip entirely while streaming
+  const saveTimerRef = useRef(null)
   useEffect(() => {
-    try {
-      const toStore = messages.filter(m => !m.isStreaming)
-      localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(toStore))
-    } catch { /* localStorage full or unavailable */ }
+    if (messages.some(m => m.isStreaming)) return
+    clearTimeout(saveTimerRef.current)
+    saveTimerRef.current = setTimeout(() => {
+      try {
+        const toStore = messages.slice(-MAX_CHAT_MESSAGES)
+        localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(toStore))
+      } catch (e) {
+        if (e?.name === 'QuotaExceededError' || e?.code === 22) {
+          const trimmed = messages.slice(-20)
+          try { localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(trimmed)) } catch { /* give up */ }
+        }
+      }
+    }, 500)
+    return () => clearTimeout(saveTimerRef.current)
   }, [messages])
 
   useEffect(() => {
@@ -269,7 +368,7 @@ export default function ChatSidebar({ isOpen, onClose }) {
       role: 'assistant', content: '',
       whiskeys: [], genUI: [], isStreaming: true,
     }
-    const nextMessages = [...messages, userMsg]
+    const nextMessages = [...messages, userMsg].slice(-MAX_CHAT_MESSAGES)
 
     setMessages([...nextMessages, assistantMsg])
     setInput('')
@@ -277,17 +376,29 @@ export default function ChatSidebar({ isOpen, onClose }) {
 
     const history = nextMessages.map(m => ({ role: m.role, content: m.content }))
 
+    // Abort the stream if it takes too long (90s total, or 30s with no data)
+    const controller = new AbortController()
+    const hardTimeout = setTimeout(() => controller.abort(), 90_000)
+    let idleTimer = null
+
+    function resetIdleTimer() {
+      clearTimeout(idleTimer)
+      idleTimer = setTimeout(() => controller.abort(), 30_000)
+    }
+
     try {
-      const response = await api.chatStream(history, null, userLocation)
+      const response = await api.chatStream(history, null, userLocation, controller.signal)
       if (!response.ok) throw new Error('Chat request failed')
 
       const reader = response.body.getReader()
       const decoder = new TextDecoder()
       let buffer = ''
+      resetIdleTimer()
 
       while (true) {
         const { done, value } = await reader.read()
         if (done) break
+        resetIdleTimer()
         buffer += decoder.decode(value, { stream: true })
         const parts = buffer.split('\n\n')
         buffer = parts.pop()
@@ -297,23 +408,53 @@ export default function ChatSidebar({ isOpen, onClose }) {
           if (!line.startsWith('data: ')) continue
           try {
             const event = JSON.parse(line.slice(6))
+            if (event.type === 'error') {
+              throw new Error(event.message || 'Server error')
+            }
             handleSseEvent(event)
-          } catch { /* malformed chunk */ }
+          } catch (e) {
+            if (e.message && e.message !== 'Server error') continue
+            throw e
+          }
         }
       }
-    } catch {
-      setMessages(prev => {
-        const updated = [...prev]
-        const last = { ...updated[updated.length - 1] }
-        last.content = last.content || 'Sorry, something went wrong. Please try again.'
-        last.isStreaming = false
-        updated[updated.length - 1] = last
-        return updated
-      })
+
+      // Process any remaining data in the buffer after stream ends
+      if (buffer.trim()) {
+        const line = buffer.trim()
+        if (line.startsWith('data: ')) {
+          try {
+            const event = JSON.parse(line.slice(6))
+            if (event.type !== 'error') handleSseEvent(event)
+          } catch { /* ignore parse errors in final chunk */ }
+        }
+      }
+    } catch (err) {
+      // Don't show an error when the stream was intentionally aborted (timeout or navigation)
+      if (err?.name !== 'AbortError') {
+        setMessages(prev => {
+          const updated = [...prev]
+          const last = { ...updated[updated.length - 1] }
+          last.content = last.content || 'Sorry, something went wrong. Please try again.'
+          last.isStreaming = false
+          updated[updated.length - 1] = last
+          return updated
+        })
+      }
     } finally {
+      clearTimeout(hardTimeout)
+      clearTimeout(idleTimer)
+      // Flush any remaining buffered text before finalizing
+      if (rafIdRef.current) {
+        cancelAnimationFrame(rafIdRef.current)
+        rafIdRef.current = null
+      }
+      const remaining = streamBufferRef.current
+      streamBufferRef.current = ''
       setMessages(prev => {
         const updated = [...prev]
         const last = { ...updated[updated.length - 1] }
+        if (remaining) last.content += remaining
         last.isStreaming = false
         updated[updated.length - 1] = last
         return updated
@@ -335,8 +476,34 @@ export default function ChatSidebar({ isOpen, onClose }) {
     }
 
     switch (event.type) {
+      case 'thinking':
+        updateLast(last => { last.toolStatus = 'Thinking\u2026' })
+        break
+
+      case 'tool_start': {
+        const labels = {
+          search_whiskeys: 'Searching whiskeys\u2026',
+          get_top_rated: 'Finding top-rated picks\u2026',
+          compare_whiskeys: 'Comparing whiskeys\u2026',
+          find_nearby_stores: 'Searching for stores\u2026',
+          build_tasting_flight: 'Building a flight\u2026',
+          get_similar_whiskeys: 'Finding similar bottles\u2026',
+          get_recommendations: 'Getting recommendations\u2026',
+          find_value_picks: 'Finding value picks\u2026',
+          find_cheaper_alternatives: 'Finding alternatives\u2026',
+          generate_palate_profile: 'Analyzing your palate\u2026',
+          get_database_stats: 'Checking the database\u2026',
+          find_gift_recommendation: 'Finding gift ideas\u2026',
+          create_learning_path: 'Building your journey\u2026',
+        }
+        const label = labels[event.tool] || 'Working\u2026'
+        updateLast(last => { last.toolStatus = label })
+        break
+      }
+
       case 'text':
-        updateLast(last => { last.content += event.content })
+        // Buffer text in a ref and flush once per animation frame
+        appendStreamText(event.content)
         break
 
       case 'whiskeys':
@@ -445,7 +612,26 @@ export default function ChatSidebar({ isOpen, onClose }) {
       <div className={`chat-sidebar ${isOpen ? 'chat-sidebar--open' : ''}`}>
         {/* Header */}
         <div className="sb-header">
-          <span className="sb-title">{'\u{1F943}'} Ask SipSense</span>
+          <div className="sb-title-row">
+            <span className="sb-title">{'\u{1F943}'} Ask Sip Sense</span>
+            <button
+              className={`sb-gps-indicator sb-gps-indicator--${gpsStatus}`}
+              onClick={gpsStatus !== 'active' ? requestLocation : undefined}
+              title={
+                gpsStatus === 'active' ? 'GPS active' :
+                gpsStatus === 'denied' ? 'Location blocked — check browser settings' :
+                gpsStatus === 'unavailable' ? 'Click to retry location' : 'Locating...'
+              }
+            >
+              <span className="sb-gps-dot" />
+              {gpsStatus === 'denied' && (
+                <span className="sb-gps-label">GPS Blocked</span>
+              )}
+              {gpsStatus === 'unavailable' && (
+                <span className="sb-gps-label">Enable GPS</span>
+              )}
+            </button>
+          </div>
           <div className="sb-header-actions">
             {messages.length > 0 && (
               <button className="sb-clear-btn" onClick={() => {
@@ -461,6 +647,18 @@ export default function ChatSidebar({ isOpen, onClose }) {
 
         {/* Messages */}
         <div className="sb-messages">
+          {gpsStatus === 'denied' && (
+            <div className="sb-gps-banner">
+              <span>Location blocked — click the lock icon in your address bar to allow location access, then reload.</span>
+            </div>
+          )}
+          {gpsStatus === 'unavailable' && (
+            <div className="sb-gps-banner">
+              <span>Could not get your location — store finder will use city names instead.</span>
+              <button onClick={requestLocation}>Try Again</button>
+            </div>
+          )}
+
           {messages.length === 0 && (
             <div className="sb-starters">
               <p className="sb-starters-label">Ask me anything about whiskey</p>
@@ -473,7 +671,7 @@ export default function ChatSidebar({ isOpen, onClose }) {
           )}
 
           {messages.map((msg, i) => (
-            <div key={i} className={`sb-bubble-wrap sb-bubble-wrap--${msg.role}`}>
+            <div key={`${msg.role}-${i}`} className={`sb-bubble-wrap sb-bubble-wrap--${msg.role}`}>
               <div className={`sb-bubble sb-bubble--${msg.role}`}>
                 {msg.content && (
                   <p className="sb-bubble-text">
@@ -483,7 +681,8 @@ export default function ChatSidebar({ isOpen, onClose }) {
                 )}
                 {msg.isStreaming && !msg.content && (
                   <p className="sb-bubble-text sb-thinking">
-                    <span className="sb-cursor" />
+                    {msg.toolStatus && <span className="sb-tool-status">{msg.toolStatus}</span>}
+                    {!msg.toolStatus && <span className="sb-cursor" />}
                   </p>
                 )}
 
@@ -513,7 +712,7 @@ export default function ChatSidebar({ isOpen, onClose }) {
             value={input}
             onChange={e => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Ask about whiskey\u2026 (Enter to send)"
+            placeholder="What are you sipping on?"
             rows={2}
             disabled={isLoading}
           />

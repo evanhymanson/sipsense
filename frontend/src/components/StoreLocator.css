@@ -2,14 +2,74 @@
 .store-locator {
   margin: 2rem 0;
 }
-.store-locator h3 {
-  font-size: 1rem;
-  color: var(--amber-light);
+
+/* Clickable header row */
+.store-locator__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
   margin-bottom: 0.75rem;
 }
+
+.store-locator__header h3 {
+  font-size: 1rem;
+  color: var(--amber-light);
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.store-locator__count {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: var(--surface-2);
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+}
+
+.store-locator__collapse-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.75rem;
+  padding: 0.25rem;
+}
+
+/* Show more / fewer button */
+.store-locator__show-all {
+  display: block;
+  width: 100%;
+  margin-top: 0.5rem;
+  padding: 0.5rem;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--amber-light);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.store-locator__show-all:hover {
+  background: var(--amber-dim);
+  border-color: var(--amber);
+}
+
 .store-locator__denied {
   color: var(--text-muted);
   font-style: italic;
+}
+.store-locator__approx {
+  font-size: 0.82rem;
+  color: var(--amber);
+  font-style: italic;
+  margin-bottom: 0.75rem;
 }
 .store-locator__controls {
   margin-bottom: 1rem;
@@ -33,8 +93,36 @@
   font-style: italic;
 }
 
+/* ── Manual location search ────────────────────────────────────────── */
+.store-locator__manual {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+.store-locator__manual-input {
+  flex: 1;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 0.4rem 0.7rem;
+  border-radius: var(--radius);
+  font-family: inherit;
+  font-size: 0.85rem;
+}
+.store-locator__manual-input::placeholder {
+  color: var(--text-muted);
+}
+.store-locator__manual-error {
+  font-size: 0.8rem;
+  color: var(--red, #e05050);
+  margin-top: -0.5rem;
+  margin-bottom: 0.5rem;
+}
+
 /* ── Map ───────────────────────────────────────────────────────────────── */
 .store-map-container {
+  position: relative;
+  z-index: 0;
   margin-bottom: 1rem;
   border-radius: var(--radius);
   overflow: hidden;
@@ -52,6 +140,11 @@
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 0.85rem 1rem;
+  transition: box-shadow 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
+}
+.store-card:hover {
+  box-shadow: var(--shadow-hover);
+  transform: translateY(-2px);
 }
 .store-card__header {
   display: flex;
@@ -99,7 +192,7 @@
 }
 .store-card__report-btn:hover {
   background: var(--amber);
-  color: #1a1208;
+  color: #ffffff;
 }
 .store-card__phone,
 .store-card__website {
@@ -116,15 +209,15 @@
   border-radius: 50%;
   flex-shrink: 0;
 }
-.status-dot--green { background: #4caf50; }
-.status-dot--red { background: #e05050; }
+.status-dot--green { background: var(--green, #4caf50); }
+.status-dot--red { background: var(--red, #e05050); }
 .status-dot--gray { background: var(--text-muted); }
 
 /* ── Report Modal ──────────────────────────────────────────────────────── */
 .report-modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.7);
+  background: rgba(0, 0, 0, 0.3);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -168,7 +261,7 @@
 .report-option input { display: none; }
 .report-option--selected {
   border-color: var(--amber);
-  background: #3a2810;
+  background: rgba(200, 154, 43, 0.12);
 }
 .report-modal__actions {
   display: flex;

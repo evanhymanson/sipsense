@@ -4,7 +4,7 @@ Collection tracking ("My Shelf") — track bottles owned, opened, and finished.
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-from sqlalchemy import and_
+from sqlalchemy import and_, func, case
 from pydantic import BaseModel, Field
 from typing import Optional, Literal
 from datetime import datetime
@@ -51,15 +51,17 @@ class CollectionItemRead(BaseModel):
 @router.get("/")
 def get_my_collection(
     status: Optional[str] = Query(None, description="Filter by status: sealed, opened, finished"),
+    skip: int = Query(0, ge=0, le=10000),
+    limit: int = Query(200, ge=1, le=500),
     current_user: models.User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Return all bottles in the user's collection."""
+    """Return bottles in the user's collection (paginated)."""
     user_id = current_user.username
     q = db.query(models.CollectionItem).filter(models.CollectionItem.user_id == user_id)
     if status:
         q = q.filter(models.CollectionItem.status == status)
-    items = q.order_by(models.CollectionItem.added_at.desc()).all()
+    items = q.order_by(models.CollectionItem.added_at.desc()).offset(skip).limit(limit).all()
 
     # Batch-fetch whiskey data
     whiskey_ids = [item.whiskey_id for item in items]
@@ -103,22 +105,24 @@ def get_collection_stats(
     current_user: models.User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Summary stats for the user's collection."""
+    """Summary stats for the user's collection (uses SQL aggregates)."""
     user_id = current_user.username
-    items = db.query(models.CollectionItem).filter(models.CollectionItem.user_id == user_id).all()
-
-    sealed = sum(1 for i in items if i.status == "sealed")
-    opened = sum(1 for i in items if i.status == "opened")
-    finished = sum(1 for i in items if i.status == "finished")
-    prices = [i.purchase_price for i in items if i.purchase_price]
+    row = db.query(
+        func.count(models.CollectionItem.id).label("total"),
+        func.sum(case((models.CollectionItem.status == "sealed", 1), else_=0)).label("sealed"),
+        func.sum(case((models.CollectionItem.status == "opened", 1), else_=0)).label("opened"),
+        func.sum(case((models.CollectionItem.status == "finished", 1), else_=0)).label("finished"),
+        func.coalesce(func.sum(models.CollectionItem.purchase_price), 0).label("total_spent"),
+        func.avg(models.CollectionItem.purchase_price).label("avg_price"),
+    ).filter(models.CollectionItem.user_id == user_id).first()
 
     return {
-        "total": len(items),
-        "sealed": sealed,
-        "opened": opened,
-        "finished": finished,
-        "total_spent": round(sum(prices), 2) if prices else 0,
-        "avg_price": round(sum(prices) / len(prices), 2) if prices else 0,
+        "total": row.total or 0,
+        "sealed": row.sealed or 0,
+        "opened": row.opened or 0,
+        "finished": row.finished or 0,
+        "total_spent": round(float(row.total_spent), 2),
+        "avg_price": round(float(row.avg_price), 2) if row.avg_price else 0,
     }
 
 

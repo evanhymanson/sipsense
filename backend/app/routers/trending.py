@@ -11,6 +11,11 @@ from typing import Optional
 from .. import models, schemas
 from ..database import get_db
 
+
+def _has_image():
+    """Filter clause: whiskey must have a non-empty image_url."""
+    return [models.Whiskey.image_url.isnot(None), models.Whiskey.image_url != ""]
+
 router = APIRouter(prefix="/trending", tags=["trending"])
 
 
@@ -60,21 +65,26 @@ def get_trending(
         .outerjoin(fav_counts, models.Whiskey.id == fav_counts.c.whiskey_id)
     )
 
+    q = q.filter(*_has_image())
+
     if category:
-        q = q.filter(models.Whiskey.category.ilike(f"%{category}%"))
+        cat_safe = category.replace("%", "\\%").replace("_", "\\_")
+        q = q.filter(models.Whiskey.category.ilike(f"%{cat_safe}%"))
 
     results = q.order_by(desc("activity"), desc(models.Whiskey.rating_avg)).limit(limit).all()
 
     # If not enough recent activity, fall back to top-rated
     whiskeys = [w for w, _ in results if _ > 0]
     if len(whiskeys) < limit:
-        fallback_q = db.query(models.Whiskey)
+        fallback_q = db.query(models.Whiskey).filter(*_has_image())
         if category:
-            fallback_q = fallback_q.filter(models.Whiskey.category.ilike(f"%{category}%"))
+            cat_safe = category.replace("%", "\\%").replace("_", "\\_")
+            fallback_q = fallback_q.filter(models.Whiskey.category.ilike(f"%{cat_safe}%"))
         existing_ids = {w.id for w in whiskeys}
+        if existing_ids:
+            fallback_q = fallback_q.filter(models.Whiskey.id.notin_(existing_ids))
         fallback = (
             fallback_q
-            .filter(models.Whiskey.id.notin_(existing_ids) if existing_ids else True)
             .order_by(desc(models.Whiskey.rating_avg))
             .limit(limit - len(whiskeys))
             .all()
@@ -89,10 +99,11 @@ def get_new_arrivals(
     limit: int = Query(12, ge=1, le=50),
     db: Session = Depends(get_db),
 ):
-    """Return recently added whiskeys (by database ID, highest = newest)."""
+    """Return recently added whiskeys, ordered by creation timestamp."""
     return (
         db.query(models.Whiskey)
-        .order_by(desc(models.Whiskey.id))
+        .filter(*_has_image())
+        .order_by(desc(models.Whiskey.created_at))
         .limit(limit)
         .all()
     )

@@ -1,109 +1,111 @@
-import { BrowserRouter, Routes, Route, NavLink, useNavigate, useLocation } from 'react-router-dom'
-import { useState, useEffect } from 'react'
-import Browse from './pages/Browse'
-import WhiskeyDetail from './pages/WhiskeyDetail'
-import Recommendations from './pages/Recommendations'
-import Quiz from './pages/Quiz'
-import Favorites from './pages/Favorites'
-import FlavorWheel from './pages/FlavorWheel'
-import Learn from './pages/Learn'
-import ValuePicks from './pages/ValuePicks'
-import FlightBuilder from './pages/FlightBuilder'
-import GiftFinder from './pages/GiftFinder'
-import MyPalate from './pages/MyPalate'
-import Compare from './pages/Compare'
-import Stores from './pages/Stores'
-import Trending from './pages/Trending'
-import Collection from './pages/Collection'
-import Personality from './pages/Personality'
-import BlindTasting from './pages/BlindTasting'
-import DailyDiscovery from './pages/DailyDiscovery'
-import Feed from './pages/Feed'
-import UserProfile from './pages/UserProfile'
+import { BrowserRouter, Routes, Route, NavLink, useNavigate, useLocation, Navigate } from 'react-router-dom'
+import { useState, useEffect, Component, lazy, Suspense } from 'react'
 import Onboarding from './pages/Onboarding'
 import ChatSidebar from './components/ChatSidebar'
-import { isLoggedIn, getUsername, clearAuth } from './api/client'
+import { isLoggedIn, getUsername, clearAuth, api } from './api/client'
+import { ToastProvider } from './components/Toast'
 import './App.css'
 
+// Lazy-load page components for code splitting
+const Browse = lazy(() => import('./pages/Browse'))
+const WhiskeyDetail = lazy(() => import('./pages/WhiskeyDetail'))
+const Discover = lazy(() => import('./pages/Discover'))
+const Profile = lazy(() => import('./pages/Profile'))
+const Feed = lazy(() => import('./pages/Feed'))
+const UserProfile = lazy(() => import('./pages/UserProfile'))
+const TasteQuiz = lazy(() => import('./pages/TasteQuiz'))
+const ScanBottle = lazy(() => import('./pages/ScanBottle'))
+const JourneyDetail = lazy(() => import('./pages/JourneyDetail'))
+const Alerts = lazy(() => import('./pages/Alerts'))
+const VideoFeed = lazy(() => import('./pages/VideoFeed'))
+const Premium = lazy(() => import('./pages/Premium'))
+
 function RequireAuth({ children }) {
-  const navigate = useNavigate()
-  useEffect(() => {
-    if (!isLoggedIn()) {
-      navigate('/onboarding', { replace: true })
-    }
-  }, [navigate])
-  return isLoggedIn() ? children : null
+  if (!isLoggedIn()) {
+    return <Navigate to="/onboarding" replace />
+  }
+  return children
 }
 
-// Primary links always visible in the top bar
-const PRIMARY_LINKS = [
-  { to: '/', label: 'Browse', end: true },
-  { to: '/recommendations', label: 'For You' },
-  { to: '/feed', label: 'Feed' },
-  { to: '/quiz', label: 'Taste Quiz' },
-  { to: '/learn', label: 'Learn' },
-]
+class ErrorBoundary extends Component {
+  constructor(props) {
+    super(props)
+    this.state = { hasError: false, error: null }
+  }
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error }
+  }
+  componentDidUpdate(prevProps) {
+    if (this.state.hasError && prevProps.children !== this.props.children) {
+      this.setState({ hasError: false, error: null })
+    }
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="page" style={{ textAlign: 'center', padding: '4rem 1rem' }}>
+          <h1>Something went wrong</h1>
+          <p style={{ color: 'var(--text-muted)', marginBottom: '1.5rem' }}>
+            {this.state.error?.message || 'An unexpected error occurred.'}
+          </p>
+          <button
+            className="btn-secondary"
+            onClick={() => { this.setState({ hasError: false, error: null }); window.location.href = '/' }}
+          >
+            Back to Browse
+          </button>
+        </div>
+      )
+    }
+    return this.props.children
+  }
+}
 
-// Everything else goes in the "More" dropdown, organized by group
-const MORE_GROUPS = [
-  {
-    label: 'Discover',
-    links: [
-      { to: '/trending', label: 'Trending' },
-      { to: '/daily', label: 'Daily Discovery' },
-      { to: '/flavor-wheel', label: 'Flavor Wheel' },
-      { to: '/blind-tasting', label: 'Blind Tasting' },
-    ],
-  },
-  {
-    label: 'Personal',
-    links: [
-      { to: '/favorites', label: 'Favorites' },
-      { to: '/collection', label: 'My Shelf' },
-      { to: '/my-palate', label: 'My Palate' },
-      { to: '/personality', label: 'Personality' },
-    ],
-  },
-  {
-    label: 'Tools',
-    links: [
-      { to: '/compare', label: 'Compare' },
-      { to: '/flight-builder', label: 'Flights' },
-      { to: '/gift-finder', label: 'Gift Finder' },
-      { to: '/value-picks', label: 'Value Picks' },
-      { to: '/stores', label: 'Stores' },
-    ],
-  },
+const PRIMARY_LINKS = [
+  { to: '/',         label: 'Browse',   end: true },
+  { to: '/discover', label: 'Discover' },
+  { to: '/scan',     label: 'Scan' },
+  { to: '/feed',     label: 'Feed' },
+  { to: '/videos',   label: 'Videos' },
+  { to: '/me',       label: 'My Profile' },
 ]
 
 function Nav() {
   const location = useLocation()
   const navigate = useNavigate()
   const [menuOpen, setMenuOpen] = useState(false)
-  const [moreOpen, setMoreOpen] = useState(false)
-  if (location.pathname === '/onboarding') return null
+  const [unreadAlerts, setUnreadAlerts] = useState(0)
 
-  const username = getUsername()
-
-  // Close "More" dropdown when route changes
   useEffect(() => {
-    setMoreOpen(false)
     setMenuOpen(false)
   }, [location.pathname])
+
+  useEffect(() => {
+    if (!isLoggedIn()) return
+    const fetchAlerts = () => {
+      if (!isLoggedIn()) return
+      api.getUnreadAlertCount().then(r => setUnreadAlerts(r.count)).catch(() => {})
+    }
+    fetchAlerts()
+    const interval = setInterval(() => {
+      // Skip polling when tab is not visible
+      if (document.visibilityState === 'visible') fetchAlerts()
+    }, 300000)  // 5 minutes
+    return () => clearInterval(interval)
+  }, [])
+
+  if (location.pathname === '/onboarding' || location.pathname === '/quiz' || location.pathname === '/videos') return null
+
+  const username = getUsername()
 
   function handleLogout() {
     clearAuth()
     navigate('/onboarding', { replace: true })
   }
 
-  // Check if any "More" link is active
-  const moreActive = MORE_GROUPS.some(g =>
-    g.links.some(l => location.pathname === l.to)
-  )
-
   return (
     <nav className="navbar">
-      <NavLink to="/" className="nav-logo">SipSense</NavLink>
+      <NavLink to="/" className="nav-logo">Sip <span className="nav-logo-accent">Sense</span></NavLink>
 
       {/* Hamburger for mobile */}
       <button
@@ -114,38 +116,13 @@ function Nav() {
         {menuOpen ? '\u2715' : '\u2630'}
       </button>
 
-      {/* Desktop: primary links + More dropdown */}
+      {/* Desktop: primary links */}
       <div className="nav-primary">
         {PRIMARY_LINKS.map(link => (
           <NavLink key={link.to} to={link.to} end={link.end}>
             {link.label}
           </NavLink>
         ))}
-        <div className="nav-more-wrapper">
-          <button
-            className={`nav-more-btn ${moreActive ? 'active' : ''}`}
-            onClick={() => setMoreOpen(!moreOpen)}
-          >
-            More {moreOpen ? '\u25B4' : '\u25BE'}
-          </button>
-          {moreOpen && (
-            <>
-              <div className="nav-more-backdrop" onClick={() => setMoreOpen(false)} />
-              <div className="nav-more-dropdown">
-                {MORE_GROUPS.map(group => (
-                  <div key={group.label} className="nav-more-group">
-                    <span className="nav-more-group-label">{group.label}</span>
-                    {group.links.map(link => (
-                      <NavLink key={link.to} to={link.to}>
-                        {link.label}
-                      </NavLink>
-                    ))}
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
-        </div>
       </div>
 
       {/* Mobile: full-screen menu */}
@@ -156,17 +133,10 @@ function Nav() {
               {link.label}
             </NavLink>
           ))}
+          <NavLink to="/alerts">
+            Notifications{unreadAlerts > 0 && ` (${unreadAlerts})`}
+          </NavLink>
         </div>
-        {MORE_GROUPS.map(group => (
-          <div key={group.label} className="nav-mobile-section">
-            <span className="nav-mobile-label">{group.label}</span>
-            {group.links.map(link => (
-              <NavLink key={link.to} to={link.to}>
-                {link.label}
-              </NavLink>
-            ))}
-          </div>
-        ))}
         <div className="nav-mobile-section nav-mobile-account">
           <span className="nav-mobile-label">Account</span>
           <span className="nav-username">{username}</span>
@@ -176,6 +146,13 @@ function Nav() {
 
       {/* Desktop user info */}
       <div className="nav-user nav-user--desktop">
+        <button
+          className="nav-bell"
+          onClick={() => navigate('/alerts')}
+          title="Notifications"
+        >
+          🔔{unreadAlerts > 0 && <span className="nav-bell-badge">{unreadAlerts}</span>}
+        </button>
         <span className="nav-username">{username}</span>
         <button className="nav-logout" onClick={handleLogout}>Log out</button>
       </div>
@@ -186,33 +163,28 @@ function Nav() {
 function AppShell() {
   const [chatOpen, setChatOpen] = useState(false)
   const location = useLocation()
-  const isOnboarding = location.pathname === '/onboarding'
+  const isOnboarding = location.pathname === '/onboarding' || location.pathname === '/quiz'
+  const isFullscreen = location.pathname === '/videos'
 
   return (
     <>
       <Nav />
       <main className="main-content">
+        <ErrorBoundary>
+        <Suspense fallback={<div className="page" style={{ textAlign: 'center', padding: '4rem' }}>Loading...</div>}>
         <Routes>
           <Route path="/onboarding" element={<Onboarding />} />
+          <Route path="/quiz" element={<TasteQuiz />} />
           <Route path="/" element={<RequireAuth><Browse /></RequireAuth>} />
           <Route path="/whiskey/:id" element={<RequireAuth><WhiskeyDetail /></RequireAuth>} />
-          <Route path="/flavor-wheel" element={<RequireAuth><FlavorWheel /></RequireAuth>} />
-          <Route path="/quiz" element={<RequireAuth><Quiz /></RequireAuth>} />
-          <Route path="/recommendations" element={<RequireAuth><Recommendations /></RequireAuth>} />
-          <Route path="/favorites" element={<RequireAuth><Favorites /></RequireAuth>} />
-          <Route path="/value-picks" element={<RequireAuth><ValuePicks /></RequireAuth>} />
-          <Route path="/learn" element={<RequireAuth><Learn /></RequireAuth>} />
-          <Route path="/flight-builder" element={<RequireAuth><FlightBuilder /></RequireAuth>} />
-          <Route path="/gift-finder" element={<RequireAuth><GiftFinder /></RequireAuth>} />
-          <Route path="/my-palate" element={<RequireAuth><MyPalate /></RequireAuth>} />
-          <Route path="/compare" element={<RequireAuth><Compare /></RequireAuth>} />
-          <Route path="/stores" element={<RequireAuth><Stores /></RequireAuth>} />
-          <Route path="/trending" element={<RequireAuth><Trending /></RequireAuth>} />
-          <Route path="/collection" element={<RequireAuth><Collection /></RequireAuth>} />
-          <Route path="/personality" element={<RequireAuth><Personality /></RequireAuth>} />
-          <Route path="/blind-tasting" element={<RequireAuth><BlindTasting /></RequireAuth>} />
-          <Route path="/daily" element={<RequireAuth><DailyDiscovery /></RequireAuth>} />
+          <Route path="/discover" element={<RequireAuth><Discover /></RequireAuth>} />
+          <Route path="/me" element={<RequireAuth><Profile /></RequireAuth>} />
           <Route path="/feed" element={<RequireAuth><Feed /></RequireAuth>} />
+          <Route path="/scan" element={<RequireAuth><ScanBottle /></RequireAuth>} />
+          <Route path="/journeys/:slug" element={<RequireAuth><JourneyDetail /></RequireAuth>} />
+          <Route path="/videos" element={<RequireAuth><VideoFeed /></RequireAuth>} />
+          <Route path="/premium" element={<RequireAuth><Premium /></RequireAuth>} />
+          <Route path="/alerts" element={<RequireAuth><Alerts /></RequireAuth>} />
           <Route path="/user/:username" element={<RequireAuth><UserProfile /></RequireAuth>} />
           <Route path="*" element={
             <div className="page">
@@ -224,17 +196,19 @@ function AppShell() {
             </div>
           } />
         </Routes>
+        </Suspense>
+        </ErrorBoundary>
       </main>
 
       {/* Chat sidebar — always mounted so state persists across navigation */}
-      {!isOnboarding && (
+      {!isOnboarding && !isFullscreen && (
         <>
           <ChatSidebar isOpen={chatOpen} onClose={() => setChatOpen(false)} />
           <button
             className={`chat-fab ${chatOpen ? 'chat-fab--hidden' : ''}`}
             onClick={() => setChatOpen(true)}
           >
-            🥃 Ask SipSense
+            🥃 Ask Sip Sense
           </button>
         </>
       )}
@@ -245,7 +219,9 @@ function AppShell() {
 export default function App() {
   return (
     <BrowserRouter>
-      <AppShell />
+      <ToastProvider>
+        <AppShell />
+      </ToastProvider>
     </BrowserRouter>
   )
 }

@@ -34,8 +34,8 @@ export default function SidebarMap({ stores, center }) {
           url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>'
         />
-        {stores.map((store, i) => (
-          <Marker key={i} position={[store.lat, store.lng]}>
+        {stores.map((store) => (
+          <Marker key={store.osm_id} position={[store.lat, store.lng]}>
             <Popup>
               <strong>{store.name}</strong>
               {store.address && <><br />{store.address}</>}
@@ -47,8 +47,8 @@ export default function SidebarMap({ stores, center }) {
         ))}
       </MapContainer>
       <div className="sb-map-list">
-        {stores.slice(0, 5).map((store, i) => (
-          <div key={i} className="sb-map-store">
+        {stores.slice(0, 5).map((store) => (
+          <div key={store.osm_id} className="sb-map-store">
             <span className="sb-map-store-name">{store.name}</span>
             {store.distance_m != null && (
               <span className="sb-map-store-dist">{formatDistance(store.distance_m)}</span>

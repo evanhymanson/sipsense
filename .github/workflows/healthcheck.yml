@@ -1,0 +1,31 @@
+name: Health Check
+
+on:
+  schedule:
+    # Every 15 minutes — GitHub emails you when a workflow fails
+    - cron: "*/15 * * * *"
+  workflow_dispatch: # Allow manual trigger for testing
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check production health
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 \
+            "${{ secrets.PRODUCTION_URL }}/api/health" 2>/dev/null || echo "000")
+          if [ "$STATUS" != "200" ]; then
+            echo "::error::Production health check failed (HTTP $STATUS)"
+            exit 1
+          fi
+          echo "Production is healthy (HTTP $STATUS)"
+
+      - name: Check staging health
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 \
+            "${{ secrets.STAGING_URL }}/api/health" 2>/dev/null || echo "000")
+          if [ "$STATUS" != "200" ]; then
+            echo "::warning::Staging health check failed (HTTP $STATUS)"
+          else
+            echo "Staging is healthy (HTTP $STATUS)"
+          fi
