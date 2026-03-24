@@ -2459,3 +2459,63 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
   font-size: 0.8rem;
   color: var(--amber-light);
 }
+
+/* ── Shared User Search ──────────────────────────────────────────────── */
+.user-search {
+  position: relative;
+  width: 200px;
+}
+
+.user-search-input {
+  width: 100%;
+  padding: 0.45rem 0.75rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 0.85rem;
+}
+.user-search-input::placeholder { color: var(--text-muted); }
+.user-search-input:focus {
+  outline: none;
+  border-color: var(--amber);
+  box-shadow: 0 0 0 2px var(--amber-dim);
+}
+
+.user-search-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  z-index: 50;
+  overflow: hidden;
+  box-shadow: var(--shadow);
+}
+
+.user-search-result {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.55rem 0.75rem;
+  text-decoration: none;
+  color: var(--text);
+  border-bottom: 1px solid var(--border);
+  transition: background 0.1s;
+}
+.user-search-result:last-child { border-bottom: none; }
+.user-search-result:hover { background: var(--border); }
+
+.usr-name { font-size: 0.9rem; font-weight: 600; }
+.usr-meta { font-size: 0.75rem; color: var(--text-muted); }
+
+/* Profile page: wider search */
+.prof-find-people {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+.prof-find-people .user-search { width: 100%; }

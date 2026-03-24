@@ -4,7 +4,9 @@ import { api } from '../api/client'
 import { useToast } from '../components/Toast'
 import BadgeGrid from '../components/BadgeGrid'
 import WhiskeyCard from '../components/WhiskeyCard'
+import UserSearch from '../components/UserSearch'
 import './Profile.css'
+import './UserProfile.css'
 
 const TABS = [
   { id: 'palate',     label: 'Palate',     emoji: '\u{1F445}' },
@@ -795,6 +797,11 @@ export default function Profile() {
   const [palateData, setPalateData] = useState(null)
   const [tabCounts, setTabCounts] = useState({})
   const [loading, setLoading] = useState(true)
+  const [followerCount, setFollowerCount] = useState(0)
+  const [followingCount, setFollowingCount] = useState(0)
+  const [listModal, setListModal] = useState(null)
+  const [listUsers, setListUsers] = useState([])
+  const [listLoading, setListLoading] = useState(false)
 
   useEffect(() => {
     Promise.all([
@@ -802,7 +809,8 @@ export default function Profile() {
       api.getPalate().catch(() => null),
       api.getCollectionStats().catch(() => null),
       api.getJournal().catch(() => null),
-    ]).then(([pers, pal, colStats, journal]) => {
+      api.getMe().catch(() => null),
+    ]).then(([pers, pal, colStats, journal, me]) => {
       setPersonality(pers)
       setPalateData(pal)
       setTabCounts({
@@ -811,8 +819,26 @@ export default function Profile() {
         journal: Array.isArray(journal?.entries) ? journal.entries.length : (journal?.total ?? 0),
         badges: pal?.badges?.length ?? 0,
       })
+      if (me?.username) {
+        api.getUserProfile(me.username)
+          .then(p => { setFollowerCount(p.follower_count || 0); setFollowingCount(p.following_count || 0) })
+          .catch(() => {})
+      }
     }).finally(() => setLoading(false))
   }, [])
+
+  async function openList(type) {
+    setListModal(type)
+    setListLoading(true)
+    try {
+      const me = await api.getMe()
+      const users = type === 'followers'
+        ? await api.getFollowers(me.username)
+        : await api.getFollowing(me.username)
+      setListUsers(users)
+    } catch { setListUsers([]) }
+    finally { setListLoading(false) }
+  }
 
   if (loading) {
     return (
@@ -869,16 +895,18 @@ export default function Profile() {
           <div className="prof-stats">
             <div className="prof-stat"><span className="prof-stat-val">{stats.total_rated}</span><span>Rated</span></div>
             <div className="prof-stat"><span className="prof-stat-val">{stats.total_favorites}</span><span>Favorites</span></div>
-            <div className="prof-stat">
-              <span className="prof-stat-val">{stats.avg_score > 0 ? `${stats.avg_score.toFixed(1)}` : '—'}</span>
-              <span>Avg Score</span>
+            <div className="prof-stat prof-stat--clickable" onClick={() => openList('followers')}>
+              <span className="prof-stat-val">{followerCount}</span><span>Followers</span>
             </div>
-            <div className="prof-stat">
-              <span className="prof-stat-val">{stats.avg_price > 0 ? `$${stats.avg_price.toFixed(2)}` : '—'}</span>
-              <span>Avg Price</span>
+            <div className="prof-stat prof-stat--clickable" onClick={() => openList('following')}>
+              <span className="prof-stat-val">{followingCount}</span><span>Following</span>
             </div>
           </div>
         )}
+
+        <div className="prof-find-people">
+          <UserSearch />
+        </div>
 
         {isNewcomer && (
           <div className="prof-cta">
@@ -928,6 +956,34 @@ export default function Profile() {
               </div>
         )}
       </div>
+
+      {/* ── Followers / Following Modal ──────────────────────── */}
+      {listModal && (
+        <div className="follow-modal-overlay" onClick={() => setListModal(null)}>
+          <div className="follow-modal" onClick={e => e.stopPropagation()}>
+            <div className="follow-modal-header">
+              <h3>{listModal === 'followers' ? 'Followers' : 'Following'}</h3>
+              <button className="follow-modal-close" onClick={() => setListModal(null)}>✕</button>
+            </div>
+            <div className="follow-modal-body">
+              {listLoading ? (
+                <p className="status">Loading...</p>
+              ) : listUsers.length === 0 ? (
+                <p className="status">{listModal === 'followers' ? 'No followers yet' : 'Not following anyone yet'}</p>
+              ) : (
+                listUsers.map(u => (
+                  <div key={u.username} className="follow-modal-user">
+                    <Link to={`/user/${u.username}`} className="follow-modal-name" onClick={() => setListModal(null)}>
+                      {u.username}
+                    </Link>
+                    <span className="follow-modal-meta">{u.total_checkins} check-ins</span>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

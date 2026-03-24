@@ -68,6 +68,8 @@
 }
 .prof-stat-val { font-size: 1.3rem; font-weight: 700; color: var(--amber-light); }
 .prof-stat span:last-child { font-size: 0.72rem; color: var(--text-muted); }
+.prof-stat--clickable { cursor: pointer; border-radius: 0.5rem; padding: 0.25rem; transition: background 0.15s; }
+.prof-stat--clickable:hover { background: var(--surface-hover, rgba(255,255,255,0.05)); }
 
 /* ── CTA for newcomers ────────────────────────────── */
 .prof-cta {
