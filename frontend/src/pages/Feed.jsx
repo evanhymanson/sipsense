@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback } from 'react'
 import { api } from '../api/client'
-import { useToast } from '../components/Toast'
 import CheckInCard from '../components/CheckInCard'
 import UserSearch from '../components/UserSearch'
 import './Feed.css'
+
+const CATEGORIES = ['all', 'bourbon', 'scotch', 'irish', 'japanese', 'rye', 'canadian', 'single malt', 'blended']
 
 export default function Feed() {
   const [items, setItems] = useState([])
