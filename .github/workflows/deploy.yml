@@ -1,22 +1,56 @@
 name: Deploy
 
 on:
-  # Auto-deploy on push to main (after CI passes)
+  # Auto-deploy staging on push to main (after CI passes)
   push:
     branches: [main]
+  # Manual trigger for production deploys
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy'
+        required: true
+        type: choice
+        options:
+          - staging
+          - production
 
 jobs:
   # Run tests before any deploy
   test:
     uses: ./.github/workflows/ci.yml
 
-  deploy:
+  # Auto-deploy to staging on every push to main
+  deploy-staging:
+    if: github.event_name == 'push'
     needs: test
     runs-on: ubuntu-latest
+    environment: staging
     steps:
       - uses: actions/checkout@v4
 
-      - name: Deploy to server
+      - name: Deploy to staging
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.STAGING_HOST }}
+          username: ubuntu
+          key: ${{ secrets.STAGING_SSH_KEY }}
+          script: |
+            cd /opt/sipsense
+            git pull origin main
+            docker compose -f docker-compose.yml -f docker-compose.staging.yml up -d --build
+            echo "Staging deploy complete"
+
+  # Manual production deploy (requires environment approval if configured)
+  deploy-production:
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'production'
+    needs: test
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy to production
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.STAGING_HOST }}
@@ -26,4 +60,4 @@ jobs:
             cd /opt/sipsense
             git pull origin main
             docker compose -f docker-compose.yml -f docker-compose.production.yml up -d --build
-            echo "Deploy complete"
+            echo "Production deploy complete"
