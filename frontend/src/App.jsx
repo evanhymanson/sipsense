@@ -3,6 +3,7 @@ import { useState, useEffect, Component, lazy, Suspense } from 'react'
 import Onboarding from './pages/Onboarding'
 import ChatSidebar from './components/ChatSidebar'
 import { isLoggedIn, getUsername, clearAuth, api } from './api/client'
+import { trackPageView, trackEvent, startPageTimer, endPageTimer } from './api/analytics'
 import { ToastProvider } from './components/Toast'
 import './App.css'
 
@@ -19,6 +20,7 @@ const JourneyDetail = lazy(() => import('./pages/JourneyDetail'))
 const Alerts = lazy(() => import('./pages/Alerts'))
 const VideoFeed = lazy(() => import('./pages/VideoFeed'))
 const Premium = lazy(() => import('./pages/Premium'))
+const AdminDashboard = lazy(() => import('./pages/AdminDashboard'))
 
 function RequireAuth({ children }) {
   if (!isLoggedIn()) {
@@ -34,6 +36,13 @@ class ErrorBoundary extends Component {
   }
   static getDerivedStateFromError(error) {
     return { hasError: true, error }
+  }
+  componentDidCatch(error, errorInfo) {
+    trackEvent('frontend_error', {
+      message: error.message,
+      stack: error.stack?.slice(0, 1000),
+      component: errorInfo.componentStack?.slice(0, 500),
+    })
   }
   componentDidUpdate(prevProps) {
     if (this.state.hasError && prevProps.children !== this.props.children) {
@@ -79,6 +88,13 @@ function Nav() {
   useEffect(() => {
     setMenuOpen(false)
   }, [location.pathname])
+
+  // Redirect to onboarding on auth expiry (fired from api client)
+  useEffect(() => {
+    const onExpired = () => navigate('/onboarding', { replace: true })
+    window.addEventListener('auth:expired', onExpired)
+    return () => window.removeEventListener('auth:expired', onExpired)
+  }, [navigate])
 
   useEffect(() => {
     if (!isLoggedIn()) return
@@ -166,6 +182,13 @@ function AppShell() {
   const isOnboarding = location.pathname === '/onboarding' || location.pathname === '/quiz'
   const isFullscreen = location.pathname === '/videos'
 
+  // Track page views and time-on-page
+  useEffect(() => {
+    trackPageView(location.pathname)
+    startPageTimer()
+    return () => endPageTimer(location.pathname)
+  }, [location.pathname])
+
   return (
     <>
       <Nav />
@@ -186,6 +209,7 @@ function AppShell() {
           <Route path="/premium" element={<RequireAuth><Premium /></RequireAuth>} />
           <Route path="/alerts" element={<RequireAuth><Alerts /></RequireAuth>} />
           <Route path="/user/:username" element={<RequireAuth><UserProfile /></RequireAuth>} />
+          <Route path="/admin" element={<RequireAuth><AdminDashboard /></RequireAuth>} />
           <Route path="*" element={
             <div className="page">
               <h1>Page Not Found</h1>

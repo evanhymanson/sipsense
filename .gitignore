@@ -38,9 +38,10 @@ docker-compose.override.yml
 .env.staging
 .env.production
 
-# Database backups
+# Database backups and dumps
 backups/
 *.sql.gz
+*.dump
 backend/sipsense.db.backup_*
 
 # Logs and temp reports

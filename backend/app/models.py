@@ -261,12 +261,14 @@ class WatchlistItem(Base):
 
 
 class WatchlistAlert(Base):
-    """In-app notification generated when a watched whiskey has new activity."""
+    """In-app notification (watchlist activity, follows, etc.)."""
     __tablename__ = "watchlist_alerts"
 
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String, nullable=False, index=True)
-    whiskey_id = Column(Integer, ForeignKey("whiskeys.id", ondelete="CASCADE"), nullable=False, index=True)
+    alert_type = Column(String, nullable=False, default="watchlist", index=True)
+    whiskey_id = Column(Integer, ForeignKey("whiskeys.id", ondelete="CASCADE"), nullable=True, index=True)
+    from_username = Column(String, nullable=True)
     message = Column(String, nullable=False)
     is_read = Column(Boolean, default=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -411,3 +413,37 @@ class AICache(Base):
     cache_key = Column(String, nullable=False, index=True)  # e.g. "tasting_notes:42"
     response_json = Column(Text, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+# ── Analytics ────────────────────────────────────────────────────────────
+
+
+class AnalyticsEvent(Base):
+    """Server-side analytics: one row per API request."""
+    __tablename__ = "analytics_events"
+
+    id = Column(Integer, primary_key=True, index=True)
+    timestamp = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+    user_id = Column(String, index=True)
+    ip_hash = Column(String(64))
+    session_hash = Column(String(64), index=True)
+    method = Column(String(10), nullable=False)
+    path = Column(String(500), nullable=False)
+    route_pattern = Column(String(200))
+    status_code = Column(Integer)
+    response_time_ms = Column(Integer)
+    user_agent = Column(String(500))
+    referrer = Column(String(500))
+
+
+class UserAction(Base):
+    """Explicit user action tracking for funnel analysis and feature adoption."""
+    __tablename__ = "user_actions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    timestamp = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+    user_id = Column(String, nullable=False, index=True)
+    action = Column(String(50), nullable=False, index=True)
+    detail_json = Column(Text, default="{}")
+    whiskey_id = Column(Integer, index=True)
+    category = Column(String(50))

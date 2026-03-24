@@ -27,11 +27,14 @@ def get_feed(
     )
 
     if following_only and current_user:
-        from sqlalchemy import select
+        from sqlalchemy import select, or_
         following_ids = select(models.Follow.following_id).where(
             models.Follow.follower_id == current_user.username
         )
-        query = query.filter(models.UserRating.user_id.in_(following_ids))
+        query = query.filter(or_(
+            models.UserRating.user_id.in_(following_ids),
+            models.UserRating.user_id == current_user.username,
+        ))
 
     if category:
         cat_safe = category.replace("%", "\\%").replace("_", "\\_")

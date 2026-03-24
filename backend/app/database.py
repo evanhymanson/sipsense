@@ -1,5 +1,6 @@
 import logging
 import os
+import time
 
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker, declarative_base
@@ -71,8 +72,20 @@ def _run_migrations():
                     "UPDATE whiskeys SET created_at = CURRENT_TIMESTAMP WHERE created_at IS NULL"
                 ))
                 conn.commit()
-        # Upgrade osm_id from INTEGER to BIGINT for large OSM node IDs
-        if "liquor_stores" in inspector.get_table_names():
+        if "watchlist_alerts" in inspector.get_table_names():
+            existing = {c["name"] for c in inspector.get_columns("watchlist_alerts")}
+            if "alert_type" not in existing:
+                conn.execute(sa.text(
+                    "ALTER TABLE watchlist_alerts ADD COLUMN alert_type VARCHAR NOT NULL DEFAULT 'watchlist'"
+                ))
+            if "from_username" not in existing:
+                conn.execute(sa.text(
+                    "ALTER TABLE watchlist_alerts ADD COLUMN from_username VARCHAR"
+                ))
+            conn.commit()
+        # Upgrade osm_id from INTEGER to BIGINT for large OSM node IDs (PostgreSQL only;
+        # SQLite INTEGER already supports 64-bit values natively)
+        if not _is_sqlite and "liquor_stores" in inspector.get_table_names():
             for col in inspector.get_columns("liquor_stores"):
                 if col["name"] == "osm_id" and str(col["type"]) == "INTEGER":
                     conn.execute(sa.text(
@@ -104,6 +117,7 @@ def _ensure_indexes():
         ("idx_watchlist_user", "watchlist_items", "user_id"),
         ("idx_watchalert_whiskey", "watchlist_alerts", "whiskey_id"),
         ("idx_watchalert_user", "watchlist_alerts", "user_id"),
+        ("idx_watchalert_type", "watchlist_alerts", "alert_type"),
         ("idx_video_whiskey", "videos", "whiskey_id"),
         ("idx_video_user", "videos", "user_id"),
         ("idx_affclick_whiskey", "affiliate_clicks", "whiskey_id"),
@@ -115,6 +129,15 @@ def _ensure_indexes():
         ("idx_userrating_created", "user_ratings", "created_at"),
         ("idx_userfav_created", "user_favorites", "created_at"),
         ("idx_whiskey_rating_avg", "whiskeys", "rating_avg"),
+        # Analytics
+        ("idx_analytics_timestamp", "analytics_events", "timestamp"),
+        ("idx_analytics_user", "analytics_events", "user_id"),
+        ("idx_analytics_session", "analytics_events", "session_hash"),
+        ("idx_analytics_path", "analytics_events", "path"),
+        ("idx_actions_timestamp", "user_actions", "timestamp"),
+        ("idx_actions_user", "user_actions", "user_id"),
+        ("idx_actions_action", "user_actions", "action"),
+        ("idx_actions_whiskey", "user_actions", "whiskey_id"),
     ]
     # Composite indexes for common query patterns (e.g. feed: WHERE user_id=? ORDER BY created_at DESC)
     _composite_indexes = [
@@ -139,6 +162,25 @@ def _ensure_indexes():
 
 
 _ensure_indexes()
+
+
+# ── Slow query detection ─────────────────────────────────────────────────
+_SLOW_QUERY_THRESHOLD_MS = float(os.getenv("SLOW_QUERY_THRESHOLD_MS", "500"))
+
+
+@event.listens_for(engine, "before_cursor_execute")
+def _before_cursor_execute(conn, cursor, statement, parameters, context, executemany):
+    conn.info["_query_start"] = time.perf_counter()
+
+
+@event.listens_for(engine, "after_cursor_execute")
+def _after_cursor_execute(conn, cursor, statement, parameters, context, executemany):
+    start = conn.info.pop("_query_start", None)
+    if start is None:
+        return
+    elapsed_ms = (time.perf_counter() - start) * 1000
+    if elapsed_ms > _SLOW_QUERY_THRESHOLD_MS:
+        logger.warning("SLOW QUERY (%.0fms): %s", elapsed_ms, statement[:500])
 
 
 def get_db():

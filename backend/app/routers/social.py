@@ -8,6 +8,8 @@ from typing import Optional
 from .. import models, schemas
 from ..database import get_db
 from ..auth import get_current_user, get_optional_user
+from ..track import track_action
+from ..analytics_constants import ACTION_FOLLOW
 
 router = APIRouter(tags=["social"])
 
@@ -84,6 +86,17 @@ def follow_user(
 
     follow = models.Follow(follower_id=current_user.username, following_id=username)
     db.add(follow)
+
+    # Notify the followed user
+    db.add(models.WatchlistAlert(
+        username=username,
+        alert_type="follow",
+        from_username=current_user.username,
+        message=f"{current_user.username} started following you",
+    ))
+
+    track_action(db, current_user.username, ACTION_FOLLOW,
+                 detail={"target": username})
     db.commit()
     return {"status": "following"}
 
@@ -292,6 +305,7 @@ def get_user_profile(
     # Recent check-ins with toast counts
     recent_ids = [r.id for r in ratings]
     toast_counts: dict[int, int] = {}
+    user_toasts: set[int] = set()
     if recent_ids:
         counts = (
             db.query(models.Toast.rating_id, sqlfunc.count(models.Toast.id))
@@ -300,6 +314,17 @@ def get_user_profile(
             .all()
         )
         toast_counts = {rid: cnt for rid, cnt in counts}
+
+        if current_user:
+            user_toast_rows = (
+                db.query(models.Toast.rating_id)
+                .filter(
+                    models.Toast.rating_id.in_(recent_ids),
+                    models.Toast.user_id == current_user.username,
+                )
+                .all()
+            )
+            user_toasts = {row[0] for row in user_toast_rows}
 
     recent_items = [
         schemas.FeedItem(
@@ -318,7 +343,7 @@ def get_user_profile(
             whiskey=schemas.WhiskeyRead.model_validate(r.whiskey),
             username=r.user_id,
             toast_count=toast_counts.get(r.id, 0),
-            user_toasted=False,
+            user_toasted=r.id in user_toasts,
         )
         for r in ratings if r.whiskey
     ]

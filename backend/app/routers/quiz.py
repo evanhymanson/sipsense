@@ -4,6 +4,8 @@ from .. import schemas, models
 from ..database import get_db
 from ..ml.recommender import quiz_recommendations
 from ..auth import get_optional_user
+from ..track import track_action
+from ..analytics_constants import ACTION_QUIZ_COMPLETE
 
 router = APIRouter(prefix="/quiz", tags=["quiz"])
 
@@ -20,6 +22,7 @@ def submit_quiz(
     # Mark quiz as completed for authenticated users
     if current_user and not current_user.quiz_completed:
         current_user.quiz_completed = True
+        track_action(db, current_user.username, ACTION_QUIZ_COMPLETE)
         db.commit()
 
     return [

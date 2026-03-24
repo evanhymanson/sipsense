@@ -4,6 +4,8 @@ from sqlalchemy import and_
 from .. import models, schemas
 from ..database import get_db
 from ..auth import get_current_user
+from ..track import track_action
+from ..analytics_constants import ACTION_FAVORITE, ACTION_UNFAVORITE
 
 router = APIRouter(prefix="/favorites", tags=["favorites"])
 
@@ -27,6 +29,7 @@ def add_favorite(
 
     fav = models.UserFavorite(user_id=user_id, whiskey_id=whiskey_id)
     db.add(fav)
+    track_action(db, user_id, ACTION_FAVORITE, whiskey_id=whiskey_id)
     db.commit()
     db.refresh(fav)
     return fav
@@ -44,6 +47,7 @@ def remove_favorite(
     ).first()
     if fav:
         db.delete(fav)
+        track_action(db, current_user.username, ACTION_UNFAVORITE, whiskey_id=whiskey_id)
         db.commit()
 
 

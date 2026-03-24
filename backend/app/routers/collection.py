@@ -3,7 +3,7 @@ Collection tracking ("My Shelf") — track bottles owned, opened, and finished.
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import and_, func, case
 from pydantic import BaseModel, Field
 from typing import Optional, Literal
@@ -58,18 +58,16 @@ def get_my_collection(
 ):
     """Return bottles in the user's collection (paginated)."""
     user_id = current_user.username
-    q = db.query(models.CollectionItem).filter(models.CollectionItem.user_id == user_id)
+    q = (
+        db.query(models.CollectionItem)
+        .options(joinedload(models.CollectionItem.whiskey))
+        .filter(models.CollectionItem.user_id == user_id)
+    )
     if status:
         q = q.filter(models.CollectionItem.status == status)
     items = q.order_by(models.CollectionItem.added_at.desc()).offset(skip).limit(limit).all()
 
-    # Batch-fetch whiskey data
-    whiskey_ids = [item.whiskey_id for item in items]
-    whiskeys = (
-        db.query(models.Whiskey).filter(models.Whiskey.id.in_(whiskey_ids)).all()
-        if whiskey_ids else []
-    )
-    whiskey_map = {w.id: w for w in whiskeys}
+    whiskey_map = {item.whiskey_id: item.whiskey for item in items if item.whiskey}
 
     result = []
     for item in items:

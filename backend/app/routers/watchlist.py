@@ -125,8 +125,10 @@ def get_my_alerts(
     return [
         schemas.WatchlistAlertRead(
             id=a.id,
+            alert_type=a.alert_type or "watchlist",
             whiskey_id=a.whiskey_id,
-            whiskey_name=a.whiskey.name if a.whiskey else "Unknown",
+            whiskey_name=a.whiskey.name if a.whiskey else None,
+            from_username=a.from_username,
             message=a.message,
             is_read=a.is_read,
             created_at=a.created_at,
@@ -144,7 +146,7 @@ def get_unread_count(
         db.query(models.WatchlistAlert)
         .filter(
             models.WatchlistAlert.username == current_user.username,
-            models.WatchlistAlert.is_read == False,
+            models.WatchlistAlert.is_read.is_(False),
         )
         .count()
     )

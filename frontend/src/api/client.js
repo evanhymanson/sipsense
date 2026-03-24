@@ -68,10 +68,11 @@ async function request(path, options = {}, _retryCount = 0) {
   }
   if (timeoutId) clearTimeout(timeoutId)
 
-  // If token expired / invalid, clear auth and redirect to login
+  // If token expired / invalid, clear auth and let React Router handle redirect
   if (res.status === 401) {
     clearAuth()
-    window.location.href = '/onboarding'
+    // Dispatch custom event so App can redirect via React Router (no full reload)
+    window.dispatchEvent(new CustomEvent('auth:expired'))
     throw new Error('Session expired. Please log in again.')
   }
 
@@ -350,6 +351,16 @@ export const api = {
   getFeatureComparison: () => request('/subscription/features'),
   activatePremium: () => request('/subscription/activate', { method: 'POST' }),
   cancelSubscription: () => request('/subscription/cancel', { method: 'POST' }),
+
+  // ── Analytics (Admin) ──────────────────────────────────────────────────
+  getAnalyticsOverview: () => request('/analytics/overview'),
+  getAnalyticsFunnel: () => request('/analytics/funnel'),
+  getAnalyticsTopWhiskeys: (days = 30, limit = 20) =>
+    request(`/analytics/top-whiskeys?days=${days}&limit=${limit}`),
+  getAnalyticsFeatureAdoption: (days = 30) =>
+    request(`/analytics/feature-adoption?days=${days}`),
+  getAnalyticsPerformance: (days = 7) =>
+    request(`/analytics/performance?days=${days}`),
 
   // ── Chat — returns raw Response for SSE stream ───────────────────────────
   chatStream: (messages, session_id = null, user_location = null, signal = null) => {

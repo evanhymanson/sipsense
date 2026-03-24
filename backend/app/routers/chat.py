@@ -28,6 +28,8 @@ from ..database import SessionLocal
 from .. import models
 from ..ml.agent import agent_graph
 from ..auth import decode_access_token as _decode_token
+from ..track import track_action
+from ..analytics_constants import ACTION_CHAT_MESSAGE
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
@@ -237,6 +239,17 @@ async def chat(request: ChatRequest, authorization: str | None = Header(None)):
         username = _decode_token(token)
         if username:
             user_id = username
+
+    # Track chat message for authenticated users
+    if not user_id.startswith("anon_"):
+        last_msg = request.messages[-1].content if request.messages else ""
+        db = SessionLocal()
+        try:
+            track_action(db, user_id, ACTION_CHAT_MESSAGE,
+                         detail={"message_length": len(last_msg)})
+            db.commit()
+        finally:
+            db.close()
 
     user_loc = None
     if request.user_location:

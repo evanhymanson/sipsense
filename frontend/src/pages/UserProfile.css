@@ -183,6 +183,121 @@
   font-weight: 600;
 }
 
+/* Clickable stat cards */
+.stat-card--clickable {
+  cursor: pointer;
+}
+.stat-card--clickable:hover {
+  border-color: var(--amber);
+}
+
+/* Follow list modal */
+.follow-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.follow-modal {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  width: 100%;
+  max-width: 400px;
+  max-height: 70vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.follow-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--border);
+}
+.follow-modal-header h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  color: var(--amber-light);
+}
+
+.follow-modal-close {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+}
+.follow-modal-close:hover {
+  color: var(--text);
+}
+
+.follow-modal-body {
+  overflow-y: auto;
+  padding: 0.75rem 1.25rem;
+}
+
+.follow-modal-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 0;
+  border-bottom: 1px solid var(--border);
+}
+.follow-modal-row:last-child {
+  border-bottom: none;
+}
+
+.follow-modal-username {
+  font-weight: 600;
+  color: var(--amber);
+  text-decoration: none;
+  flex-shrink: 0;
+}
+.follow-modal-username:hover {
+  text-decoration: underline;
+}
+
+.follow-modal-meta {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  flex: 1;
+}
+
+.follow-modal-btn {
+  flex-shrink: 0;
+  padding: 0.35rem 0.9rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  background: var(--amber);
+  border: none;
+  color: #ffffff;
+  transition: background 0.15s;
+}
+.follow-modal-btn:hover {
+  background: var(--amber-light);
+}
+.follow-modal-btn--following {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+.follow-modal-btn--following:hover {
+  border-color: var(--red);
+  color: var(--red);
+}
+
 @media (max-width: 500px) {
   .profile-stats {
     grid-template-columns: repeat(2, 1fr);

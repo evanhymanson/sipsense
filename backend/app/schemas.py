@@ -271,8 +271,10 @@ class WatchlistItemRead(BaseModel):
 
 class WatchlistAlertRead(BaseModel):
     id: int
-    whiskey_id: int
-    whiskey_name: str
+    alert_type: str = "watchlist"
+    whiskey_id: int | None = None
+    whiskey_name: str | None = None
+    from_username: str | None = None
     message: str
     is_read: bool
     created_at: datetime

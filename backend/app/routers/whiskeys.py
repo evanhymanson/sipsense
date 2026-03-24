@@ -9,7 +9,9 @@ from sqlalchemy.orm import Session
 from typing import Optional
 from .. import models, schemas
 from ..database import get_db
-from ..auth import get_current_user
+from ..auth import get_current_user, get_optional_user
+from ..track import track_action
+from ..analytics_constants import ACTION_SEARCH, ACTION_WHISKEY_VIEW, ACTION_RATING, ACTION_SCAN_ATTEMPT
 
 
 def _escape_like(s: str) -> str:
@@ -35,6 +37,7 @@ def list_whiskeys(
     sort_by: str = Query("rating", description="rating | price_asc | price_desc | age | name"),
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=100),
+    current_user: Optional[models.User] = Depends(get_optional_user),
     db: Session = Depends(get_db),
 ):
     query = db.query(models.Whiskey).filter(
@@ -79,6 +82,10 @@ def list_whiskeys(
         query = query.order_by(models.Whiskey.rating_avg.desc())
 
     items = query.offset(skip).limit(limit).all()
+    if current_user and q:
+        track_action(db, current_user.username, ACTION_SEARCH,
+                     detail={"q": q, "category": category, "results": total})
+        db.commit()
     return schemas.WhiskeyListResponse(items=items, total=total)
 
 
@@ -241,7 +248,11 @@ def get_value_picks(
 
 
 @router.get("/barcode/{upc}", response_model=schemas.WhiskeyRead)
-def lookup_barcode(upc: str, db: Session = Depends(get_db)):
+def lookup_barcode(
+    upc: str,
+    current_user: Optional[models.User] = Depends(get_optional_user),
+    db: Session = Depends(get_db),
+):
     """Look up a whiskey by its UPC barcode."""
     upc = upc.strip()
     if not upc:
@@ -249,19 +260,24 @@ def lookup_barcode(upc: str, db: Session = Depends(get_db)):
 
     # Exact match
     whiskey = db.query(models.Whiskey).filter(models.Whiskey.upc == upc).first()
-    if whiskey:
-        return whiskey
-
-    # Fallback: strip leading zeros and compare at SQL level
-    upc_clean = upc.lstrip("0")
-    whiskey = (
-        db.query(models.Whiskey)
-        .filter(
-            models.Whiskey.upc.isnot(None),
-            func.ltrim(models.Whiskey.upc, "0") == upc_clean,
+    if not whiskey:
+        # Fallback: strip leading zeros and compare at SQL level
+        upc_clean = upc.lstrip("0")
+        whiskey = (
+            db.query(models.Whiskey)
+            .filter(
+                models.Whiskey.upc.isnot(None),
+                func.ltrim(models.Whiskey.upc, "0") == upc_clean,
+            )
+            .first()
         )
-        .first()
-    )
+
+    if current_user:
+        track_action(db, current_user.username, ACTION_SCAN_ATTEMPT,
+                     whiskey_id=whiskey.id if whiskey else None,
+                     detail={"upc": upc, "found": whiskey is not None})
+        db.commit()
+
     if whiskey:
         return whiskey
 
@@ -379,10 +395,18 @@ def get_buy_links(whiskey_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/{whiskey_id}", response_model=schemas.WhiskeyRead)
-def get_whiskey(whiskey_id: int = Path(..., gt=0), db: Session = Depends(get_db)):
+def get_whiskey(
+    whiskey_id: int = Path(..., gt=0),
+    current_user: Optional[models.User] = Depends(get_optional_user),
+    db: Session = Depends(get_db),
+):
     whiskey = db.query(models.Whiskey).filter(models.Whiskey.id == whiskey_id).first()
     if not whiskey:
         raise HTTPException(status_code=404, detail="Whiskey not found")
+    if current_user:
+        track_action(db, current_user.username, ACTION_WHISKEY_VIEW,
+                     whiskey_id=whiskey.id, category=whiskey.category)
+        db.commit()
     return whiskey
 
 
@@ -468,6 +492,11 @@ def rate_whiskey(
     db.commit()
     db.refresh(db_rating)
     db.refresh(whiskey)
+
+    track_action(db, current_user.username, ACTION_RATING,
+                 whiskey_id=whiskey_id, category=whiskey.category,
+                 detail={"score": rating.score})
+    db.commit()
 
     # Evaluate badges after check-in
     from ..badges import evaluate_badges

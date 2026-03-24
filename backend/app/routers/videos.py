@@ -15,6 +15,8 @@ from .. import models, schemas
 from ..database import get_db
 from ..auth import get_current_user, get_optional_user
 from ..upload_utils import validate_magic_bytes, sanitize_extension
+from ..track import track_action
+from ..analytics_constants import ACTION_VIDEO_WATCH
 
 router = APIRouter(prefix="/videos", tags=["videos"])
 
@@ -323,8 +325,12 @@ def record_view(
         raise HTTPException(status_code=404, detail="Video not found")
 
     db.query(models.Video).filter(models.Video.id == video_id).update(
-        {"view_count": models.Video.view_count + 1}
+        {"view_count": models.Video.view_count + 1},
+        synchronize_session="fetch",
     )
+    if current_user:
+        track_action(db, current_user.username, ACTION_VIDEO_WATCH,
+                     whiskey_id=video.whiskey_id, detail={"video_id": video_id})
     db.commit()
     db.refresh(video)
     return {"view_count": video.view_count}
@@ -399,23 +405,6 @@ def add_comment(
     return comment
 
 
-@router.get("/{video_id}/comments", response_model=list[schemas.VideoCommentRead])
-def get_comments(
-    video_id: int,
-    skip: int = Query(0, ge=0),
-    limit: int = Query(50, ge=1, le=100),
-    db: Session = Depends(get_db),
-):
-    return (
-        db.query(models.VideoComment)
-        .filter(models.VideoComment.video_id == video_id)
-        .order_by(models.VideoComment.created_at.desc())
-        .offset(skip)
-        .limit(limit)
-        .all()
-    )
-
-
 @router.delete("/comments/{comment_id}", status_code=204)
 def delete_comment(
     comment_id: int,
@@ -432,6 +421,23 @@ def delete_comment(
 
     db.delete(comment)
     db.commit()
+
+
+@router.get("/{video_id}/comments", response_model=list[schemas.VideoCommentRead])
+def get_comments(
+    video_id: int,
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=100),
+    db: Session = Depends(get_db),
+):
+    return (
+        db.query(models.VideoComment)
+        .filter(models.VideoComment.video_id == video_id)
+        .order_by(models.VideoComment.created_at.desc())
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
 
 
 # ── User's videos ────────────────────────────────────────────────────────

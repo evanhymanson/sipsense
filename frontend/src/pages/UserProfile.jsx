@@ -19,6 +19,9 @@ export default function UserProfile() {
   const [videos, setVideos] = useState([])
   const [_videosLoading, setVideosLoading] = useState(false)
   const [videosError, setVideosError] = useState(false)
+  const [listModal, setListModal] = useState(null) // 'followers' | 'following' | null
+  const [listUsers, setListUsers] = useState([])
+  const [listLoading, setListLoading] = useState(false)
 
   let currentUser = null
   try { currentUser = localStorage.getItem('sipsense_user') } catch { /* private browsing */ }
@@ -27,22 +30,27 @@ export default function UserProfile() {
   useEffect(() => () => { if (unfollowTimerRef.current) clearTimeout(unfollowTimerRef.current) }, [])
 
   useEffect(() => {
+    let stale = false
     setLoading(true)
     setError(null)
+    setListModal(null)
     api.getUserProfile(username)
       .then(p => {
+        if (stale) return
         setProfile(p)
         setFollowing(p.is_following)
       })
-      .catch(e => setError(e.message))
-      .finally(() => setLoading(false))
+      .catch(e => { if (!stale) setError(e.message) })
+      .finally(() => { if (!stale) setLoading(false) })
 
     setVideosLoading(true)
     setVideosError(false)
     api.getUserVideos(username, { limit: 6 })
-      .then(r => setVideos(r.items || []))
-      .catch(() => setVideosError(true))
-      .finally(() => setVideosLoading(false))
+      .then(r => { if (!stale) setVideos(r.items || []) })
+      .catch(() => { if (!stale) setVideosError(true) })
+      .finally(() => { if (!stale) setVideosLoading(false) })
+
+    return () => { stale = true }
   }, [username])
 
   async function toggleFollow() {
@@ -70,6 +78,38 @@ export default function UserProfile() {
       addToast('Failed to update follow status', 'error')
     } finally {
       setFollowLoading(false)
+    }
+  }
+
+  async function openList(type) {
+    setListModal(type)
+    setListLoading(true)
+    try {
+      const users = type === 'followers'
+        ? await api.getFollowers(username)
+        : await api.getFollowing(username)
+      setListUsers(users)
+    } catch {
+      setListUsers([])
+    } finally {
+      setListLoading(false)
+    }
+  }
+
+  async function toggleListFollow(target) {
+    const user = listUsers.find(u => u.username === target)
+    if (!user) return
+    try {
+      if (user.is_following) {
+        await api.unfollowUser(target)
+      } else {
+        await api.followUser(target)
+      }
+      setListUsers(prev => prev.map(u =>
+        u.username === target ? { ...u, is_following: !u.is_following } : u
+      ))
+    } catch {
+      addToast('Failed to update follow', 'error')
     }
   }
 
@@ -118,11 +158,11 @@ export default function UserProfile() {
           <span className="stat-value">{profile.unique_whiskeys}</span>
           <span className="stat-label">Unique</span>
         </div>
-        <div className="stat-card">
+        <div className="stat-card stat-card--clickable" onClick={() => openList('followers')}>
           <span className="stat-value">{profile.follower_count}</span>
           <span className="stat-label">Followers</span>
         </div>
-        <div className="stat-card">
+        <div className="stat-card stat-card--clickable" onClick={() => openList('following')}>
           <span className="stat-value">{profile.following_count}</span>
           <span className="stat-label">Following</span>
         </div>
@@ -199,6 +239,41 @@ export default function UserProfile() {
             ))}
           </div>
         </section>
+      )}
+
+      {listModal && (
+        <div className="follow-modal-overlay" onClick={() => setListModal(null)}>
+          <div className="follow-modal" onClick={e => e.stopPropagation()}>
+            <div className="follow-modal-header">
+              <h3>{listModal === 'followers' ? 'Followers' : 'Following'}</h3>
+              <button className="follow-modal-close" onClick={() => setListModal(null)}>&times;</button>
+            </div>
+            <div className="follow-modal-body">
+              {listLoading ? (
+                <p className="status">Loading...</p>
+              ) : listUsers.length === 0 ? (
+                <p className="status">{listModal === 'followers' ? 'No followers yet' : 'Not following anyone yet'}</p>
+              ) : (
+                listUsers.map(u => (
+                  <div key={u.username} className="follow-modal-row">
+                    <Link to={`/profile/${u.username}`} className="follow-modal-username" onClick={() => setListModal(null)}>
+                      {u.username}
+                    </Link>
+                    <span className="follow-modal-meta">{u.total_checkins} check-in{u.total_checkins !== 1 ? 's' : ''}</span>
+                    {currentUser && u.username !== currentUser && (
+                      <button
+                        className={`follow-modal-btn${u.is_following ? ' follow-modal-btn--following' : ''}`}
+                        onClick={() => toggleListFollow(u.username)}
+                      >
+                        {u.is_following ? 'Following' : 'Follow'}
+                      </button>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

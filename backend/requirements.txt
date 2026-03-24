@@ -29,6 +29,7 @@ rembg>=2.0.50
 transformers>=4.40.0
 rapidfuzz>=3.0.0
 typing-extensions>=4.0.0
+sentry-sdk[fastapi]>=2.0.0
 easyocr>=1.7.0
 # scraper/dev-only deps (not needed in production image)
 # playwright>=1.40.0

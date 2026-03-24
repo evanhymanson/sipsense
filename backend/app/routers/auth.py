@@ -13,6 +13,8 @@ from .. import models, schemas
 from ..database import get_db
 from ..auth import hash_password, verify_password, create_access_token, get_current_user
 from ..rate_limit import auth_rate_limit
+from ..track import track_action
+from ..analytics_constants import ACTION_REGISTER, ACTION_LOGIN
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -36,6 +38,8 @@ def register(body: schemas.UserRegister, db: Session = Depends(get_db), _: None 
     db.commit()
     db.refresh(user)
 
+    track_action(db, user.username, ACTION_REGISTER)
+    db.commit()
     token = create_access_token(user.username)
     return schemas.TokenResponse(access_token=token, username=user.username)
 
@@ -54,6 +58,8 @@ def login(body: schemas.UserLogin, db: Session = Depends(get_db), _: None = Depe
             detail="Account is deactivated",
         )
 
+    track_action(db, user.username, ACTION_LOGIN)
+    db.commit()
     token = create_access_token(user.username)
     return schemas.TokenResponse(access_token=token, username=user.username)
 

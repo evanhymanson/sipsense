@@ -10,6 +10,7 @@ function Marquee({ children, reverse }) {
   const outerRef = useRef(null)
   const trackRef = useRef(null)
   const dragging = useRef(false)
+  const didDrag = useRef(false)
   const startX = useRef(0)
   const scrollStart = useRef(0)
   const [paused, setPaused] = useState(false)
@@ -24,22 +25,32 @@ function Marquee({ children, reverse }) {
 
   const onPointerDown = useCallback((e) => {
     dragging.current = true
+    didDrag.current = false
     startX.current = e.clientX
     scrollStart.current = outerRef.current.scrollLeft
     setPaused(true)
-    outerRef.current.setPointerCapture(e.pointerId)
   }, [])
 
   const onPointerMove = useCallback((e) => {
     if (!dragging.current) return
     const dx = e.clientX - startX.current
-    outerRef.current.scrollLeft = scrollStart.current - dx
-    updateProgress()
+    if (Math.abs(dx) > 5) {
+      didDrag.current = true
+      outerRef.current.scrollLeft = scrollStart.current - dx
+      updateProgress()
+    }
   }, [updateProgress])
 
   const onPointerUp = useCallback(() => {
     dragging.current = false
     setPaused(false)
+  }, [])
+
+  const onClickCapture = useCallback((e) => {
+    if (didDrag.current) {
+      e.preventDefault()
+      e.stopPropagation()
+    }
   }, [])
 
   // Sync scroll position from CSS animation transform into scrollLeft when not dragging
@@ -60,6 +71,7 @@ function Marquee({ children, reverse }) {
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerUp}
+        onClickCapture={onClickCapture}
         onMouseEnter={() => setPaused(true)}
         onMouseLeave={() => { if (!dragging.current) setPaused(false) }}
       >
@@ -179,6 +191,7 @@ export default function Browse() {
       api.getTrending({ limit: 8 }).catch(() => []),
       api.getNewArrivals(8).catch(() => []),
     ]).then(([t, n]) => { setTrending(t); setNewArrivals(n) })
+      .catch(() => {})
   }, [])
 
   // Load main whiskey list (abort stale requests on rapid filter changes)
@@ -210,40 +223,42 @@ export default function Browse() {
   // Handle special modes
   useEffect(() => {
     if (!specialMode) return
+    const controller = new AbortController()
     setSpecialLoading(true)
     setError(null)
     if (specialMode === 'foryou') {
-      api.getExplainedRecommendations(12)
-        .then(setForYouData)
-        .catch(() =>
-          api.getRecommendations(12)
-            .then(data => setForYouData(data.map(r => ({ ...r, reason: null }))))
-            .catch(e => { setForYouData([]); setError(e.message) })
-        )
-        .finally(() => setSpecialLoading(false))
+      api.getExplainedRecommendations(12, { signal: controller.signal })
+        .then(data => { if (!controller.signal.aborted) setForYouData(data) })
+        .catch(() => {
+          if (controller.signal.aborted) return
+          api.getRecommendations(12, { signal: controller.signal })
+            .then(data => { if (!controller.signal.aborted) setForYouData(data.map(r => ({ ...r, reason: null }))) })
+            .catch(e => { if (!controller.signal.aborted) { setForYouData([]); setError(e.message) } })
+        })
+        .finally(() => { if (!controller.signal.aborted) setSpecialLoading(false) })
     } else if (specialMode === 'favorites') {
-      api.getFavorites()
-        .then(setFavoritesData)
-        .catch(e => setError(e.message))
-        .finally(() => setSpecialLoading(false))
+      api.getFavorites({ signal: controller.signal })
+        .then(data => { if (!controller.signal.aborted) setFavoritesData(data) })
+        .catch(e => { if (!controller.signal.aborted) setError(e.message) })
+        .finally(() => { if (!controller.signal.aborted) setSpecialLoading(false) })
     }
+    return () => controller.abort()
   }, [specialMode])
 
   function loadMore() {
+    if (loadingMore) return
     setLoadingMore(true)
-    setWhiskeys(prev => {
-      api.listWhiskeys({ ...filters, skip: prev.length, limit: PAGE_SIZE })
-        .then(data => {
-          setWhiskeys(current => {
-            const updated = [...current, ...data.items]
-            setHasMore(updated.length < data.total)
-            return updated
-          })
+    const skip = whiskeys.length
+    api.listWhiskeys({ ...filters, skip, limit: PAGE_SIZE })
+      .then(data => {
+        setWhiskeys(current => {
+          const updated = [...current, ...data.items]
+          setHasMore(updated.length < data.total)
+          return updated
         })
-        .catch(e => setError(e.message))
-        .finally(() => setLoadingMore(false))
-      return prev
-    })
+      })
+      .catch(e => setError(e.message))
+      .finally(() => setLoadingMore(false))
   }
 
   function handleFilter(e) { setFilters(f => ({ ...f, [e.target.name]: e.target.value })) }

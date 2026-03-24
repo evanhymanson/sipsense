@@ -16,6 +16,32 @@ load_dotenv()  # loads backend/.env into os.environ before anything else runs
 
 _ENV = os.getenv("SIPSENSE_ENV", "development").lower()
 
+# ── Staging safety guard ─────────────────────────────────────────────────
+# Prevent staging from accidentally connecting to the production database.
+if _ENV == "staging":
+    from .database import engine as _guard_engine
+    from sqlalchemy import text as _guard_text
+    with _guard_engine.connect() as _guard_conn:
+        _db_name = _guard_conn.execute(_guard_text("SELECT current_database()")).scalar()
+        if _db_name != "sipsense_staging":
+            raise RuntimeError(
+                f"FATAL: SIPSENSE_ENV=staging but connected to database '{_db_name}'. "
+                f"Expected 'sipsense_staging'. Check your DATABASE_URL."
+            )
+    logging.getLogger(__name__).warning(
+        "*** STAGING ENVIRONMENT — do not use with real user data ***"
+    )
+
+# ── Sentry error tracking ────────────────────────────────────────────────
+_SENTRY_DSN = os.getenv("SENTRY_DSN")
+if _SENTRY_DSN:
+    import sentry_sdk
+    sentry_sdk.init(
+        dsn=_SENTRY_DSN,
+        environment=_ENV,
+        traces_sample_rate=0.1,  # 10% of requests for performance monitoring
+    )
+
 
 # ── Structured logging for staging/production ────────────────────────────
 # JSON logs are easy to search in CloudWatch, journald, or with jq.
@@ -40,7 +66,7 @@ if _ENV in ("staging", "production"):
     logging.root.setLevel(logging.INFO)
 
 from .database import engine, Base
-from .routers import whiskeys, recommendations, quiz, favorites, chat, learn, flights, gift, palate, compare, stores, auth, trending, pairings, collection, personality, blindtasting, daily, feed, social, ai_features, journal, sharecard, journeys, watchlist, discover, videos, affiliate, subscription, sponsored
+from .routers import whiskeys, recommendations, quiz, favorites, chat, learn, flights, gift, palate, compare, stores, auth, trending, pairings, collection, personality, blindtasting, daily, feed, social, ai_features, journal, sharecard, journeys, watchlist, discover, videos, affiliate, subscription, sponsored, analytics
 
 logger = logging.getLogger(__name__)
 
@@ -129,6 +155,15 @@ async def rate_limit_middleware(request: Request, call_next):
     return response
 
 
+# ── Analytics middleware ─────────────────────────────────────────────────
+from .analytics_middleware import analytics_middleware, cleanup_old_events
+
+app.middleware("http")(analytics_middleware)
+
+# Clean up old analytics events on startup
+cleanup_old_events()
+
+
 # Allow the React dev server (and production origins) to call this API
 _cors_origins = [o.strip() for o in os.getenv("CORS_ORIGINS", "http://localhost:5173").split(",")]
 
@@ -171,6 +206,7 @@ app.include_router(videos.router)
 app.include_router(affiliate.router)
 app.include_router(subscription.router)
 app.include_router(sponsored.router)
+app.include_router(analytics.router)
 
 
 @app.get("/", tags=["health"])

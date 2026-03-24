@@ -80,7 +80,7 @@ export default function Alerts() {
           <div style={{ fontSize: '2.5rem', marginBottom: '0.75rem' }}>🔔</div>
           <p>No notifications yet.</p>
           <p className="page-subtitle">
-            Watch a whiskey on its detail page and you'll get notified when it gets new activity.
+            Follow users and watch whiskeys to get notified about new activity.
           </p>
         </div>
       )}
@@ -92,9 +92,15 @@ export default function Alerts() {
             className={`alert-item ${alert.is_read ? 'alert-item--read' : 'alert-item--unread'}`}
           >
             <div className="alert-content">
-              <Link to={`/whiskey/${alert.whiskey_id}`} className="alert-whiskey-name">
-                {alert.whiskey_name}
-              </Link>
+              {alert.alert_type === 'follow' ? (
+                <Link to={`/user/${alert.from_username}`} className="alert-whiskey-name">
+                  {alert.from_username}
+                </Link>
+              ) : alert.whiskey_id ? (
+                <Link to={`/whiskey/${alert.whiskey_id}`} className="alert-whiskey-name">
+                  {alert.whiskey_name}
+                </Link>
+              ) : null}
               <p className="alert-message">{alert.message}</p>
               <span className="alert-time">
                 {new Date(alert.created_at).toLocaleString(undefined, {

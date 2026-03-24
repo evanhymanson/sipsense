@@ -2352,3 +2352,110 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
   font-style: italic;
   border-style: dashed;
 }
+
+
+/* ── Admin Dashboard ────────────────────────────────────────────────────── */
+
+.admin-dashboard { max-width: 1100px; margin: 0 auto; }
+.admin-dashboard h1 { margin-bottom: 2rem; }
+.admin-dashboard h2 { margin-bottom: 1rem; font-size: 1.2rem; color: var(--amber); }
+.admin-dashboard h3 { font-size: 1rem; color: var(--text-muted); }
+
+.admin-section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.admin-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 1rem;
+}
+
+.admin-metric-card {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 1rem;
+  text-align: center;
+}
+.admin-metric-value {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--amber);
+}
+.admin-metric-label {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-top: 0.25rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.admin-metric-sub {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  opacity: 0.7;
+}
+
+/* Bar chart */
+.admin-bar-chart { display: flex; flex-direction: column; gap: 0.5rem; }
+.admin-bar-row { display: flex; align-items: center; gap: 0.75rem; }
+.admin-bar-label {
+  min-width: 120px;
+  font-size: 0.85rem;
+  color: var(--text-soft);
+  text-align: right;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.admin-bar-track {
+  flex: 1;
+  height: 22px;
+  background: var(--surface-2);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.admin-bar-fill {
+  height: 100%;
+  background: var(--amber);
+  border-radius: 4px;
+  min-width: 2px;
+  transition: width 0.3s ease;
+}
+.admin-bar-value {
+  min-width: 50px;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Tables */
+.admin-table-wrap { overflow-x: auto; }
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+.admin-table th {
+  text-align: left;
+  padding: 0.5rem 0.75rem;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+  font-weight: 500;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.5px;
+}
+.admin-table td {
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-soft);
+}
+.admin-table code {
+  font-size: 0.8rem;
+  color: var(--amber-light);
+}
