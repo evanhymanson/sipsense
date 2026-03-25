@@ -88,6 +88,15 @@ def _run_migrations():
                     "ALTER TABLE watchlist_alerts ADD COLUMN from_username VARCHAR"
                 ))
             conn.commit()
+            # whiskey_id must be nullable for non-whiskey alerts (e.g. follow notifications)
+            if not _is_sqlite:
+                for col in inspector.get_columns("watchlist_alerts"):
+                    if col["name"] == "whiskey_id" and not col.get("nullable", True):
+                        conn.execute(sa.text(
+                            "ALTER TABLE watchlist_alerts ALTER COLUMN whiskey_id DROP NOT NULL"
+                        ))
+                        conn.commit()
+                        break
         # Upgrade osm_id from INTEGER to BIGINT for large OSM node IDs (PostgreSQL only;
         # SQLite INTEGER already supports 64-bit values natively)
         if not _is_sqlite and "liquor_stores" in inspector.get_table_names():
@@ -150,6 +159,7 @@ def _ensure_indexes():
         ("idx_analytics_user_ts", "analytics_events", "user_id, timestamp"),
         ("idx_actions_user_ts", "user_actions", "user_id, timestamp"),
         ("idx_actions_action_ts", "user_actions", "action, timestamp"),
+        ("idx_reviewtag_whiskey_tag", "review_flavor_tags", "whiskey_id, tag_name"),
     ]
     with engine.connect() as conn:
         for idx_name, table, columns in _composite_indexes:
