@@ -109,7 +109,7 @@ ALL_CATEGORIES = {"bourbon", "scotch", "irish", "japanese", "rye", "canadian", "
 
 def seed_badges(db: Session) -> None:
     """Insert badge definitions if they don't already exist."""
-    existing = {b.slug for b in db.query(models.Badge.slug).all()}
+    existing = {b.slug for b in db.query(models.Badge).all()}
     for defn in BADGE_DEFINITIONS:
         if defn["slug"] not in existing:
             db.add(models.Badge(**defn))
