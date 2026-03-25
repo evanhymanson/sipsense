@@ -1,78 +1,161 @@
+/* ── Split layout ─────────────────────────────────────────────────────── */
 .onboarding {
+  display: flex;
   min-height: 100vh;
+}
+
+/* ── Hero (left panel) ───────────────────────────────────────────────── */
+.onboarding-hero {
+  flex: 1.2;
+  background: url('/bar-bg.png') center / cover no-repeat;
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  padding: 3rem;
+}
+
+.onboarding-hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to top,
+    rgba(0, 0, 0, 0.85) 0%,
+    rgba(0, 0, 0, 0.4) 50%,
+    rgba(0, 0, 0, 0.25) 100%
+  );
+}
+
+.onboarding-hero-content {
+  position: relative;
+  z-index: 1;
+  max-width: 480px;
+}
+
+.onboarding-headline {
+  font-size: 3rem;
+  font-weight: 700;
+  line-height: 1.15;
+  color: #fff;
+  letter-spacing: -0.02em;
+  margin-bottom: 1.5rem;
+}
+
+.onboarding-features {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  margin-bottom: 2.5rem;
+}
+
+.onboarding-features li {
+  font-size: 1.05rem;
+  color: rgba(255, 255, 255, 0.85);
+  padding-left: 1.25rem;
+  position: relative;
+}
+
+.onboarding-features li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.55em;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--amber);
+}
+
+.onboarding-hero-brand {
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.4);
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+}
+
+/* ── Auth panel (right) ──────────────────────────────────────────────── */
+.onboarding-panel {
+  flex: 0 0 480px;
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 3rem 2.5rem;
   background: var(--bg);
-  padding: 2rem;
+  border-left: 1px solid var(--border);
 }
 
 .onboarding-card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  padding: 3rem 2.5rem;
-  max-width: 420px;
   width: 100%;
-  text-align: center;
+  max-width: 380px;
   display: flex;
   flex-direction: column;
-  align-items: center;
   gap: 0.75rem;
-  transition: box-shadow 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
-}
-.onboarding-card:hover {
-  box-shadow: var(--shadow-hover);
-  transform: translateY(-2px);
-}
-
-.onboarding-logo {
-  font-size: 3.5rem;
-  line-height: 1;
-  margin-bottom: 0.25rem;
 }
 
 .onboarding-title {
-  font-size: 2.5rem;
+  font-size: 1.75rem;
   color: var(--amber);
-  letter-spacing: 0.05em;
+  letter-spacing: 0.03em;
+  font-weight: 700;
 }
 
 .onboarding-subtitle {
-  font-size: 1rem;
+  font-size: 0.95rem;
   color: var(--text-muted);
   margin-top: -0.25rem;
+  margin-bottom: 0.25rem;
 }
 
-.onboarding-desc {
-  font-size: 0.92rem;
-  color: var(--text);
-  line-height: 1.6;
-  margin: 0.5rem 0;
+/* ── Tabs ────────────────────────────────────────────────────────────── */
+.onboarding-tabs {
+  display: flex;
+  width: 100%;
+  border-radius: var(--radius);
+  overflow: hidden;
+  border: 1px solid var(--border);
 }
 
+.onboarding-tab {
+  flex: 1;
+  padding: 0.6rem 1rem;
+  border: none;
+  background: var(--surface);
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+
+.onboarding-tab--active {
+  background: var(--amber);
+  color: #fff;
+  font-weight: 600;
+}
+
+/* ── Form ────────────────────────────────────────────────────────────── */
 .onboarding-form {
   display: flex;
   flex-direction: column;
-  align-items: stretch;
-  gap: 0.75rem;
+  gap: 0.65rem;
   width: 100%;
-  margin-top: 0.5rem;
+  margin-top: 0.25rem;
 }
 
 .onboarding-label {
-  font-size: 0.88rem;
+  font-size: 0.85rem;
   color: var(--text-muted);
-  text-align: left;
 }
 
 .onboarding-input {
-  background: var(--bg);
+  background: var(--surface);
   border: 1px solid var(--border);
   color: var(--text);
-  padding: 0.75rem 1rem;
-  border-radius: var(--radius);
-  font-size: 1rem;
+  padding: 0.7rem 0.9rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.95rem;
   font-family: inherit;
   transition: border-color 0.2s;
   width: 100%;
@@ -85,16 +168,16 @@
 
 .onboarding-btn {
   background: var(--amber);
-  color: #ffffff;
+  color: #fff;
   border: none;
-  padding: 0.8rem 1.5rem;
-  border-radius: var(--radius);
-  font-size: 1rem;
-  font-weight: bold;
+  padding: 0.75rem 1.5rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.95rem;
+  font-weight: 600;
   font-family: inherit;
   cursor: pointer;
   transition: background 0.2s;
-  align-self: stretch;
+  margin-top: 0.25rem;
 }
 
 .onboarding-btn:hover:not(:disabled) {
@@ -102,42 +185,13 @@
 }
 
 .onboarding-btn:disabled {
-  opacity: 0.45;
+  opacity: 0.4;
   cursor: not-allowed;
-}
-
-.onboarding-tabs {
-  display: flex;
-  width: 100%;
-  gap: 0;
-  border-radius: var(--radius);
-  overflow: hidden;
-  border: 1px solid var(--border);
-  margin-top: 0.5rem;
-}
-
-.onboarding-tab {
-  flex: 1;
-  padding: 0.6rem 1rem;
-  border: none;
-  background: var(--bg);
-  color: var(--text-muted);
-  font-family: inherit;
-  font-size: 0.9rem;
-  cursor: pointer;
-  transition: background 0.2s, color 0.2s;
-}
-
-.onboarding-tab--active {
-  background: var(--amber);
-  color: #ffffff;
-  font-weight: bold;
 }
 
 .onboarding-error {
   color: var(--red, #e74c3c);
-  font-size: 0.88rem;
-  text-align: left;
+  font-size: 0.85rem;
   margin: 0;
 }
 
@@ -145,4 +199,37 @@
   font-size: 0.78rem;
   color: var(--text-muted);
   margin-top: 0.25rem;
+}
+
+/* ── Mobile ──────────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .onboarding {
+    flex-direction: column;
+  }
+
+  .onboarding-hero {
+    flex: none;
+    min-height: 40vh;
+    padding: 2rem 1.5rem;
+  }
+
+  .onboarding-headline {
+    font-size: 2rem;
+    margin-bottom: 1rem;
+  }
+
+  .onboarding-features {
+    margin-bottom: 1.5rem;
+  }
+
+  .onboarding-features li {
+    font-size: 0.95rem;
+  }
+
+  .onboarding-panel {
+    flex: none;
+    border-left: none;
+    border-top: 1px solid var(--border);
+    padding: 2rem 1.5rem;
+  }
 }
