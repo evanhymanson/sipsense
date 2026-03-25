@@ -11,6 +11,7 @@ from .. import models
 from ..database import get_db
 from ..auth import get_current_user
 from ..upload_utils import validate_magic_bytes, sanitize_extension
+from ..storage import is_s3_enabled, upload_bytes, make_cdn_url
 
 router = APIRouter(tags=["journal"])
 
@@ -38,19 +39,25 @@ async def upload_rating_image(
         raise HTTPException(status_code=400, detail="Image too large (max 10 MB)")
 
     # Validate actual file content via magic bytes (not just client-provided MIME)
-    if not validate_magic_bytes(content, ALLOWED_TYPES):
+    detected_mime = validate_magic_bytes(content, ALLOWED_TYPES)
+    if not detected_mime:
         raise HTTPException(status_code=400, detail="Only JPEG, PNG, and WebP images are allowed")
 
     ext = sanitize_extension(file.filename, {"jpg", "jpeg", "png", "webp"}, "jpg")
     filename = f"{rating_id}_{uuid.uuid4().hex[:8]}.{ext}"
+    s3_key = f"ratings/{filename}"
 
-    UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
-    (UPLOAD_DIR / filename).write_bytes(content)
+    if is_s3_enabled():
+        url = upload_bytes(content, s3_key, content_type=detected_mime)
+    else:
+        UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+        (UPLOAD_DIR / filename).write_bytes(content)
+        url = f"/uploads/{s3_key}"
 
-    rating.image_path = f"ratings/{filename}"
+    rating.image_path = s3_key
     db.commit()
 
-    return {"image_url": f"/uploads/ratings/{filename}"}
+    return {"image_url": url}
 
 
 @router.get("/journal/me")
@@ -77,7 +84,7 @@ def get_my_journal(
 
     entries = []
     for r in ratings:
-        image_url = f"/uploads/{r.image_path}" if r.image_path else None
+        image_url = make_cdn_url(f"/uploads/{r.image_path}") if r.image_path else None
         entries.append({
             "id": r.id,
             "score": r.score,

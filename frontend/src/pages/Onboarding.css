@@ -7,7 +7,7 @@
 /* ── Hero (left panel) ───────────────────────────────────────────────── */
 .onboarding-hero {
   flex: 1.2;
-  background: url('/bar-bg.png') center / cover no-repeat;
+  background: url('/bar-bg.webp') center / cover no-repeat;
   position: relative;
   display: flex;
   align-items: flex-end;

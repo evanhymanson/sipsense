@@ -1,0 +1,17 @@
+{
+  "name": "SipSense — Discover Your Perfect Whiskey",
+  "short_name": "SipSense",
+  "description": "AI-powered whiskey recommendations, tasting notes, and a community of enthusiasts.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#3b2518",
+  "theme_color": "#3b2518",
+  "orientation": "portrait-primary",
+  "categories": ["food", "lifestyle", "social"],
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icons/icon-maskable-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

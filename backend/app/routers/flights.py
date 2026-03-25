@@ -231,14 +231,14 @@ def get_flight(
     db: Session = Depends(get_db),
 ):
     if theme not in THEMES:
-        raise HTTPException(404, f"Unknown theme '{theme}'. Valid options: {list(THEMES)}")
+        raise HTTPException(status_code=404, detail=f"Unknown theme '{theme}'. Valid options: {list(THEMES)}")
 
     meta = THEMES[theme]
     query_fn = _QUERY_MAP[theme]
     bottles = query_fn(db, max_price or 0, count)
 
     if not bottles:
-        raise HTTPException(404, "Not enough whiskeys found for this flight. Try removing the price filter.")
+        raise HTTPException(status_code=404, detail="Not enough whiskeys found for this flight. Try removing the price filter.")
 
     steps = meta["steps"]
     result = []

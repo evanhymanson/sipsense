@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session, joinedload
 from .. import models, schemas
 from ..database import get_db, SessionLocal
 from ..auth import get_current_user, get_optional_user
+from ..storage import is_s3_enabled, upload_file, make_cdn_url
 
 logger = logging.getLogger(__name__)
 from ..upload_utils import validate_magic_bytes, sanitize_extension
@@ -81,8 +82,8 @@ def _build_video_read(
         user_id=video.user_id,
         title=video.title,
         description=video.description,
-        video_url=f"/uploads/{video.video_path}",
-        thumbnail_url=f"/uploads/{video.thumbnail_path}" if video.thumbnail_path else None,
+        video_url=make_cdn_url(f"/uploads/{video.video_path}"),
+        thumbnail_url=make_cdn_url(f"/uploads/{video.thumbnail_path}") if video.thumbnail_path else None,
         duration_seconds=video.duration_seconds,
         whiskey_id=video.whiskey_id,
         whiskey_name=video.whiskey.name if video.whiskey else None,
@@ -155,12 +156,26 @@ def _process_video_bg(video_id: int, video_path: Path, thumb_path: Path):
         has_thumb = _generate_thumbnail(video_path, thumb_path)
         duration = _get_duration(video_path)
         video = db.query(models.Video).filter(models.Video.id == video_id).first()
-        if video:
+        if not video:
+            return
+
+        if is_s3_enabled():
+            upload_file(str(video_path), video.video_path, content_type="video/mp4")
+            if has_thumb:
+                thumb_key = f"videos/thumbs/{thumb_path.name}"
+                upload_file(str(thumb_path), thumb_key, content_type="image/jpeg")
+                video.thumbnail_path = thumb_key
+            # Clean up local temp files
+            video_path.unlink(missing_ok=True)
+            if has_thumb:
+                thumb_path.unlink(missing_ok=True)
+        else:
             if has_thumb:
                 video.thumbnail_path = f"videos/thumbs/{thumb_path.name}"
-            if duration:
-                video.duration_seconds = duration
-            db.commit()
+
+        if duration:
+            video.duration_seconds = duration
+        db.commit()
     except Exception as e:
         logger.error("Background video processing failed for %d: %s", video_id, e)
         db.rollback()
@@ -194,10 +209,18 @@ async def upload_video(
     uid = uuid.uuid4().hex[:12]
     filename = f"{uid}.{ext}"
 
-    UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
-    THUMB_DIR.mkdir(parents=True, exist_ok=True)
-
-    video_file = UPLOAD_DIR / filename
+    # When S3 is enabled, write to a temp dir (ffmpeg processes locally, then uploads)
+    if is_s3_enabled():
+        import tempfile
+        temp_dir = Path(tempfile.mkdtemp(prefix="sipsense_video_"))
+        video_file = temp_dir / filename
+        thumb_dir = temp_dir / "thumbs"
+        thumb_dir.mkdir()
+    else:
+        UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+        THUMB_DIR.mkdir(parents=True, exist_ok=True)
+        video_file = UPLOAD_DIR / filename
+        thumb_dir = THUMB_DIR
 
     # Stream file to disk in 1MB chunks instead of loading entirely into RAM
     total_size = 0
@@ -245,7 +268,7 @@ async def upload_video(
         db.refresh(video, ["whiskey"])
 
     # Schedule thumbnail generation + duration detection in background
-    background_tasks.add_task(_process_video_bg, video.id, video_file, THUMB_DIR / thumb_filename)
+    background_tasks.add_task(_process_video_bg, video.id, video_file, thumb_dir / thumb_filename)
 
     return _build_video_read(video)
 

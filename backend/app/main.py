@@ -4,6 +4,7 @@ import os
 import time
 import logging
 from collections import defaultdict
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -70,22 +71,31 @@ from .routers import whiskeys, recommendations, quiz, favorites, chat, learn, fl
 
 logger = logging.getLogger(__name__)
 
-# Create all tables on startup
-Base.metadata.create_all(bind=engine)
-
-# Seed badge definitions
 from .badges import seed_badges
 from .database import SessionLocal
-_seed_db = SessionLocal()
-try:
-    seed_badges(_seed_db)
-finally:
-    _seed_db.close()
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Run startup tasks before the server begins accepting requests."""
+    logger.info("Running startup tasks…")
+    Base.metadata.create_all(bind=engine)
+    db = SessionLocal()
+    try:
+        seed_badges(db)
+    finally:
+        db.close()
+    from .analytics_middleware import cleanup_old_events
+    cleanup_old_events()
+    logger.info("Startup tasks complete — ready to serve requests")
+    yield
+
 
 app = FastAPI(
     title="SipSense API",
     description="AI-powered whiskey recommendation engine",
     version="0.2.0",
+    lifespan=lifespan,
 )
 
 # ── Rate limiting middleware ──────────────────────────────────────────────
@@ -156,12 +166,9 @@ async def rate_limit_middleware(request: Request, call_next):
 
 
 # ── Analytics middleware ─────────────────────────────────────────────────
-from .analytics_middleware import analytics_middleware, cleanup_old_events
+from .analytics_middleware import analytics_middleware
 
 app.middleware("http")(analytics_middleware)
-
-# Clean up old analytics events on startup
-cleanup_old_events()
 
 
 # Allow the React dev server (and production origins) to call this API
