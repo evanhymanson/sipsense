@@ -13,6 +13,11 @@ export default function InstallPrompt() {
       || window.navigator.standalone
     if (isStandalone || dismissed) return
 
+    // Only show on mobile/tablet devices
+    const isMobile = /android|iphone|ipad|ipod/i.test(navigator.userAgent)
+      || (navigator.maxTouchPoints > 1 && window.innerWidth < 1024)
+    if (!isMobile) return
+
     // Android/Chrome: capture the beforeinstallprompt event
     const handler = (e) => {
       e.preventDefault()
