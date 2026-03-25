@@ -3,13 +3,15 @@ import { useState, useEffect } from 'react'
 export default function InstallPrompt() {
   const [deferredPrompt, setDeferredPrompt] = useState(null)
   const [showIosBanner, setShowIosBanner] = useState(false)
-  const [dismissed, setDismissed] = useState(false)
+  const [dismissed, setDismissed] = useState(() => {
+    try { return localStorage.getItem('sipsense_install_dismissed') === 'true' } catch { return false }
+  })
 
   useEffect(() => {
-    // Don't show if already installed or previously dismissed this session
+    // Don't show if already installed or previously dismissed
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches
       || window.navigator.standalone
-    if (isStandalone) return
+    if (isStandalone || dismissed) return
 
     // Android/Chrome: capture the beforeinstallprompt event
     const handler = (e) => {
@@ -38,6 +40,7 @@ export default function InstallPrompt() {
       if (outcome === 'accepted') setDeferredPrompt(null)
     }
     setDismissed(true)
+    try { localStorage.setItem('sipsense_install_dismissed', 'true') } catch {}
   }
 
   return (
@@ -57,7 +60,7 @@ export default function InstallPrompt() {
         {!showIosBanner && (
           <button onClick={handleInstall} style={styles.installBtn}>Install</button>
         )}
-        <button onClick={() => setDismissed(true)} style={styles.dismissBtn}>
+        <button onClick={() => { setDismissed(true); try { localStorage.setItem('sipsense_install_dismissed', 'true') } catch {} }} style={styles.dismissBtn}>
           {showIosBanner ? 'Got it' : 'Not now'}
         </button>
       </div>
