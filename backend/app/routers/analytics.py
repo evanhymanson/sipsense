@@ -343,17 +343,33 @@ def get_performance(
 
 # Rate limit for anonymous tracking endpoint
 _TRACK_RATE: dict[str, list[float]] = {}
+_TRACK_LAST_CLEANUP = 0.0
+_TRACK_CLEANUP_INTERVAL = 300  # 5 minutes
+_TRACK_MAX_IPS = 5000
 
 @router.post("/track")
 async def track_frontend_event(request: Request, db: Session = Depends(get_db)):
     """Receive frontend analytics events (page views, time-on-page).
     No auth required so it works for the onboarding page."""
     import time
+    global _TRACK_LAST_CLEANUP
 
     # Simple rate limit: 60 events/minute per IP
     client_ip = request.client.host if request.client else "unknown"
     now = time.time()
     window = now - 60
+
+    # Periodic cleanup: evict stale IPs and cap total entries
+    if now - _TRACK_LAST_CLEANUP > _TRACK_CLEANUP_INTERVAL:
+        stale = [ip for ip, ts in _TRACK_RATE.items() if not ts or ts[-1] < window]
+        for ip in stale:
+            del _TRACK_RATE[ip]
+        if len(_TRACK_RATE) > _TRACK_MAX_IPS:
+            by_recency = sorted(_TRACK_RATE, key=lambda ip: _TRACK_RATE[ip][-1] if _TRACK_RATE[ip] else 0)
+            for ip in by_recency[:len(_TRACK_RATE) - _TRACK_MAX_IPS]:
+                del _TRACK_RATE[ip]
+        _TRACK_LAST_CLEANUP = now
+
     hits = _TRACK_RATE.get(client_ip, [])
     hits = [t for t in hits if t > window]
     if len(hits) >= 60:

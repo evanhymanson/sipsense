@@ -71,6 +71,72 @@
 .prof-stat--clickable { cursor: pointer; border-radius: 0.5rem; padding: 0.25rem; transition: background 0.15s; }
 .prof-stat--clickable:hover { background: var(--surface-hover, rgba(255,255,255,0.05)); }
 
+/* ── Suggested Follows ────────────────────────────── */
+.prof-suggested {
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+}
+.prof-suggested-title {
+  font-size: 0.85rem;
+  color: var(--amber-light);
+  margin: 0 0 0.5rem;
+}
+.prof-suggested-scroll {
+  display: flex;
+  gap: 0.6rem;
+  overflow-x: auto;
+  padding-bottom: 0.25rem;
+  -webkit-overflow-scrolling: touch;
+}
+.prof-suggested-scroll::-webkit-scrollbar { height: 0; }
+.prof-suggested-card {
+  flex-shrink: 0;
+  width: 130px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+.prof-suggested-name {
+  font-weight: 600;
+  font-size: 0.82rem;
+  color: var(--amber);
+  text-decoration: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.prof-suggested-name:hover { text-decoration: underline; }
+.prof-suggested-match {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--amber-light);
+}
+.prof-suggested-reason {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.prof-suggested-follow {
+  margin-top: 0.15rem;
+  background: var(--amber);
+  color: #fff;
+  border: none;
+  border-radius: 999px;
+  padding: 0.25rem 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+}
+.prof-suggested-follow:hover { background: var(--amber-light); }
+
 /* ── CTA for newcomers ────────────────────────────── */
 .prof-cta {
   margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border);

@@ -82,6 +82,7 @@ class UserRating(Base):
         return f"/uploads/{self.image_path}" if self.image_path else None
 
     toasts = relationship("Toast", back_populates="rating", cascade="all, delete-orphan")
+    comments = relationship("CheckInComment", back_populates="rating", cascade="all, delete-orphan")
 
 
 class UserMemory(Base):
@@ -156,6 +157,19 @@ class Toast(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     rating = relationship("UserRating", back_populates="toasts")
+
+
+class CheckInComment(Base):
+    """A comment on a check-in (rating)."""
+    __tablename__ = "checkin_comments"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(String, nullable=False, index=True)
+    rating_id = Column(Integer, ForeignKey("user_ratings.id", ondelete="CASCADE"), nullable=False, index=True)
+    text = Column(Text, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    rating = relationship("UserRating", back_populates="comments")
 
 
 class Badge(Base):

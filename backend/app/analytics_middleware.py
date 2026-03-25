@@ -46,15 +46,34 @@ def _hash_ip(ip: str) -> str:
     return hashlib.sha256((_SALT + ip).encode()).hexdigest()[:16]
 
 
+_write_count = 0
+_CLEANUP_EVERY_N = 10_000
+
+
 def _write_event(event_data: dict):
     """Write an analytics event to the DB (runs in background thread)."""
     from . import models  # deferred to avoid circular imports
+    global _write_count
 
     db = SessionLocal()
     try:
         event = models.AnalyticsEvent(**event_data)
         db.add(event)
         db.commit()
+
+        # Periodic cleanup: every 10k writes, purge old events
+        _write_count += 1
+        if _write_count % _CLEANUP_EVERY_N == 0:
+            try:
+                cutoff = datetime.now(timezone.utc) - timedelta(days=_RETENTION_DAYS)
+                deleted = db.query(models.AnalyticsEvent).filter(
+                    models.AnalyticsEvent.timestamp < cutoff
+                ).delete()
+                db.commit()
+                if deleted:
+                    logger.info("Periodic cleanup: removed %d old analytics events", deleted)
+            except Exception:
+                db.rollback()
     except Exception:
         logger.debug("Failed to write analytics event", exc_info=True)
         db.rollback()

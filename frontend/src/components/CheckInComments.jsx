@@ -138,7 +138,7 @@ function timeAgo(dateStr) {
   return `${days}d`
 }
 
-export default function VideoComments({ videoId, onClose, onCommentCountChange }) {
+export default function CheckInComments({ ratingId, onClose, onCommentCountChange }) {
   const [comments, setComments] = useState([])
   const [loading, setLoading] = useState(true)
   const [text, setText] = useState('')
@@ -151,16 +151,15 @@ export default function VideoComments({ videoId, onClose, onCommentCountChange }
 
   useEffect(() => {
     loadComments()
-    // Focus input on open
     setTimeout(() => inputRef.current?.focus(), 200)
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- videoId is the real trigger; loadComments is not memoized
-  }, [videoId])
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- ratingId is the real trigger; loadComments is not memoized
+  }, [ratingId])
 
   async function loadComments(append = false) {
     setLoading(true)
     try {
       const skip = append ? comments.length : 0
-      const data = await api.getVideoComments(videoId, { skip, limit: COMMENT_LIMIT })
+      const data = await api.getCheckInComments(ratingId, { skip, limit: COMMENT_LIMIT })
       if (append) {
         setComments(prev => [...prev, ...data].slice(0, MAX_COMMENTS))
       } else {
@@ -181,10 +180,10 @@ export default function VideoComments({ videoId, onClose, onCommentCountChange }
 
     setSending(true)
     try {
-      const newComment = await api.addVideoComment(videoId, trimmed)
+      const newComment = await api.addCheckInComment(ratingId, trimmed)
       setComments(prev => [newComment, ...prev])
       setText('')
-      onCommentCountChange?.(videoId, 1)
+      onCommentCountChange?.(1)
     } catch (err) {
       console.error('Failed to post comment:', err)
     } finally {
@@ -194,9 +193,9 @@ export default function VideoComments({ videoId, onClose, onCommentCountChange }
 
   async function handleDelete(commentId) {
     try {
-      await api.deleteVideoComment(commentId)
+      await api.deleteCheckInComment(commentId)
       setComments(prev => prev.filter(c => c.id !== commentId))
-      onCommentCountChange?.(videoId, -1)
+      onCommentCountChange?.(-1)
     } catch (err) {
       console.error('Failed to delete comment:', err)
     }
@@ -205,7 +204,6 @@ export default function VideoComments({ videoId, onClose, onCommentCountChange }
   return (
     <div style={styles.overlay} onClick={onClose}>
       <div style={styles.panel} onClick={e => e.stopPropagation()}>
-        {/* Header */}
         <div style={styles.header}>
           <span style={styles.headerTitle}>
             {comments.length} Comment{comments.length !== 1 ? 's' : ''}
@@ -213,7 +211,6 @@ export default function VideoComments({ videoId, onClose, onCommentCountChange }
           <button style={styles.closeBtn} onClick={onClose}>&times;</button>
         </div>
 
-        {/* Comment list */}
         <div style={styles.list}>
           {loading && comments.length === 0 ? (
             <p style={styles.empty}>Loading...</p>
@@ -258,27 +255,28 @@ export default function VideoComments({ videoId, onClose, onCommentCountChange }
           )}
         </div>
 
-        {/* Input */}
-        <form style={styles.inputRow} onSubmit={handleSend}>
-          <input
-            ref={inputRef}
-            style={styles.input}
-            placeholder="Add a comment..."
-            value={text}
-            onChange={e => setText(e.target.value)}
-            maxLength={500}
-          />
-          <button
-            type="submit"
-            style={{
-              ...styles.sendBtn,
-              opacity: text.trim() && !sending ? 1 : 0.5,
-            }}
-            disabled={!text.trim() || sending}
-          >
-            Post
-          </button>
-        </form>
+        {currentUser && (
+          <form style={styles.inputRow} onSubmit={handleSend}>
+            <input
+              ref={inputRef}
+              style={styles.input}
+              placeholder="Add a comment..."
+              value={text}
+              onChange={e => setText(e.target.value)}
+              maxLength={500}
+            />
+            <button
+              type="submit"
+              style={{
+                ...styles.sendBtn,
+                opacity: text.trim() && !sending ? 1 : 0.5,
+              }}
+              disabled={!text.trim() || sending}
+            >
+              Post
+            </button>
+          </form>
+        )}
       </div>
 
       <style>{`

@@ -5,6 +5,7 @@ import { useToast } from '../components/Toast'
 import WhiskeyCard from '../components/WhiskeyCard'
 import SkeletonCard from '../components/SkeletonCard'
 import CompareDrawer from '../components/CompareDrawer'
+import { WHISKEY_CATEGORIES } from '../constants'
 
 function Marquee({ children, reverse }) {
   const outerRef = useRef(null)
@@ -91,16 +92,7 @@ function Marquee({ children, reverse }) {
 
 const PAGE_SIZE = 24
 
-const CATEGORIES = [
-  { value: 'bourbon',      label: 'Bourbon' },
-  { value: 'scotch',       label: 'Scotch' },
-  { value: 'irish',        label: 'Irish' },
-  { value: 'japanese',     label: 'Japanese' },
-  { value: 'rye',          label: 'Rye' },
-  { value: 'canadian',     label: 'Canadian' },
-  { value: 'single malt',  label: 'Single Malt' },
-  { value: 'blended',      label: 'Blended' },
-]
+const CATEGORIES = WHISKEY_CATEGORIES
 
 const REGIONS = [
   'Speyside', 'Islay', 'Highlands', 'Lowlands', 'Campbeltown', 'Islands',
@@ -181,7 +173,6 @@ export default function Browse() {
       return changed ? next : f
     })
     if (urlQ) setSearchInput(prev => urlQ !== prev ? urlQ : prev)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams])
 
   // Load hero count + trending on mount

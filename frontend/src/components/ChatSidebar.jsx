@@ -369,6 +369,7 @@ export default function ChatSidebar({ isOpen, onClose }) {
     const controller = new AbortController()
     requestLocation(controller.signal)
     return () => controller.abort()
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only; requestLocation uses only stable setters
   }, [])
 
   // ── Throttled scroll: at most once per animation frame ──

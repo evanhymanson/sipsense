@@ -6,14 +6,18 @@ import subprocess
 from pathlib import Path
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Query
+import logging
+
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, UploadFile, File, Form, Query
 from sqlalchemy import func as sqlfunc, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 
 from .. import models, schemas
-from ..database import get_db
+from ..database import get_db, SessionLocal
 from ..auth import get_current_user, get_optional_user
+
+logger = logging.getLogger(__name__)
 from ..upload_utils import validate_magic_bytes, sanitize_extension
 from ..track import track_action
 from ..analytics_constants import ACTION_VIDEO_WATCH
@@ -141,6 +145,29 @@ def _batch_load_engagement(
     return toast_counts, comment_counts, user_toasts
 
 
+# ── Background video processing ──────────────────────────────────────────
+
+
+def _process_video_bg(video_id: int, video_path: Path, thumb_path: Path):
+    """Generate thumbnail and get duration in a background thread, then update DB."""
+    db = SessionLocal()
+    try:
+        has_thumb = _generate_thumbnail(video_path, thumb_path)
+        duration = _get_duration(video_path)
+        video = db.query(models.Video).filter(models.Video.id == video_id).first()
+        if video:
+            if has_thumb:
+                video.thumbnail_path = f"videos/thumbs/{thumb_path.name}"
+            if duration:
+                video.duration_seconds = duration
+            db.commit()
+    except Exception as e:
+        logger.error("Background video processing failed for %d: %s", video_id, e)
+        db.rollback()
+    finally:
+        db.close()
+
+
 # ── Upload ───────────────────────────────────────────────────────────────
 
 
@@ -152,19 +179,12 @@ async def upload_video(
     whiskey_id: Optional[int] = Form(None),
     location_name: Optional[str] = Form(None),
     price_tag: Optional[float] = Form(None),
+    background_tasks: BackgroundTasks = BackgroundTasks(),
     current_user: models.User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """Upload a short-form video."""
-    content = await file.read()
-    if len(content) > MAX_VIDEO_SIZE:
-        raise HTTPException(status_code=400, detail="Video too large (max 100 MB)")
-
-    # Validate actual file content via magic bytes (not just client-provided MIME)
-    if not validate_magic_bytes(content, ALLOWED_VIDEO_TYPES):
-        raise HTTPException(status_code=400, detail="Only MP4, MOV, and WebM videos are allowed")
-
-    # Validate whiskey exists if tagged
+    # Validate whiskey exists if tagged (before spending time on file I/O)
     if whiskey_id is not None:
         whiskey = db.query(models.Whiskey).filter(models.Whiskey.id == whiskey_id).first()
         if not whiskey:
@@ -178,23 +198,40 @@ async def upload_video(
     THUMB_DIR.mkdir(parents=True, exist_ok=True)
 
     video_file = UPLOAD_DIR / filename
-    video_file.write_bytes(content)
 
-    # Generate thumbnail
+    # Stream file to disk in 1MB chunks instead of loading entirely into RAM
+    total_size = 0
+    first_chunk = None
+    try:
+        with open(video_file, "wb") as f:
+            while True:
+                chunk = await file.read(1024 * 1024)  # 1 MB
+                if not chunk:
+                    break
+                if first_chunk is None:
+                    first_chunk = chunk
+                total_size += len(chunk)
+                if total_size > MAX_VIDEO_SIZE:
+                    raise HTTPException(status_code=400, detail="Video too large (max 100 MB)")
+                f.write(chunk)
+    except HTTPException:
+        video_file.unlink(missing_ok=True)
+        raise
+
+    # Validate actual file content via magic bytes from the first chunk
+    if first_chunk is None or not validate_magic_bytes(first_chunk[:4096], ALLOWED_VIDEO_TYPES):
+        video_file.unlink(missing_ok=True)
+        raise HTTPException(status_code=400, detail="Only MP4, MOV, and WebM videos are allowed")
+
+    # Create DB record immediately (thumbnail + duration filled by background task)
     thumb_filename = f"{uid}.jpg"
-    thumb_file = THUMB_DIR / thumb_filename
-    has_thumb = _generate_thumbnail(video_file, thumb_file)
-
-    # Get duration
-    duration = _get_duration(video_file)
-
     video = models.Video(
         user_id=current_user.username,
         title=title,
         description=description,
         video_path=f"videos/{filename}",
-        thumbnail_path=f"videos/thumbs/{thumb_filename}" if has_thumb else None,
-        duration_seconds=duration,
+        thumbnail_path=None,
+        duration_seconds=None,
         whiskey_id=whiskey_id,
         location_name=location_name,
         price_tag=price_tag,
@@ -206,6 +243,9 @@ async def upload_video(
     # Eager-load whiskey for the response
     if whiskey_id:
         db.refresh(video, ["whiskey"])
+
+    # Schedule thumbnail generation + duration detection in background
+    background_tasks.add_task(_process_video_bg, video.id, video_file, THUMB_DIR / thumb_filename)
 
     return _build_video_read(video)
 

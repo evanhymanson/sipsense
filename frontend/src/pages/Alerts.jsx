@@ -14,6 +14,7 @@ export default function Alerts() {
 
   useEffect(() => {
     loadAlerts()
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only; loadAlerts uses only stable setters
   }, [])
 
   async function loadAlerts(append = false) {
@@ -92,7 +93,7 @@ export default function Alerts() {
             className={`alert-item ${alert.is_read ? 'alert-item--read' : 'alert-item--unread'}`}
           >
             <div className="alert-content">
-              {alert.alert_type === 'follow' ? (
+              {(alert.alert_type === 'follow' || alert.alert_type === 'comment') ? (
                 <Link to={`/user/${alert.from_username}`} className="alert-whiskey-name">
                   {alert.from_username}
                 </Link>

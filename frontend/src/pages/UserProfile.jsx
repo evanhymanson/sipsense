@@ -22,6 +22,7 @@ export default function UserProfile() {
   const [listModal, setListModal] = useState(null) // 'followers' | 'following' | null
   const [listUsers, setListUsers] = useState([])
   const [listLoading, setListLoading] = useState(false)
+  const [palateMatch, setPalateMatch] = useState(null)
 
   let currentUser = null
   try { currentUser = localStorage.getItem('sipsense_user') } catch { /* private browsing */ }
@@ -50,8 +51,16 @@ export default function UserProfile() {
       .catch(() => { if (!stale) setVideosError(true) })
       .finally(() => { if (!stale) setVideosLoading(false) })
 
+    // Fetch palate match for other users (requires login)
+    setPalateMatch(null)
+    if (currentUser && currentUser !== username) {
+      api.getPalateMatch(username)
+        .then(m => { if (!stale) setPalateMatch(m) })
+        .catch(() => {})
+    }
+
     return () => { stale = true }
-  }, [username])
+  }, [username, currentUser])
 
   async function toggleFollow() {
     if (!currentUser) return
@@ -167,7 +176,7 @@ export default function UserProfile() {
           <span className="stat-label">Following</span>
         </div>
         <div className="stat-card">
-          <span className="stat-value">{profile.avg_score != null ? Number(profile.avg_score).toFixed(1) : '—'}</span>
+          <span className="stat-value">{profile.avg_score != null ? Number(profile.avg_score).toFixed(1) : '\u2014'}</span>
           <span className="stat-label">Avg Score</span>
         </div>
         <div className="stat-card">
@@ -175,6 +184,61 @@ export default function UserProfile() {
           <span className="stat-label">Badges</span>
         </div>
       </div>
+
+      {palateMatch && palateMatch.match_score != null && (
+        <section className="profile-section palate-match-card">
+          <h2>Palate Match</h2>
+          <div className="palate-match-body">
+            <div className="palate-match-score-ring">
+              <svg viewBox="0 0 80 80" className="palate-match-svg">
+                <circle cx="40" cy="40" r="34" fill="none" stroke="var(--border)" strokeWidth="6" />
+                <circle
+                  cx="40" cy="40" r="34" fill="none"
+                  stroke={palateMatch.match_score >= 70 ? 'var(--amber)' : palateMatch.match_score >= 40 ? 'var(--amber-light)' : 'var(--text-muted)'}
+                  strokeWidth="6"
+                  strokeDasharray={`${(palateMatch.match_score / 100) * 213.6} 213.6`}
+                  strokeLinecap="round"
+                  transform="rotate(-90 40 40)"
+                />
+              </svg>
+              <span className="palate-match-pct">{palateMatch.match_score}%</span>
+            </div>
+            <div className="palate-match-details">
+              {palateMatch.message && <p className="palate-match-msg">{palateMatch.message}</p>}
+              {palateMatch.shared_flavors?.length > 0 && (
+                <div className="palate-match-shared">
+                  <span className="palate-match-label">Shared flavors</span>
+                  <div className="palate-match-tags">
+                    {palateMatch.shared_flavors.map(f => (
+                      <span key={f} className="palate-match-tag">{f}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {palateMatch.agreements?.length > 0 && (
+                <div className="palate-match-shared">
+                  <span className="palate-match-label">You both love</span>
+                  <div className="palate-match-tags">
+                    {palateMatch.agreements.map(a => (
+                      <span key={a.category} className="palate-match-tag palate-match-tag--agree">{a.category}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {palateMatch.disagreements?.length > 0 && (
+                <div className="palate-match-shared">
+                  <span className="palate-match-label">Different tastes</span>
+                  <div className="palate-match-tags">
+                    {palateMatch.disagreements.map(d => (
+                      <span key={d.category} className="palate-match-tag palate-match-tag--diff">{d.category}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </section>
+      )}
 
       {profile.badges?.length > 0 && (
         <section className="profile-section">
@@ -221,7 +285,7 @@ export default function UserProfile() {
                 {v.thumbnail_url ? (
                   <img src={`/api${v.thumbnail_url}`} alt={v.title || 'Video'} />
                 ) : (
-                  <div className="profile-video-placeholder">▶</div>
+                  <div className="profile-video-placeholder">{'\u25b6'}</div>
                 )}
                 <span className="profile-video-views">{v.view_count} view{v.view_count !== 1 ? 's' : ''}</span>
               </Link>

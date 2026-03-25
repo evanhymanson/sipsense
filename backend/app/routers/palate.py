@@ -1,9 +1,11 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from collections import Counter
 from ..database import get_db
 from ..models import Whiskey, UserRating, UserFavorite, User, UserBadge
-from ..auth import get_current_user
+from ..auth import get_current_user, get_optional_user
+from .. import schemas
+from ..ml.taste_similarity import compute_palate_match
 
 router = APIRouter(prefix="/palate", tags=["palate"])
 
@@ -173,3 +175,20 @@ def get_my_palate(
         "favorites": [_whiskey_dict(w) for w in fav_whiskeys[:12]],
         "badges": badges,
     }
+
+
+@router.get("/match/{username}", response_model=schemas.PalateMatchResult)
+def get_palate_match(
+    username: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Compare your palate with another user's."""
+    if username == current_user.username:
+        raise HTTPException(status_code=400, detail="Cannot match against yourself")
+
+    target = db.query(User).filter(User.username == username).first()
+    if not target:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    return compute_palate_match(current_user.username, username, db)

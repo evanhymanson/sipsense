@@ -191,6 +191,71 @@
   border-color: var(--amber);
 }
 
+/* Palate Match card */
+.palate-match-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.25rem;
+}
+.palate-match-body {
+  display: flex;
+  gap: 1.25rem;
+  align-items: flex-start;
+}
+.palate-match-score-ring {
+  position: relative;
+  width: 80px;
+  height: 80px;
+  flex-shrink: 0;
+}
+.palate-match-svg { width: 100%; height: 100%; }
+.palate-match-pct {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--amber);
+}
+.palate-match-details { flex: 1; min-width: 0; }
+.palate-match-msg {
+  font-size: 0.85rem;
+  color: var(--text-soft);
+  margin-bottom: 0.6rem;
+}
+.palate-match-shared { margin-bottom: 0.5rem; }
+.palate-match-label {
+  display: block;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  margin-bottom: 0.3rem;
+}
+.palate-match-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+.palate-match-tag {
+  background: rgba(200, 154, 43, 0.12);
+  color: var(--amber-light);
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+}
+.palate-match-tag--agree {
+  background: rgba(74, 222, 128, 0.12);
+  color: #4ade80;
+}
+.palate-match-tag--diff {
+  background: rgba(148, 163, 184, 0.12);
+  color: var(--text-muted);
+}
+
 /* Follow list modal */
 .follow-modal-overlay {
   position: fixed;

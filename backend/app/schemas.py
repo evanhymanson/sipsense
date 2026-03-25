@@ -218,12 +218,27 @@ class UserBadgeRead(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class CheckInCommentRead(BaseModel):
+    id: int
+    user_id: str
+    rating_id: int
+    text: str
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class CheckInCommentCreate(BaseModel):
+    text: str = Field(..., min_length=1, max_length=500)
+
+
 class FeedItem(BaseModel):
     rating: RatingRead
     whiskey: WhiskeyRead
     username: str
     toast_count: int = 0
     user_toasted: bool = False  # whether the requesting user has toasted this
+    comment_count: int = 0
 
 
 class FeedResponse(BaseModel):
@@ -242,6 +257,25 @@ class UserSearchResult(BaseModel):
     total_checkins: int = 0
     follower_count: int = 0
     is_following: bool = False
+
+
+class SuggestedUserResult(BaseModel):
+    username: str
+    total_checkins: int = 0
+    follower_count: int = 0
+    is_following: bool = False
+    match_score: int = 0
+    reason: str = ""
+
+
+class PalateMatchResult(BaseModel):
+    match_score: int | None = None  # 0-100 or None if insufficient data
+    shared_flavors: list[str] = []
+    agreements: list[dict] = []
+    disagreements: list[dict] = []
+    your_total_rated: int = 0
+    their_total_rated: int = 0
+    message: str | None = None
 
 
 class PublicProfile(BaseModel):

@@ -60,6 +60,18 @@ export function foodEmoji(item) {
   return '🍽️'
 }
 
+// Whiskey category options — single source of truth for Browse, Feed, etc.
+export const WHISKEY_CATEGORIES = [
+  { value: 'bourbon',      label: 'Bourbon' },
+  { value: 'scotch',       label: 'Scotch' },
+  { value: 'irish',        label: 'Irish' },
+  { value: 'japanese',     label: 'Japanese' },
+  { value: 'rye',          label: 'Rye' },
+  { value: 'canadian',     label: 'Canadian' },
+  { value: 'single malt',  label: 'Single Malt' },
+  { value: 'blended',      label: 'Blended' },
+]
+
 // Max file size for uploads (10MB)
 export const MAX_UPLOAD_SIZE = 10 * 1024 * 1024
 export const MAX_UPLOAD_SIZE_LABEL = '10MB'

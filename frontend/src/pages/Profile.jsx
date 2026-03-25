@@ -267,7 +267,7 @@ function CollectionTab() {
         .finally(() => setAddSearchLoading(false))
     }, 400)
     return () => clearTimeout(timeout)
-  }, [addSearch])
+  }, [addSearch, addToast])
 
   async function handleAddToCollection(whiskey) {
     try {
@@ -751,7 +751,7 @@ function JournalTab() {
             {group.entries.map(entry => (
               <div key={entry.id} className="prof-journal-card">
                 {entry.image_url && (
-                  <img src={entry.image_url} alt={`Tasting photo of ${entry.whiskey?.name || 'whiskey'}`} className="prof-journal-card-photo" />
+                  <img src={entry.image_url} alt={`Tasting photo of ${entry.whiskey?.name || 'whiskey'}`} className="prof-journal-card-photo" loading="lazy" />
                 )}
                 <div className="prof-journal-card-body">
                   <div className="prof-journal-card-top">
@@ -802,6 +802,13 @@ export default function Profile() {
   const [listModal, setListModal] = useState(null)
   const [listUsers, setListUsers] = useState([])
   const [listLoading, setListLoading] = useState(false)
+  const [suggested, setSuggested] = useState([])
+
+  useEffect(() => {
+    api.getSuggestedUsers(5)
+      .then(data => setSuggested(data || []))
+      .catch(() => {})
+  }, [])
 
   useEffect(() => {
     Promise.all([
@@ -826,6 +833,13 @@ export default function Profile() {
       }
     }).finally(() => setLoading(false))
   }, [])
+
+  async function handleFollowSuggested(username) {
+    try {
+      await api.followUser(username)
+      setSuggested(prev => prev.filter(u => u.username !== username))
+    } catch { /* ignore */ }
+  }
 
   async function openList(type) {
     setListModal(type)
@@ -907,6 +921,22 @@ export default function Profile() {
         <div className="prof-find-people">
           <UserSearch />
         </div>
+
+        {suggested.length > 0 && (
+          <div className="prof-suggested">
+            <h3 className="prof-suggested-title">People Like You</h3>
+            <div className="prof-suggested-scroll">
+              {suggested.map(u => (
+                <div key={u.username} className="prof-suggested-card">
+                  <Link to={`/user/${u.username}`} className="prof-suggested-name">{u.username}</Link>
+                  <span className="prof-suggested-match">{u.match_score}% match</span>
+                  <span className="prof-suggested-reason">{u.reason}</span>
+                  <button className="prof-suggested-follow" onClick={() => handleFollowSuggested(u.username)}>Follow</button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {isNewcomer && (
           <div className="prof-cta">

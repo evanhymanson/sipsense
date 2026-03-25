@@ -9,7 +9,7 @@ from .. import models, schemas
 from ..database import get_db
 from ..auth import get_current_user, get_optional_user
 from ..track import track_action
-from ..analytics_constants import ACTION_FOLLOW
+from ..analytics_constants import ACTION_FOLLOW, ACTION_COMMENT
 
 router = APIRouter(tags=["social"])
 
@@ -58,6 +58,74 @@ def remove_toast(
     if not toast:
         raise HTTPException(status_code=404, detail="Toast not found")
     db.delete(toast)
+    db.commit()
+
+
+# ── Check-in Comments ────────────────────────────────────────────────────
+
+@router.post("/ratings/{rating_id}/comment", response_model=schemas.CheckInCommentRead, status_code=201)
+def add_checkin_comment(
+    rating_id: int,
+    body: schemas.CheckInCommentCreate,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    rating = db.query(models.UserRating).filter(models.UserRating.id == rating_id).first()
+    if not rating:
+        raise HTTPException(status_code=404, detail="Check-in not found")
+
+    comment = models.CheckInComment(
+        user_id=current_user.username,
+        rating_id=rating_id,
+        text=body.text,
+    )
+    db.add(comment)
+
+    # Notify the check-in owner (unless commenting on own)
+    if rating.user_id != current_user.username:
+        db.add(models.WatchlistAlert(
+            username=rating.user_id,
+            alert_type="comment",
+            from_username=current_user.username,
+            message=f"{current_user.username} commented on your check-in",
+        ))
+
+    track_action(db, current_user.username, ACTION_COMMENT,
+                 detail={"rating_id": rating_id})
+    db.commit()
+    db.refresh(comment)
+    return comment
+
+
+@router.get("/ratings/{rating_id}/comments", response_model=list[schemas.CheckInCommentRead])
+def get_checkin_comments(
+    rating_id: int,
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=100),
+    db: Session = Depends(get_db),
+):
+    return (
+        db.query(models.CheckInComment)
+        .filter(models.CheckInComment.rating_id == rating_id)
+        .order_by(models.CheckInComment.created_at.desc())
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
+
+
+@router.delete("/ratings/comments/{comment_id}", status_code=204)
+def delete_checkin_comment(
+    comment_id: int,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    comment = db.query(models.CheckInComment).filter(models.CheckInComment.id == comment_id).first()
+    if not comment:
+        raise HTTPException(status_code=404, detail="Comment not found")
+    if comment.user_id != current_user.username:
+        raise HTTPException(status_code=403, detail="Can only delete your own comments")
+    db.delete(comment)
     db.commit()
 
 
@@ -153,6 +221,51 @@ def get_following(
         .all()
     )
     return _build_user_results([f.following_id for f in follows], current_user, db)
+
+
+@router.get("/users/suggested", response_model=list[schemas.SuggestedUserResult])
+def get_suggested_users(
+    limit: int = Query(5, ge=1, le=20),
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Find users with similar taste profiles who you don't follow yet."""
+    from ..ml.taste_similarity import find_similar_users
+
+    # Get users the current user already follows
+    following_ids = {
+        row[0] for row in
+        db.query(models.Follow.following_id)
+        .filter(models.Follow.follower_id == current_user.username)
+        .all()
+    }
+
+    similar = find_similar_users(current_user.username, db, following_ids, limit=limit)
+
+    # Enrich with follower counts
+    usernames = [s["username"] for s in similar]
+    if not usernames:
+        return []
+
+    follower_rows = (
+        db.query(models.Follow.following_id, sqlfunc.count(models.Follow.id))
+        .filter(models.Follow.following_id.in_(usernames))
+        .group_by(models.Follow.following_id)
+        .all()
+    )
+    follower_counts = {uid: cnt for uid, cnt in follower_rows}
+
+    return [
+        schemas.SuggestedUserResult(
+            username=s["username"],
+            total_checkins=s["checkin_count"],
+            follower_count=follower_counts.get(s["username"], 0),
+            is_following=False,
+            match_score=s["match_score"],
+            reason=s["reason"],
+        )
+        for s in similar
+    ]
 
 
 @router.get("/users/search", response_model=list[schemas.UserSearchResult])
@@ -302,9 +415,10 @@ def get_user_profile(
             .first()
         ) is not None
 
-    # Recent check-ins with toast counts
+    # Recent check-ins with toast + comment counts
     recent_ids = [r.id for r in ratings]
     toast_counts: dict[int, int] = {}
+    comment_counts: dict[int, int] = {}
     user_toasts: set[int] = set()
     if recent_ids:
         counts = (
@@ -314,6 +428,14 @@ def get_user_profile(
             .all()
         )
         toast_counts = {rid: cnt for rid, cnt in counts}
+
+        c_rows = (
+            db.query(models.CheckInComment.rating_id, sqlfunc.count(models.CheckInComment.id))
+            .filter(models.CheckInComment.rating_id.in_(recent_ids))
+            .group_by(models.CheckInComment.rating_id)
+            .all()
+        )
+        comment_counts = {rid: cnt for rid, cnt in c_rows}
 
         if current_user:
             user_toast_rows = (
@@ -344,6 +466,7 @@ def get_user_profile(
             username=r.user_id,
             toast_count=toast_counts.get(r.id, 0),
             user_toasted=r.id in user_toasts,
+            comment_count=comment_counts.get(r.id, 0),
         )
         for r in ratings if r.whiskey
     ]

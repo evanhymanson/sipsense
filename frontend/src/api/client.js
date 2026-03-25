@@ -31,11 +31,28 @@ export function isLoggedIn() {
   return !!getToken()
 }
 
-// ── Core request with auth, timeout, and retry ─────────────────────────
+// ── Core request with auth, timeout, retry, and deduplication ───────────
 
 const REQUEST_TIMEOUT_MS = 30000
 
+// Deduplication: concurrent GET requests to the same path share a single in-flight promise
+const _inflight = new Map()
+
 async function request(path, options = {}, _retryCount = 0) {
+  const method = (options.method || 'GET').toUpperCase()
+  const dedupeKey = method === 'GET' ? path : null
+  if (dedupeKey && _inflight.has(dedupeKey)) {
+    return _inflight.get(dedupeKey)
+  }
+  const promise = _doRequest(path, options, _retryCount)
+  if (dedupeKey) {
+    _inflight.set(dedupeKey, promise)
+    promise.finally(() => _inflight.delete(dedupeKey))
+  }
+  return promise
+}
+
+async function _doRequest(path, options = {}, _retryCount = 0) {
   const token = getToken()
   const isFormData = options.body instanceof FormData
   const headers = { ...(isFormData ? {} : { 'Content-Type': 'application/json' }), ...options.headers }
@@ -226,6 +243,18 @@ export const api = {
     request(`/users/${username}/following`),
   searchUsers: (q) =>
     request(`/users/search?q=${encodeURIComponent(q)}`),
+
+  // ── Check-in Comments ──────────────────────────────────────────────────
+  addCheckInComment: (ratingId, text) =>
+    request(`/ratings/${ratingId}/comment`, { method: 'POST', body: JSON.stringify({ text }) }),
+  getCheckInComments: (ratingId, { skip = 0, limit = 50 } = {}) =>
+    request(`/ratings/${ratingId}/comments?skip=${skip}&limit=${limit}`),
+  deleteCheckInComment: (commentId) =>
+    request(`/ratings/comments/${commentId}`, { method: 'DELETE' }),
+
+  // ── AI Social ─────────────────────────────────────────────────────────
+  getPalateMatch: (username) => request(`/palate/match/${username}`),
+  getSuggestedUsers: (limit = 5) => request(`/users/suggested?limit=${limit}`),
 
   // ── AI Features ─────────────────────────────────────────────────────────
   getAiTastingNotes: (whiskeyId) => request(`/whiskeys/${whiskeyId}/ai-tasting-notes`),

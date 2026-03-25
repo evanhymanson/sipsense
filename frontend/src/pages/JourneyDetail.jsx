@@ -17,7 +17,7 @@ export default function JourneyDetail() {
       .then(setJourney)
       .catch(() => addToast('Failed to load journey', 'error'))
       .finally(() => setLoading(false))
-  }, [slug])
+  }, [slug, addToast])
 
   async function handleStart() {
     setActionLoading(true)

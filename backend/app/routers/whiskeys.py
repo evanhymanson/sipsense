@@ -8,7 +8,7 @@ from sqlalchemy import or_, func
 from sqlalchemy.orm import Session
 from typing import Optional
 from .. import models, schemas
-from ..database import get_db
+from ..database import get_db, SessionLocal
 from ..auth import get_current_user, get_optional_user
 from ..track import track_action
 from ..analytics_constants import ACTION_SEARCH, ACTION_WHISKEY_VIEW, ACTION_RATING, ACTION_SCAN_ATTEMPT
@@ -109,32 +109,22 @@ def get_similar(whiskey_id: int, top_n: int = 5, db: Session = Depends(get_db)):
     return [w for w, _ in results if w.image_url]
 
 
-@router.get("/{whiskey_id}/blurb")
-def get_blurb(whiskey_id: int, db: Session = Depends(get_db)):
-    whiskey = db.query(models.Whiskey).filter(models.Whiskey.id == whiskey_id).first()
-    if not whiskey:
-        raise HTTPException(status_code=404, detail="Whiskey not found")
-
-    # Return cached description if complete; also trigger flavor scoring if missing
-    desc = (whiskey.description or "").strip()
-    has_blurb = desc and not desc.endswith(("...", "…", "read more", "Read more"))
-    needs_flavor_scores = whiskey.flavor_x is None or whiskey.flavor_y is None
-
-    if has_blurb and not needs_flavor_scores:
-        return {"blurb": desc, "flavor_x": whiskey.flavor_x, "flavor_y": whiskey.flavor_y}
-
-    # Try Claude API if key is set
-    api_key = os.getenv("ANTHROPIC_API_KEY")
-    if not api_key:
-        return {"blurb": desc if has_blurb else None, "status": "no_key",
-                "flavor_x": whiskey.flavor_x, "flavor_y": whiskey.flavor_y}
-
+def _generate_blurb_bg(whiskey_id: int):
+    """Generate blurb via Claude API in a background thread (non-blocking)."""
+    db = SessionLocal()
     try:
+        whiskey = db.query(models.Whiskey).filter(models.Whiskey.id == whiskey_id).first()
+        if not whiskey:
+            return
+
+        api_key = os.getenv("ANTHROPIC_API_KEY")
+        if not api_key:
+            return
+
         import anthropic
         client = anthropic.Anthropic(api_key=api_key)
 
         flavor_line = f"Known flavors: {whiskey.flavor_profile}\n" if whiskey.flavor_profile else ""
-
         prompt = (
             f"You are a friendly whiskey expert writing for beginners.\n\n"
             f"Write 2-3 warm, plain-English sentences about this whiskey. "
@@ -165,7 +155,6 @@ def get_blurb(whiskey_id: int, db: Session = Depends(get_db)):
         )
         raw = message.content[0].text.strip()
 
-        # Parse structured response
         blurb = raw
         flavors = None
         flavor_x = None
@@ -189,7 +178,8 @@ def get_blurb(whiskey_id: int, db: Session = Depends(get_db)):
             except (ValueError, TypeError):
                 pass
 
-        # Cache in DB
+        desc = (whiskey.description or "").strip()
+        has_blurb = desc and not desc.endswith(("...", "…", "read more", "Read more"))
         if not has_blurb:
             whiskey.description = blurb
         if flavors and not whiskey.flavor_profile:
@@ -199,13 +189,36 @@ def get_blurb(whiskey_id: int, db: Session = Depends(get_db)):
         if flavor_y is not None:
             whiskey.flavor_y = flavor_y
         db.commit()
-
-        return {"blurb": whiskey.description or blurb, "status": "generated",
-                "flavor_x": whiskey.flavor_x, "flavor_y": whiskey.flavor_y}
     except Exception as e:
-        logger.error("Blurb generation failed for whiskey %d: %s", whiskey_id, e)
-        return {"blurb": desc if has_blurb else None, "status": "error",
+        logger.error("Background blurb generation failed for whiskey %d: %s", whiskey_id, e)
+        db.rollback()
+    finally:
+        db.close()
+
+
+@router.get("/{whiskey_id}/blurb")
+def get_blurb(whiskey_id: int, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+    whiskey = db.query(models.Whiskey).filter(models.Whiskey.id == whiskey_id).first()
+    if not whiskey:
+        raise HTTPException(status_code=404, detail="Whiskey not found")
+
+    # Return cached description if complete
+    desc = (whiskey.description or "").strip()
+    has_blurb = desc and not desc.endswith(("...", "…", "read more", "Read more"))
+    needs_flavor_scores = whiskey.flavor_x is None or whiskey.flavor_y is None
+
+    if has_blurb and not needs_flavor_scores:
+        return {"blurb": desc, "flavor_x": whiskey.flavor_x, "flavor_y": whiskey.flavor_y}
+
+    api_key = os.getenv("ANTHROPIC_API_KEY")
+    if not api_key:
+        return {"blurb": desc if has_blurb else None, "status": "no_key",
                 "flavor_x": whiskey.flavor_x, "flavor_y": whiskey.flavor_y}
+
+    # Schedule generation in background — return immediately
+    background_tasks.add_task(_generate_blurb_bg, whiskey_id)
+    return {"blurb": desc if has_blurb else None, "status": "generating",
+            "flavor_x": whiskey.flavor_x, "flavor_y": whiskey.flavor_y}
 
 
 @router.get("/value-picks", response_model=list[schemas.WhiskeyRead])
@@ -497,6 +510,10 @@ def rate_whiskey(
                  whiskey_id=whiskey_id, category=whiskey.category,
                  detail={"score": rating.score})
     db.commit()
+
+    # Invalidate cached recommendations so new rating is reflected
+    from .recommendations import invalidate_user_recs
+    invalidate_user_recs(current_user.username)
 
     # Evaluate badges after check-in
     from ..badges import evaluate_badges

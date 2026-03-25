@@ -193,23 +193,22 @@ function AppShell() {
     <>
       <Nav />
       <main className="main-content">
-        <ErrorBoundary>
         <Suspense fallback={<div className="page" style={{ textAlign: 'center', padding: '4rem' }}>Loading...</div>}>
         <Routes>
           <Route path="/onboarding" element={<Onboarding />} />
           <Route path="/quiz" element={<TasteQuiz />} />
-          <Route path="/" element={<RequireAuth><Browse /></RequireAuth>} />
-          <Route path="/whiskey/:id" element={<RequireAuth><WhiskeyDetail /></RequireAuth>} />
-          <Route path="/discover" element={<RequireAuth><Discover /></RequireAuth>} />
-          <Route path="/me" element={<RequireAuth><Profile /></RequireAuth>} />
-          <Route path="/feed" element={<RequireAuth><Feed /></RequireAuth>} />
-          <Route path="/scan" element={<RequireAuth><ScanBottle /></RequireAuth>} />
-          <Route path="/journeys/:slug" element={<RequireAuth><JourneyDetail /></RequireAuth>} />
-          <Route path="/videos" element={<RequireAuth><VideoFeed /></RequireAuth>} />
-          <Route path="/premium" element={<RequireAuth><Premium /></RequireAuth>} />
-          <Route path="/alerts" element={<RequireAuth><Alerts /></RequireAuth>} />
-          <Route path="/user/:username" element={<RequireAuth><UserProfile /></RequireAuth>} />
-          <Route path="/admin" element={<RequireAuth><AdminDashboard /></RequireAuth>} />
+          <Route path="/" element={<RequireAuth><ErrorBoundary key="browse"><Browse /></ErrorBoundary></RequireAuth>} />
+          <Route path="/whiskey/:id" element={<RequireAuth><ErrorBoundary key="detail"><WhiskeyDetail /></ErrorBoundary></RequireAuth>} />
+          <Route path="/discover" element={<RequireAuth><ErrorBoundary key="discover"><Discover /></ErrorBoundary></RequireAuth>} />
+          <Route path="/me" element={<RequireAuth><ErrorBoundary key="profile"><Profile /></ErrorBoundary></RequireAuth>} />
+          <Route path="/feed" element={<RequireAuth><ErrorBoundary key="feed"><Feed /></ErrorBoundary></RequireAuth>} />
+          <Route path="/scan" element={<RequireAuth><ErrorBoundary key="scan"><ScanBottle /></ErrorBoundary></RequireAuth>} />
+          <Route path="/journeys/:slug" element={<RequireAuth><ErrorBoundary key="journey"><JourneyDetail /></ErrorBoundary></RequireAuth>} />
+          <Route path="/videos" element={<RequireAuth><ErrorBoundary key="videos"><VideoFeed /></ErrorBoundary></RequireAuth>} />
+          <Route path="/premium" element={<RequireAuth><ErrorBoundary key="premium"><Premium /></ErrorBoundary></RequireAuth>} />
+          <Route path="/alerts" element={<RequireAuth><ErrorBoundary key="alerts"><Alerts /></ErrorBoundary></RequireAuth>} />
+          <Route path="/user/:username" element={<RequireAuth><ErrorBoundary key="userprofile"><UserProfile /></ErrorBoundary></RequireAuth>} />
+          <Route path="/admin" element={<RequireAuth><ErrorBoundary key="admin"><AdminDashboard /></ErrorBoundary></RequireAuth>} />
           <Route path="*" element={
             <div className="page">
               <h1>Page Not Found</h1>
@@ -221,7 +220,6 @@ function AppShell() {
           } />
         </Routes>
         </Suspense>
-        </ErrorBoundary>
       </main>
 
       {/* Chat sidebar — always mounted so state persists across navigation */}

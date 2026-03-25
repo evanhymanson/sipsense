@@ -18,7 +18,12 @@ _is_sqlite = SQLALCHEMY_DATABASE_URL.startswith("sqlite")
 # SQLite needs check_same_thread=False; PostgreSQL doesn't use it
 _connect_args = {"check_same_thread": False} if _is_sqlite else {}
 
-_pool_kwargs = {} if _is_sqlite else {"pool_size": 10, "max_overflow": 20, "pool_recycle": 3600}
+_pool_kwargs = {} if _is_sqlite else {
+    "pool_size": 20,
+    "max_overflow": 30,
+    "pool_recycle": 1800,
+    "pool_pre_ping": True,
+}
 
 engine = create_engine(
     SQLALCHEMY_DATABASE_URL,
@@ -142,6 +147,9 @@ def _ensure_indexes():
     # Composite indexes for common query patterns (e.g. feed: WHERE user_id=? ORDER BY created_at DESC)
     _composite_indexes = [
         ("idx_userrating_user_created", "user_ratings", "user_id, created_at DESC"),
+        ("idx_analytics_user_ts", "analytics_events", "user_id, timestamp"),
+        ("idx_actions_user_ts", "user_actions", "user_id, timestamp"),
+        ("idx_actions_action_ts", "user_actions", "action, timestamp"),
     ]
     with engine.connect() as conn:
         for idx_name, table, columns in _composite_indexes:

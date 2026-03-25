@@ -51,6 +51,8 @@ def get_feed(
     toast_counts: dict[int, int] = {}
     user_toasts: set[int] = set()
 
+    comment_counts: dict[int, int] = {}
+
     if rating_ids:
         from sqlalchemy import func as sqlfunc
         counts = (
@@ -60,6 +62,14 @@ def get_feed(
             .all()
         )
         toast_counts = {rid: cnt for rid, cnt in counts}
+
+        c_rows = (
+            db.query(models.CheckInComment.rating_id, sqlfunc.count(models.CheckInComment.id))
+            .filter(models.CheckInComment.rating_id.in_(rating_ids))
+            .group_by(models.CheckInComment.rating_id)
+            .all()
+        )
+        comment_counts = {rid: cnt for rid, cnt in c_rows}
 
         if current_user:
             user_toast_rows = (
@@ -93,6 +103,7 @@ def get_feed(
             username=r.user_id,
             toast_count=toast_counts.get(r.id, 0),
             user_toasted=r.id in user_toasts,
+            comment_count=comment_counts.get(r.id, 0),
         ))
 
     return schemas.FeedResponse(items=items, has_more=has_more)

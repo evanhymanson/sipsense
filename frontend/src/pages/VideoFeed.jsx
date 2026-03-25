@@ -211,7 +211,6 @@ export default function VideoFeed() {
     cards.forEach(card => observerRef.current.observe(card))
 
     return () => observerRef.current?.disconnect()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [videos.length])
 
   // Listen for comment panel open events

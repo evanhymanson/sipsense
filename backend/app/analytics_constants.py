@@ -26,6 +26,7 @@ ACTION_SCAN_ATTEMPT = "scan_attempt"
 # Social
 ACTION_FOLLOW = "follow"
 ACTION_TOAST = "toast"
+ACTION_COMMENT = "comment"
 ACTION_VIDEO_WATCH = "video_watch"
 
 # Commerce

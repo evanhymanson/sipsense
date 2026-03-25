@@ -86,6 +86,7 @@ export default function StoreLocator({ whiskeyId, whiskeyName }) {
     const controller = new AbortController()
     requestLocation(controller.signal)
     return () => controller.abort()
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only; requestLocation uses only stable setters
   }, [])
 
   // ── Manual location: geocode a zip code or city name ──────────────

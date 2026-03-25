@@ -1,10 +1,12 @@
 import { useState, useEffect, useCallback } from 'react'
+import { Link } from 'react-router-dom'
 import { api } from '../api/client'
 import CheckInCard from '../components/CheckInCard'
 import UserSearch from '../components/UserSearch'
+import { WHISKEY_CATEGORIES } from '../constants'
 import './Feed.css'
 
-const CATEGORIES = ['all', 'bourbon', 'scotch', 'irish', 'japanese', 'rye', 'canadian', 'single malt', 'blended']
+const CATEGORIES = ['all', ...WHISKEY_CATEGORIES.map(c => c.value)]
 
 export default function Feed() {
   const [items, setItems] = useState([])
@@ -14,9 +16,19 @@ export default function Feed() {
   const [loadingMore, setLoadingMore] = useState(false)
   const [hasMore, setHasMore] = useState(false)
   const [error, setError] = useState(null)
+  const [suggested, setSuggested] = useState([])
+  const [sugDismissed, setSugDismissed] = useState(false)
 
   let currentUser = null
   try { currentUser = localStorage.getItem('sipsense_user') } catch { /* private browsing */ }
+
+  // Load suggested follows once for logged-in users
+  useEffect(() => {
+    if (!currentUser) return
+    api.getSuggestedUsers(5)
+      .then(data => setSuggested(data || []))
+      .catch(() => {})
+  }, [currentUser])
 
   const loadFeed = useCallback(async (skip = 0, append = false) => {
     try {
@@ -47,6 +59,13 @@ export default function Feed() {
     setLoadingMore(false)
   }
 
+  async function handleFollowSuggested(username) {
+    try {
+      await api.followUser(username)
+      setSuggested(prev => prev.filter(u => u.username !== username))
+    } catch { /* ignore */ }
+  }
+
   return (
     <div className="page feed-page">
       <div className="feed-header">
@@ -57,7 +76,7 @@ export default function Feed() {
         {currentUser && <UserSearch />}
       </div>
 
-      {/* Everyone / Friends toggle — Issue #20: proper tab semantics */}
+      {/* Everyone / Friends toggle */}
       {currentUser && (
         <div className="feed-mode-toggle" role="tablist" aria-label="Feed filter">
           <button
@@ -76,6 +95,26 @@ export default function Feed() {
           >
             Friends
           </button>
+        </div>
+      )}
+
+      {/* AI-Suggested Follows */}
+      {suggested.length > 0 && !sugDismissed && (
+        <div className="feed-suggested">
+          <div className="feed-suggested-header">
+            <h3>People Like You</h3>
+            <button className="feed-suggested-dismiss" onClick={() => setSugDismissed(true)}>&times;</button>
+          </div>
+          <div className="feed-suggested-scroll">
+            {suggested.map(u => (
+              <div key={u.username} className="feed-suggested-card">
+                <Link to={`/user/${u.username}`} className="feed-suggested-name">{u.username}</Link>
+                <span className="feed-suggested-match">{u.match_score}% match</span>
+                <span className="feed-suggested-reason">{u.reason}</span>
+                <button className="feed-suggested-follow" onClick={() => handleFollowSuggested(u.username)}>Follow</button>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 

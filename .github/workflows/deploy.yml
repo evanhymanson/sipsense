@@ -53,9 +53,9 @@ jobs:
       - name: Deploy to production
         uses: appleboy/ssh-action@v1
         with:
-          host: ${{ secrets.STAGING_HOST }}
+          host: ${{ secrets.PRODUCTION_HOST }}
           username: ubuntu
-          key: ${{ secrets.STAGING_SSH_KEY }}
+          key: ${{ secrets.PRODUCTION_SSH_KEY }}
           script: |
             cd /opt/sipsense
             git pull origin main

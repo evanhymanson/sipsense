@@ -12,6 +12,8 @@ For now this uses cosine similarity over normalized feature vectors so the
 API is fully functional while we wire up the PyTorch training pipeline.
 """
 
+import time
+
 import numpy as np
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
@@ -20,6 +22,11 @@ from .. import models
 # Hard cap on candidate set size for vector scoring to prevent loading
 # the entire whiskeys table into memory on every request.
 _MAX_CANDIDATES = 500
+
+# TTL cache for similar_whiskeys results: {(whiskey_id, top_n): (timestamp, results)}
+_similar_cache: dict[tuple, tuple[float, list]] = {}
+_SIMILAR_TTL = 600  # 10 minutes
+_SIMILAR_MAX = 300
 
 
 # Features used to build the whiskey content vector
@@ -224,6 +231,12 @@ def similar_whiskeys(
     top_n: int = 5,
 ) -> list[tuple[models.Whiskey, float]]:
     """Return top_n whiskeys most similar to the given one by cosine similarity."""
+    now = time.time()
+    cache_key = (whiskey.id, top_n)
+    entry = _similar_cache.get(cache_key)
+    if entry and now - entry[0] < _SIMILAR_TTL:
+        return entry[1]
+
     target = _whiskey_vector(whiskey)
 
     # Prefilter: same category or region first, then broaden if needed
@@ -249,7 +262,15 @@ def similar_whiskeys(
 
     scored = [(w, float(np.dot(_whiskey_vector(w), target))) for w in candidates]
     scored.sort(key=lambda x: x[1], reverse=True)
-    return scored[:top_n]
+    result = scored[:top_n]
+
+    # Cache result
+    if len(_similar_cache) >= _SIMILAR_MAX:
+        oldest = min(_similar_cache, key=lambda k: _similar_cache[k][0])
+        del _similar_cache[oldest]
+    _similar_cache[cache_key] = (now, result)
+
+    return result
 
 
 def quiz_recommendations(

@@ -2,6 +2,7 @@ import { useState, useEffect, memo } from 'react'
 import { Link } from 'react-router-dom'
 import { api, getUsername } from '../api/client'
 import { useToast } from './Toast'
+import CheckInComments from './CheckInComments'
 import './CheckInCard.css'
 
 const SERVING_EMOJI = {
@@ -24,11 +25,14 @@ function timeAgo(dateStr) {
 }
 
 export default memo(function CheckInCard({ item, onToastToggle }) {
-  const { rating, whiskey, username, toast_count, user_toasted } = item
+  const { rating, whiskey, username, toast_count, user_toasted, comment_count = 0 } = item
   const [toasted, setToasted] = useState(user_toasted)
   const [count, setCount] = useState(toast_count)
+  const [commentCount, setCommentCount] = useState(comment_count)
+  const [showComments, setShowComments] = useState(false)
   useEffect(() => { setToasted(user_toasted) }, [user_toasted])
   useEffect(() => { setCount(toast_count) }, [toast_count])
+  useEffect(() => { setCommentCount(comment_count) }, [comment_count])
   const [busy, setBusy] = useState(false)
   const currentUser = getUsername()
   const isOwn = currentUser === username
@@ -119,7 +123,22 @@ export default memo(function CheckInCard({ item, onToastToggle }) {
             🍻 <span className="toast-count">{count}</span>
           </span>
         )}
+        <button
+          className="toast-btn"
+          onClick={() => setShowComments(true)}
+          aria-label="View comments"
+        >
+          💬 {commentCount > 0 && <span className="toast-count">{commentCount}</span>}
+        </button>
       </div>
+
+      {showComments && (
+        <CheckInComments
+          ratingId={rating.id}
+          onClose={() => setShowComments(false)}
+          onCommentCountChange={(delta) => setCommentCount(c => c + delta)}
+        />
+      )}
     </div>
   )
 })
