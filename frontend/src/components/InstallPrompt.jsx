@@ -45,7 +45,7 @@ export default function InstallPrompt() {
       if (outcome === 'accepted') setDeferredPrompt(null)
     }
     setDismissed(true)
-    try { localStorage.setItem('sipsense_install_dismissed', 'true') } catch {}
+    try { localStorage.setItem('sipsense_install_dismissed', 'true') } catch { /* private browsing */ }
   }
 
   return (
@@ -65,7 +65,7 @@ export default function InstallPrompt() {
         {!showIosBanner && (
           <button onClick={handleInstall} style={styles.installBtn}>Install</button>
         )}
-        <button onClick={() => { setDismissed(true); try { localStorage.setItem('sipsense_install_dismissed', 'true') } catch {} }} style={styles.dismissBtn}>
+        <button onClick={() => { setDismissed(true); try { localStorage.setItem('sipsense_install_dismissed', 'true') } catch { /* private browsing */ } }} style={styles.dismissBtn}>
           {showIosBanner ? 'Got it' : 'Not now'}
         </button>
       </div>
