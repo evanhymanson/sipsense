@@ -4,7 +4,7 @@ import math
 import logging
 from urllib.parse import quote_plus
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Path, Query
-from sqlalchemy import or_, func
+from sqlalchemy import case, or_, func
 from sqlalchemy.orm import Session
 from typing import Optional
 from .. import models, schemas
@@ -407,6 +407,85 @@ def get_buy_links(whiskey_id: int, db: Session = Depends(get_db)):
     return {"links": links}
 
 
+@router.get("/flavor-tags", response_model=list[str])
+def get_flavor_tags():
+    """Return the list of valid flavor tags for check-in."""
+    return schemas.WHISKEY_FLAVOR_TAGS
+
+
+@router.get("/{whiskey_id}/review-summary", response_model=schemas.WhiskeyReviewSummary)
+def get_review_summary(whiskey_id: int, db: Session = Depends(get_db)):
+    """Rating distribution, community flavor tags, and serving style breakdown."""
+    whiskey = db.query(models.Whiskey).filter(models.Whiskey.id == whiskey_id).first()
+    if not whiskey:
+        raise HTTPException(status_code=404, detail="Whiskey not found")
+
+    # Rating distribution
+    dist = (
+        db.query(
+            func.sum(case((func.round(models.UserRating.score) == 1, 1), else_=0)).label("s1"),
+            func.sum(case((func.round(models.UserRating.score) == 2, 1), else_=0)).label("s2"),
+            func.sum(case((func.round(models.UserRating.score) == 3, 1), else_=0)).label("s3"),
+            func.sum(case((func.round(models.UserRating.score) == 4, 1), else_=0)).label("s4"),
+            func.sum(case((func.round(models.UserRating.score) == 5, 1), else_=0)).label("s5"),
+            func.count(models.UserRating.id).label("total"),
+            func.avg(models.UserRating.score).label("avg"),
+        )
+        .filter(models.UserRating.whiskey_id == whiskey_id)
+        .first()
+    )
+
+    distribution = schemas.RatingDistribution(
+        star_1=int(dist.s1 or 0),
+        star_2=int(dist.s2 or 0),
+        star_3=int(dist.s3 or 0),
+        star_4=int(dist.s4 or 0),
+        star_5=int(dist.s5 or 0),
+        total=int(dist.total or 0),
+        average=round(float(dist.avg or 0), 2),
+    )
+
+    # Community flavor tags
+    total_reviews = distribution.total or 1
+    tag_rows = (
+        db.query(
+            models.ReviewFlavorTag.tag_name,
+            func.count(models.ReviewFlavorTag.id).label("cnt"),
+        )
+        .filter(models.ReviewFlavorTag.whiskey_id == whiskey_id)
+        .group_by(models.ReviewFlavorTag.tag_name)
+        .order_by(func.count(models.ReviewFlavorTag.id).desc())
+        .limit(15)
+        .all()
+    )
+    community_tags = [
+        schemas.CommunityFlavorTag(
+            tag=row.tag_name,
+            count=row.cnt,
+            percentage=round(row.cnt / total_reviews * 100, 1),
+        )
+        for row in tag_rows
+    ]
+
+    # Serving style breakdown
+    style_rows = (
+        db.query(models.UserRating.serving_style, func.count(models.UserRating.id))
+        .filter(
+            models.UserRating.whiskey_id == whiskey_id,
+            models.UserRating.serving_style.isnot(None),
+        )
+        .group_by(models.UserRating.serving_style)
+        .all()
+    )
+    serving_style_counts = {style: cnt for style, cnt in style_rows}
+
+    return schemas.WhiskeyReviewSummary(
+        distribution=distribution,
+        community_tags=community_tags,
+        serving_style_counts=serving_style_counts,
+    )
+
+
 @router.get("/{whiskey_id}", response_model=schemas.WhiskeyRead)
 def get_whiskey(
     whiskey_id: int = Path(..., gt=0),
@@ -475,7 +554,7 @@ def rate_whiskey(
             existing.location_note = rating.location_note
         db_rating = existing
     else:
-        rating_data = rating.model_dump()
+        rating_data = rating.model_dump(exclude={"flavor_tags"})
         rating_data["user_id"] = user_id
         db_rating = models.UserRating(whiskey_id=whiskey_id, **rating_data)
         db.add(db_rating)
@@ -483,6 +562,19 @@ def rate_whiskey(
     # Atomic recalculation: flush so the new/updated rating is visible in this
     # transaction, then UPDATE whiskey stats via correlated subqueries to avoid
     # a TOCTOU race between concurrent rating requests.
+    db.flush()
+
+    # Handle flavor tags: replace existing tags for this rating
+    db.query(models.ReviewFlavorTag).filter(
+        models.ReviewFlavorTag.rating_id == db_rating.id
+    ).delete()
+    for tag_name in rating.flavor_tags:
+        db.add(models.ReviewFlavorTag(
+            user_id=user_id,
+            rating_id=db_rating.id,
+            whiskey_id=whiskey_id,
+            tag_name=tag_name,
+        ))
     db.flush()
 
     subq_avg = (
@@ -535,6 +627,8 @@ def rate_whiskey(
             image_url=f"/uploads/{db_rating.image_path}" if db_rating.image_path else None,
             created_at=db_rating.created_at,
             toast_count=0,
+            username=db_rating.user_id,
+            flavor_tags=rating.flavor_tags,
         ),
         new_badges=[schemas.BadgeRead.model_validate(b) for b in new_badges],
     )
@@ -543,6 +637,9 @@ def rate_whiskey(
 @router.get("/{whiskey_id}/ratings", response_model=list[schemas.RatingRead])
 def get_ratings(
     whiskey_id: int,
+    sort_by: schemas.ReviewSortOption = Query(
+        schemas.ReviewSortOption.recent, description="Sort order for reviews"
+    ),
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=100),
     db: Session = Depends(get_db),
@@ -551,16 +648,35 @@ def get_ratings(
     if not whiskey:
         raise HTTPException(status_code=404, detail="Whiskey not found")
 
-    ratings = (
-        db.query(models.UserRating)
-        .filter(models.UserRating.whiskey_id == whiskey_id)
-        .order_by(models.UserRating.created_at.desc())
-        .offset(skip)
-        .limit(limit)
-        .all()
+    query = db.query(models.UserRating).filter(
+        models.UserRating.whiskey_id == whiskey_id
     )
+
+    if sort_by == schemas.ReviewSortOption.highest:
+        query = query.order_by(models.UserRating.score.desc(), models.UserRating.created_at.desc())
+    elif sort_by == schemas.ReviewSortOption.lowest:
+        query = query.order_by(models.UserRating.score.asc(), models.UserRating.created_at.desc())
+    elif sort_by == schemas.ReviewSortOption.helpful:
+        toast_sub = (
+            db.query(
+                models.Toast.rating_id,
+                func.count(models.Toast.id).label("tc"),
+            )
+            .group_by(models.Toast.rating_id)
+            .subquery()
+        )
+        query = (
+            query.outerjoin(toast_sub, models.UserRating.id == toast_sub.c.rating_id)
+            .order_by(toast_sub.c.tc.desc().nullslast(), models.UserRating.created_at.desc())
+        )
+    else:  # recent (default)
+        query = query.order_by(models.UserRating.created_at.desc())
+
+    ratings = query.offset(skip).limit(limit).all()
+
     rating_ids = [r.id for r in ratings]
     toast_counts: dict[int, int] = {}
+    tag_map: dict[int, list[str]] = {}
     if rating_ids:
         counts = (
             db.query(models.Toast.rating_id, func.count(models.Toast.id))
@@ -569,6 +685,14 @@ def get_ratings(
             .all()
         )
         toast_counts = {rid: cnt for rid, cnt in counts}
+
+        tag_rows = (
+            db.query(models.ReviewFlavorTag.rating_id, models.ReviewFlavorTag.tag_name)
+            .filter(models.ReviewFlavorTag.rating_id.in_(rating_ids))
+            .all()
+        )
+        for rid, tag in tag_rows:
+            tag_map.setdefault(rid, []).append(tag)
 
     return [
         schemas.RatingRead(
@@ -582,6 +706,8 @@ def get_ratings(
             image_url=r.image_url,
             created_at=r.created_at,
             toast_count=toast_counts.get(r.id, 0),
+            username=r.user_id,
+            flavor_tags=tag_map.get(r.id, []),
         )
         for r in ratings
     ]

@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom'
 import { api } from '../api/client'
 import { useToast } from '../components/Toast'
 import { getCategoryEmoji, foodEmoji, MAX_UPLOAD_SIZE, MAX_UPLOAD_SIZE_LABEL } from '../constants'
+import { mediaUrl } from '../utils/media'
 import WhiskeyCard from '../components/WhiskeyCard'
 import FlavorMap from '../components/FlavorMap'
 import StoreLocator from '../components/StoreLocator'
@@ -47,6 +48,10 @@ export default function WhiskeyDetail() {
   const [ratingMsg, setRatingMsg] = useState('')
   const [newBadges, setNewBadges] = useState([])
   const [showAllReviews, setShowAllReviews] = useState(false)
+  const [reviewSummary, setReviewSummary] = useState(null)
+  const [reviewSort, setReviewSort] = useState('recent')
+  const [selectedTags, setSelectedTags] = useState([])
+  const [availableTags, setAvailableTags] = useState([])
   const addToast = useToast()
   const REVIEW_PAGE_SIZE = 10
   const visibleReviews = useMemo(
@@ -81,6 +86,11 @@ export default function WhiskeyDetail() {
     setLocationNote('')
     setNewBadges([])
     setShowAllReviews(false)
+    setReviewSummary(null)
+    setReviewSort('recent')
+    setSelectedTags([])
+
+    api.getFlavorTags().then(setAvailableTags).catch(() => {})
 
     api.getWhiskey(id)
       .then((w) => {
@@ -99,6 +109,7 @@ export default function WhiskeyDetail() {
           .finally(() => setBlurbLoading(false))
         api.getSimilar(id, 5).then(setSimilar).catch(() => {})
         api.getRatings(id).then(setReviews).catch(() => {})
+        api.getReviewSummary(id).then(setReviewSummary).catch(() => {})
         setPairingsError(false)
         setPairingsLoading(true)
         api.getPairings(id)
@@ -124,6 +135,12 @@ export default function WhiskeyDetail() {
       .then((r) => setWatching(r.watching))
       .catch(() => {})
   }, [id])
+
+  // Re-fetch reviews when sort order changes
+  useEffect(() => {
+    if (!id) return
+    api.getRatings(id, { sort_by: reviewSort }).then(setReviews).catch(() => {})
+  }, [id, reviewSort])
 
   async function toggleFavorite() {
     try {
@@ -160,13 +177,16 @@ export default function WhiskeyDetail() {
       const body = { score, notes: notes || undefined }
       if (servingStyle) body.serving_style = servingStyle
       if (locationNote.trim()) body.location_note = locationNote.trim()
+      if (selectedTags.length > 0) body.flavor_tags = selectedTags
       const result = await api.rateWhiskey(id, body)
-      const [updated, updatedReviews] = await Promise.all([
+      const [updated, updatedReviews, updatedSummary] = await Promise.all([
         api.getWhiskey(id),
-        api.getRatings(id),
+        api.getRatings(id, { sort_by: reviewSort }),
+        api.getReviewSummary(id),
       ])
       setWhiskey(updated)
       setReviews(updatedReviews)
+      setReviewSummary(updatedSummary)
       setRatingMsg('Check-in saved!')
       setLastRatingId(result.rating.id)
       // Upload photo if attached
@@ -177,6 +197,7 @@ export default function WhiskeyDetail() {
       setNotes('')
       setServingStyle(null)
       setLocationNote('')
+      setSelectedTags([])
       setImageFile(null)
       if (imagePreview) URL.revokeObjectURL(imagePreview)
       setImagePreview(null)
@@ -383,15 +404,90 @@ export default function WhiskeyDetail() {
       {/* Flavor Map plot */}
       <FlavorMap whiskey={whiskey} similar={similar} />
 
-      {/* Community reviews */}
-      {reviews.length > 0 && (
-        <div className="reviews-section">
-          <h3>Community Reviews ({reviews.length})</h3>
+      {/* Community Reviews — Vivino style */}
+      <div className="reviews-section">
+        <h3>Community Reviews</h3>
+
+        {/* Rating Summary Block */}
+        {reviewSummary && reviewSummary.distribution.total > 0 && (
+          <div className="rating-summary">
+            <div className="rating-summary-left">
+              <span className="rating-summary-score">
+                {reviewSummary.distribution.average.toFixed(1)}
+              </span>
+              <span className="rating-summary-stars">
+                {'★'.repeat(Math.round(reviewSummary.distribution.average))}
+                <span style={{opacity: 0.25}}>
+                  {'★'.repeat(5 - Math.round(reviewSummary.distribution.average))}
+                </span>
+              </span>
+              <span className="rating-summary-count">
+                {reviewSummary.distribution.total} rating{reviewSummary.distribution.total !== 1 ? 's' : ''}
+              </span>
+            </div>
+            <div className="rating-summary-right">
+              {[5, 4, 3, 2, 1].map(star => {
+                const count = reviewSummary.distribution[`star_${star}`]
+                const pct = reviewSummary.distribution.total > 0
+                  ? (count / reviewSummary.distribution.total * 100)
+                  : 0
+                return (
+                  <div key={star} className="distribution-row">
+                    <span className="distribution-label">{star}★</span>
+                    <div className="distribution-bar-bg">
+                      <div
+                        className="distribution-bar-fill"
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                    <span className="distribution-count">{count}</span>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Community Flavor Tags */}
+        {reviewSummary?.community_tags?.length > 0 && (
+          <div className="community-tags">
+            <h4>Community Taste Profile</h4>
+            <div className="community-tags-list">
+              {reviewSummary.community_tags.map(t => (
+                <span key={t.tag} className="community-tag">
+                  {t.tag}
+                  <span className="community-tag-count">{t.count}</span>
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Sort Dropdown */}
+        {reviews.length > 0 && (
+          <div className="review-sort-bar">
+            <label htmlFor="review-sort">Sort by:</label>
+            <select
+              id="review-sort"
+              value={reviewSort}
+              onChange={(e) => setReviewSort(e.target.value)}
+              className="review-sort-select"
+            >
+              <option value="recent">Most Recent</option>
+              <option value="helpful">Most Helpful</option>
+              <option value="highest">Highest Rated</option>
+              <option value="lowest">Lowest Rated</option>
+            </select>
+          </div>
+        )}
+
+        {/* Review Cards */}
+        {reviews.length > 0 ? (
           <div className="review-list">
             {visibleReviews.map((r) => (
               <div key={r.id} className="review-item">
                 <div className="review-header">
-                  <Link to={`/user/${r.user_id}`} className="review-user">{r.user_id}</Link>
+                  <Link to={`/user/${r.username || r.user_id}`} className="review-user">{r.username || r.user_id}</Link>
                   <span className="review-stars">{'★'.repeat(Math.round(r.score || 0))}{'☆'.repeat(Math.max(0, 5 - Math.round(r.score || 0)))}</span>
                   {r.serving_style && (
                     <span className="checkin-serving">{SERVING_EMOJI[r.serving_style] || ''} {r.serving_style}</span>
@@ -399,20 +495,33 @@ export default function WhiskeyDetail() {
                   <span className="review-date">{new Date(r.created_at).toLocaleDateString()}</span>
                 </div>
                 {r.location_note && <p className="review-location">{r.location_note}</p>}
+                {r.flavor_tags?.length > 0 && (
+                  <div className="review-tags">
+                    {r.flavor_tags.map(tag => (
+                      <span key={tag} className="review-tag">{tag}</span>
+                    ))}
+                  </div>
+                )}
                 {r.image_url && (
-                  <img src={`/api${r.image_url}`} alt="Tasting photo" className="review-photo" loading="lazy" decoding="async" />
+                  <img src={mediaUrl(r.image_url)} alt="Tasting photo" className="review-photo" loading="lazy" decoding="async" />
                 )}
                 {r.notes && <p className="review-notes">{r.notes}</p>}
+                {r.toast_count > 0 && (
+                  <span className="review-toasts">🍻 {r.toast_count}</span>
+                )}
               </div>
             ))}
           </div>
-          {!showAllReviews && reviews.length > REVIEW_PAGE_SIZE && (
-            <button className="btn-secondary" style={{ marginTop: '1rem', width: '100%' }} onClick={() => setShowAllReviews(true)}>
-              Show All {reviews.length} Reviews
-            </button>
-          )}
-        </div>
-      )}
+        ) : (
+          <p className="reviews-empty">No reviews yet. Be the first to check in!</p>
+        )}
+
+        {!showAllReviews && reviews.length > REVIEW_PAGE_SIZE && (
+          <button className="btn-secondary" style={{ marginTop: '1rem', width: '100%' }} onClick={() => setShowAllReviews(true)}>
+            Show All {reviews.length} Reviews
+          </button>
+        )}
+      </div>
 
       {/* Community Videos */}
       {whiskeyVideos.length > 0 && (
@@ -422,7 +531,7 @@ export default function WhiskeyDetail() {
             {whiskeyVideos.map(v => (
               <Link key={v.id} to={`/videos?v=${v.id}`} className="whiskey-video-thumb">
                 {v.thumbnail_url ? (
-                  <img src={`/api${v.thumbnail_url}`} alt={v.title || 'Video'} />
+                  <img src={mediaUrl(v.thumbnail_url)} alt={v.title || 'Video'} />
                 ) : (
                   <div className="whiskey-video-placeholder">▶</div>
                 )}
@@ -515,7 +624,7 @@ export default function WhiskeyDetail() {
                   <div key={i} className="pairing-card">
                     {p.image_url ? (
                       <img
-                        src={`/api${p.image_url}`}
+                        src={mediaUrl(p.image_url)}
                         alt={p.item}
                         className="pairing-img"
                         onError={(e) => {
@@ -643,6 +752,34 @@ export default function WhiskeyDetail() {
             onChange={(e) => setNotes(e.target.value)}
             rows={3}
           />
+
+          {/* Flavor tag picker */}
+          {availableTags.length > 0 && (
+            <div className="flavor-tag-picker">
+              <span className="flavor-tag-label">What do you taste?</span>
+              <div className="flavor-tag-options">
+                {availableTags.map(tag => (
+                  <button
+                    key={tag}
+                    type="button"
+                    className={`flavor-tag-btn ${selectedTags.includes(tag) ? 'flavor-tag-btn--active' : ''}`}
+                    onClick={() => {
+                      setSelectedTags(prev =>
+                        prev.includes(tag)
+                          ? prev.filter(t => t !== tag)
+                          : prev.length < 10 ? [...prev, tag] : prev
+                      )
+                    }}
+                  >
+                    {tag}
+                  </button>
+                ))}
+              </div>
+              {selectedTags.length > 0 && (
+                <span className="flavor-tag-count">{selectedTags.length}/10 selected</span>
+              )}
+            </div>
+          )}
 
           <div className="photo-upload">
             <label className="photo-upload-btn">

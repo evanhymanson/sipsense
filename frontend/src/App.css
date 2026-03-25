@@ -1394,6 +1394,243 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
   margin-top: 0.25rem;
 }
 
+.reviews-empty {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  text-align: center;
+  padding: 1.5rem 0;
+}
+
+/* ── Rating Summary Block (Vivino-style) ───────────────────────────── */
+
+.rating-summary {
+  display: flex;
+  gap: 1.5rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.25rem;
+  margin-bottom: 1.25rem;
+}
+
+.rating-summary-left {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 80px;
+}
+
+.rating-summary-score {
+  font-size: 2.8rem;
+  font-weight: bold;
+  color: var(--amber);
+  line-height: 1;
+}
+
+.rating-summary-stars {
+  color: var(--amber);
+  font-size: 1rem;
+  margin-top: 0.25rem;
+}
+
+.rating-summary-count {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  margin-top: 0.3rem;
+}
+
+.rating-summary-right {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  justify-content: center;
+}
+
+.distribution-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.distribution-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  min-width: 22px;
+  text-align: right;
+}
+
+.distribution-bar-bg {
+  flex: 1;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.distribution-bar-fill {
+  height: 100%;
+  background: var(--amber);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+  min-width: 2px;
+}
+
+.distribution-count {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  min-width: 24px;
+}
+
+/* ── Community Flavor Tags ─────────────────────────────────────────── */
+
+.community-tags {
+  margin-bottom: 1.25rem;
+}
+
+.community-tags h4 {
+  font-size: 0.95rem;
+  color: var(--text);
+  margin-bottom: 0.5rem;
+}
+
+.community-tags-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.community-tag {
+  background: rgba(201, 168, 76, 0.1);
+  border: 1px solid rgba(201, 168, 76, 0.3);
+  color: var(--amber-light);
+  padding: 0.3rem 0.7rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.community-tag-count {
+  background: rgba(201, 168, 76, 0.25);
+  padding: 0.1rem 0.4rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: bold;
+}
+
+/* ── Review Sort Bar ───────────────────────────────────────────────── */
+
+.review-sort-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.review-sort-bar label {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.review-sort-select {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 0.35rem 0.65rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+/* ── Review Tags (per review) ──────────────────────────────────────── */
+
+.review-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin: 0.2rem 0;
+}
+
+.review-tag {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+}
+
+.review-toasts {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-top: 0.25rem;
+  display: block;
+}
+
+/* ── Flavor Tag Picker (Check-in form) ─────────────────────────────── */
+
+.flavor-tag-picker {
+  margin: 0.5rem 0;
+}
+
+.flavor-tag-label {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  display: block;
+  margin-bottom: 0.4rem;
+}
+
+.flavor-tag-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.flavor-tag-btn {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  padding: 0.3rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  cursor: pointer;
+  font-family: inherit;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+
+.flavor-tag-btn:hover {
+  border-color: var(--amber);
+  color: var(--amber-light);
+}
+
+.flavor-tag-btn--active {
+  background: rgba(201, 168, 76, 0.15);
+  border-color: var(--amber);
+  color: var(--amber);
+}
+
+.flavor-tag-count {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 0.3rem;
+  display: block;
+}
+
+@media (max-width: 480px) {
+  .rating-summary {
+    flex-direction: column;
+    align-items: center;
+  }
+  .rating-summary-left {
+    flex-direction: row;
+    gap: 0.75rem;
+  }
+}
+
 /* ── Nav user / logout ───────────────────────────────────────────────── */
 .nav-user {
   display: flex;

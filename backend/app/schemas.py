@@ -1,19 +1,28 @@
-import os
+from enum import Enum
+
 from pydantic import BaseModel, EmailStr, Field, model_validator
 from typing import Optional, Literal
 from datetime import datetime
 
-# Absolute path to backend/uploads for nobg file existence checks
-_UPLOADS_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "uploads"))
+from .storage import get_nobg_set, make_cdn_url
+
+
+WHISKEY_FLAVOR_TAGS = [
+    "vanilla", "caramel", "oak", "smoke", "honey", "spice", "cherry",
+    "apple", "citrus", "chocolate", "leather", "tobacco", "cinnamon",
+    "nutmeg", "pepper", "butterscotch", "maple", "dried fruit", "floral",
+    "grain", "toffee", "peat", "brine", "mint", "coconut",
+]
 
 
 def _prefer_nobg(url: str | None) -> str | None:
-    """Rewrite /uploads/bottles/X.png → /uploads/bottles_nobg/X.png if the file exists."""
-    if not url or "/uploads/bottles/" not in url or "/bottles_nobg/" in url:
+    """Rewrite /uploads/bottles/X.png → /uploads/bottles_nobg/X.png if nobg version exists."""
+    if not url or "/bottles/" not in url or "/bottles_nobg/" in url:
         return url
-    nobg_url = url.replace("/uploads/bottles/", "/uploads/bottles_nobg/")
-    nobg_path = os.path.join(_UPLOADS_ROOT, *nobg_url.lstrip("/").split("/")[1:])
-    return nobg_url if os.path.isfile(nobg_path) else url
+    filename = url.split("/")[-1]
+    if filename in get_nobg_set():
+        return url.replace("/uploads/bottles/", "/uploads/bottles_nobg/")
+    return url
 
 
 # ── Auth ──────────────────────────────────────────────────────────────────
@@ -78,8 +87,8 @@ class WhiskeyRead(WhiskeyBase):
 
     @model_validator(mode="after")
     def prefer_nobg_image(self):
-        """Serve background-removed bottle image when available."""
-        self.image_url = _prefer_nobg(self.image_url)
+        """Serve background-removed bottle image when available, with CDN URL."""
+        self.image_url = make_cdn_url(_prefer_nobg(self.image_url))
         return self
 
 
@@ -95,6 +104,20 @@ class RatingCreate(BaseModel):
     notes: Optional[str] = Field(None, max_length=2000)
     serving_style: Optional[Literal["neat", "rocks", "cocktail", "highball"]] = None
     location_note: Optional[str] = Field(None, max_length=200)
+    flavor_tags: list[str] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def validate_flavor_tags(self):
+        if self.flavor_tags:
+            valid = set(WHISKEY_FLAVOR_TAGS)
+            self.flavor_tags = [t.lower().strip() for t in self.flavor_tags]
+            invalid = [t for t in self.flavor_tags if t not in valid]
+            if invalid:
+                raise ValueError(f"Invalid flavor tags: {invalid}")
+            self.flavor_tags = list(dict.fromkeys(self.flavor_tags))  # dedupe
+            if len(self.flavor_tags) > 10:
+                raise ValueError("Maximum 10 flavor tags allowed")
+        return self
 
 
 class RatingRead(BaseModel):
@@ -108,6 +131,8 @@ class RatingRead(BaseModel):
     image_url: Optional[str] = None
     created_at: datetime
     toast_count: int = 0
+    username: str = ""
+    flavor_tags: list[str] = []
 
     model_config = {"from_attributes": True}
 
@@ -252,6 +277,35 @@ class CheckInResponse(BaseModel):
     new_badges: list[BadgeRead] = []
 
 
+class ReviewSortOption(str, Enum):
+    recent = "recent"
+    helpful = "helpful"
+    highest = "highest"
+    lowest = "lowest"
+
+
+class RatingDistribution(BaseModel):
+    star_1: int = 0
+    star_2: int = 0
+    star_3: int = 0
+    star_4: int = 0
+    star_5: int = 0
+    total: int = 0
+    average: float = 0.0
+
+
+class CommunityFlavorTag(BaseModel):
+    tag: str
+    count: int
+    percentage: float
+
+
+class WhiskeyReviewSummary(BaseModel):
+    distribution: RatingDistribution
+    community_tags: list[CommunityFlavorTag] = []
+    serving_style_counts: dict[str, int] = {}
+
+
 class UserSearchResult(BaseModel):
     username: str
     total_checkins: int = 0
@@ -344,8 +398,8 @@ class VideoRead(BaseModel):
 
     @model_validator(mode="after")
     def prefer_nobg_image(self):
-        """Serve background-removed bottle image when available."""
-        self.whiskey_image_url = _prefer_nobg(self.whiskey_image_url)
+        """Serve background-removed bottle image when available, with CDN URL."""
+        self.whiskey_image_url = make_cdn_url(_prefer_nobg(self.whiskey_image_url))
         return self
 
 
