@@ -74,28 +74,26 @@ logger = logging.getLogger(__name__)
 from .badges import seed_badges
 from .database import SessionLocal
 
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """Run startup tasks before the server begins accepting requests."""
-    logger.info("Running startup tasks…")
-    Base.metadata.create_all(bind=engine)
-    db = SessionLocal()
-    try:
-        seed_badges(db)
-    finally:
-        db.close()
-    from .analytics_middleware import cleanup_old_events
-    cleanup_old_events()
-    logger.info("Startup tasks complete — ready to serve requests")
-    yield
+# ── One-time startup tasks ──────────────────────────────────────────────
+# These run once at module-import time. With gunicorn's preload_app=True,
+# this happens in the master process before workers are forked — so there
+# is no per-worker race condition on DDL / seed operations.
+logger.info("Running startup tasks…")
+Base.metadata.create_all(bind=engine)
+_startup_db = SessionLocal()
+try:
+    seed_badges(_startup_db)
+finally:
+    _startup_db.close()
+from .analytics_middleware import cleanup_old_events
+cleanup_old_events()
+logger.info("Startup tasks complete — ready to serve requests")
 
 
 app = FastAPI(
     title="SipSense API",
     description="AI-powered whiskey recommendation engine",
     version="0.2.0",
-    lifespan=lifespan,
 )
 
 # ── Rate limiting middleware ──────────────────────────────────────────────

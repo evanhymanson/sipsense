@@ -5,9 +5,9 @@ import multiprocessing
 # Bind to localhost — nginx will proxy to this
 bind = "127.0.0.1:8000"
 
-# Workers: 2 * CPU cores + 1 is the standard formula
-# t3.micro has 2 vCPUs → 5 workers. Cap at 4 to leave room for nginx/postgres.
-workers = min(multiprocessing.cpu_count() * 2 + 1, 4)
+# Workers: t3.micro only has ~1GB RAM. With PyTorch loaded, each worker
+# uses ~350MB, so 2 workers is the safe maximum.
+workers = 2
 
 # Use uvicorn's ASGI worker for FastAPI
 worker_class = "uvicorn.workers.UvicornWorker"
