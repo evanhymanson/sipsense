@@ -140,7 +140,10 @@ export const api = {
   getWhiskey: (id) => request(`/whiskeys/${id}`),
   getSimilar: (id, top_n = 5) => request(`/whiskeys/${id}/similar?top_n=${top_n}`),
   getBlurb: (id) => request(`/whiskeys/${id}/blurb`),
-  getRatings: (id) => request(`/whiskeys/${id}/ratings`),
+  getRatings: (id, { sort_by = 'recent', skip = 0, limit = 50 } = {}) =>
+    request(`/whiskeys/${id}/ratings?sort_by=${sort_by}&skip=${skip}&limit=${limit}`),
+  getReviewSummary: (id) => request(`/whiskeys/${id}/review-summary`),
+  getFlavorTags: () => request(`/whiskeys/flavor-tags`),
   rateWhiskey: (id, body) =>
     request(`/whiskeys/${id}/rate`, { method: 'POST', body: JSON.stringify(body) }),
   getValuePicks: (params = {}, opts = {}) => {

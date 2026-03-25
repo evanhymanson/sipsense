@@ -226,3 +226,44 @@ def sample_user_with_ratings(client, auth_headers, sample_whiskeys):
             headers=auth_headers,
         )
     return auth_headers
+
+
+@pytest.fixture()
+def second_user_with_ratings(client, second_auth_headers, sample_whiskeys):
+    """testuser2 rates whiskeys [0,1,3] (bourbon, scotch, japanese) for taste comparison."""
+    indices_scores = [(0, 4.5), (1, 3.5), (3, 4.0)]
+    for idx, score in indices_scores:
+        client.post(
+            f"/whiskeys/{sample_whiskeys[idx].id}/rate",
+            json={"score": score, "notes": f"Test note {idx}"},
+            headers=second_auth_headers,
+        )
+    return second_auth_headers
+
+
+@pytest.fixture()
+def testuser_rating_id(client, auth_headers, sample_whiskeys):
+    """Single rating by testuser -- returns its id."""
+    resp = client.post(
+        f"/whiskeys/{sample_whiskeys[0].id}/rate",
+        json={"score": 4.0, "notes": "Fixture rating"},
+        headers=auth_headers,
+    )
+    return resp.json()["rating"]["id"]
+
+
+@pytest.fixture()
+def testuser2_rating_id(client, second_auth_headers, sample_whiskeys):
+    """Single rating by testuser2 -- returns its id."""
+    resp = client.post(
+        f"/whiskeys/{sample_whiskeys[1].id}/rate",
+        json={"score": 4.5, "notes": "Fixture rating 2"},
+        headers=second_auth_headers,
+    )
+    return resp.json()["rating"]["id"]
+
+
+@pytest.fixture()
+def both_users_with_ratings(sample_user_with_ratings, second_user_with_ratings):
+    """Both testuser and testuser2 have ratings. Returns (headers1, headers2)."""
+    return sample_user_with_ratings, second_user_with_ratings

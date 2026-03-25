@@ -79,10 +79,14 @@ class UserRating(Base):
     @property
     def image_url(self) -> str | None:
         """Expose image_path as image_url so Pydantic's from_attributes can map it."""
-        return f"/uploads/{self.image_path}" if self.image_path else None
+        if not self.image_path:
+            return None
+        from .storage import make_cdn_url
+        return make_cdn_url(f"/uploads/{self.image_path}")
 
     toasts = relationship("Toast", back_populates="rating", cascade="all, delete-orphan")
     comments = relationship("CheckInComment", back_populates="rating", cascade="all, delete-orphan")
+    flavor_tags = relationship("ReviewFlavorTag", back_populates="rating", cascade="all, delete-orphan")
 
 
 class UserMemory(Base):
@@ -170,6 +174,23 @@ class CheckInComment(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     rating = relationship("UserRating", back_populates="comments")
+
+
+class ReviewFlavorTag(Base):
+    """A flavor tag submitted by a user as part of their check-in."""
+    __tablename__ = "review_flavor_tags"
+    __table_args__ = (
+        UniqueConstraint("rating_id", "tag_name", name="uq_rating_tag"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(String, nullable=False, index=True)
+    rating_id = Column(Integer, ForeignKey("user_ratings.id", ondelete="CASCADE"), nullable=False, index=True)
+    whiskey_id = Column(Integer, ForeignKey("whiskeys.id", ondelete="CASCADE"), nullable=False, index=True)
+    tag_name = Column(String(50), nullable=False, index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    rating = relationship("UserRating", back_populates="flavor_tags")
 
 
 class Badge(Base):
