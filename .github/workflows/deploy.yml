@@ -1,10 +1,9 @@
 name: Deploy
 
 on:
-  # Auto-deploy staging on push to main (after CI passes)
   push:
     branches: [main]
-  # Manual trigger for production deploys
+  # Keep manual trigger as escape hatch
   workflow_dispatch:
     inputs:
       environment:
@@ -12,7 +11,6 @@ on:
         required: true
         type: choice
         options:
-          - staging
           - production
 
 jobs:
@@ -20,30 +18,8 @@ jobs:
   test:
     uses: ./.github/workflows/ci.yml
 
-  # Auto-deploy to staging on every push to main
-  deploy-staging:
-    if: github.event_name == 'push'
-    needs: test
-    runs-on: ubuntu-latest
-    environment: staging
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Deploy to staging
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ secrets.STAGING_HOST }}
-          username: ubuntu
-          key: ${{ secrets.STAGING_SSH_KEY }}
-          script: |
-            cd /opt/sipsense
-            git pull origin main
-            docker compose -f docker-compose.yml -f docker-compose.staging.yml up -d --build
-            echo "Staging deploy complete"
-
-  # Manual production deploy (requires environment approval if configured)
+  # Auto-deploy to production on every push to main (after tests pass)
   deploy-production:
-    if: github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'production'
     needs: test
     runs-on: ubuntu-latest
     environment: production
@@ -56,8 +32,20 @@ jobs:
           host: ${{ secrets.PRODUCTION_HOST }}
           username: ubuntu
           key: ${{ secrets.PRODUCTION_SSH_KEY }}
+          command_timeout: 10m
           script: |
             cd /opt/sipsense
-            git pull origin main
+            git fetch origin main
+            git reset --hard origin/main
             docker compose -f docker-compose.yml -f docker-compose.production.yml up -d --build
             echo "Production deploy complete"
+
+      - name: Health check
+        run: |
+          echo "Waiting 30s for containers to start…"
+          sleep 30
+          STATUS=$(curl -sf "${{ secrets.PRODUCTION_URL }}/api/health" | jq -r '.status' 2>/dev/null || echo "unreachable")
+          echo "Health check: $STATUS"
+          if [ "$STATUS" != "healthy" ]; then
+            echo "::warning::Health check returned: $STATUS"
+          fi
