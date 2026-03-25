@@ -4,6 +4,7 @@ import { api } from '../api/client'
 import { useToast } from '../components/Toast'
 import CheckInCard from '../components/CheckInCard'
 import BadgeGrid from '../components/BadgeGrid'
+import { mediaUrl } from '../utils/media'
 import './UserProfile.css'
 
 export default function UserProfile() {
@@ -283,7 +284,7 @@ export default function UserProfile() {
             {videos.map(v => (
               <Link key={v.id} to={`/videos?v=${v.id}`} className="profile-video-thumb">
                 {v.thumbnail_url ? (
-                  <img src={`/api${v.thumbnail_url}`} alt={v.title || 'Video'} />
+                  <img src={mediaUrl(v.thumbnail_url)} alt={v.title || 'Video'} />
                 ) : (
                   <div className="profile-video-placeholder">{'\u25b6'}</div>
                 )}

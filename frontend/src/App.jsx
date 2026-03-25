@@ -5,6 +5,7 @@ import ChatSidebar from './components/ChatSidebar'
 import { isLoggedIn, getUsername, clearAuth, api } from './api/client'
 import { trackPageView, trackEvent, startPageTimer, endPageTimer } from './api/analytics'
 import { ToastProvider } from './components/Toast'
+import InstallPrompt from './components/InstallPrompt'
 import './App.css'
 
 // Lazy-load page components for code splitting
@@ -243,6 +244,7 @@ export default function App() {
     <BrowserRouter>
       <ToastProvider>
         <AppShell />
+        <InstallPrompt />
       </ToastProvider>
     </BrowserRouter>
   )

@@ -27,7 +27,7 @@ export default function Feed() {
     if (!currentUser) return
     api.getSuggestedUsers(5)
       .then(data => setSuggested(data || []))
-      .catch(() => {})
+      .catch(() => { /* non-critical: suggested follows */ })
   }, [currentUser])
 
   const loadFeed = useCallback(async (skip = 0, append = false) => {
@@ -63,7 +63,7 @@ export default function Feed() {
     try {
       await api.followUser(username)
       setSuggested(prev => prev.filter(u => u.username !== username))
-    } catch { /* ignore */ }
+    } catch (err) { console.error('Failed to follow user:', err) }
   }
 
   return (

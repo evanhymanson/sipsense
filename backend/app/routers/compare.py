@@ -30,8 +30,8 @@ def compare_bottles(id_a: int, id_b: int, db: Session = Depends(get_db)):
     b = db.query(Whiskey).filter(Whiskey.id == id_b).first()
 
     if not a:
-        raise HTTPException(404, f"Whiskey with id {id_a} not found")
+        raise HTTPException(status_code=404, detail=f"Whiskey with id {id_a} not found")
     if not b:
-        raise HTTPException(404, f"Whiskey with id {id_b} not found")
+        raise HTTPException(status_code=404, detail=f"Whiskey with id {id_b} not found")
 
     return {"a": _whiskey_dict(a), "b": _whiskey_dict(b)}

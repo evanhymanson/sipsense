@@ -5,14 +5,11 @@ Uses a rule-based mapping for instant results, with optional AI enhancement.
 """
 
 import re
-import os
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from .. import models
 from ..database import get_db
-
-_UPLOADS_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "uploads", "pairings")
-_COCKTAIL_UPLOADS_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "uploads", "cocktails")
+from ..storage import get_pairing_set, get_cocktail_set, make_cdn_url
 
 
 def _slugify(name: str) -> str:
@@ -22,23 +19,25 @@ def _slugify(name: str) -> str:
 
 
 def _with_images(items: list[dict]) -> list[dict]:
-    """Add image_url to each pairing item if the image file exists."""
+    """Add image_url to each pairing item if the image exists."""
+    pairing_files = get_pairing_set()
     result = []
     for item in items:
         slug = _slugify(item["item"])
-        img_path = os.path.join(_UPLOADS_DIR, f"{slug}.jpg")
-        img_url = f"/uploads/pairings/{slug}.jpg" if os.path.exists(img_path) else None
+        filename = f"{slug}.jpg"
+        img_url = make_cdn_url(f"/uploads/pairings/{filename}") if filename in pairing_files else None
         result.append({**item, "image_url": img_url})
     return result
 
 
 def _cocktails_with_images(items: list[dict]) -> list[dict]:
-    """Add image_url to each cocktail item if the image file exists."""
+    """Add image_url to each cocktail item if the image exists."""
+    cocktail_files = get_cocktail_set()
     result = []
     for item in items:
         slug = _slugify(item["name"])
-        img_path = os.path.join(_COCKTAIL_UPLOADS_DIR, f"{slug}.jpg")
-        img_url = f"/uploads/cocktails/{slug}.jpg" if os.path.exists(img_path) else None
+        filename = f"{slug}.jpg"
+        img_url = make_cdn_url(f"/uploads/cocktails/{filename}") if filename in cocktail_files else None
         result.append({**item, "image_url": img_url})
     return result
 

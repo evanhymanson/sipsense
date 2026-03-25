@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { api, getUsername } from '../api/client'
 import { useToast } from './Toast'
 import CheckInComments from './CheckInComments'
+import { mediaUrl } from '../utils/media'
 import './CheckInCard.css'
 
 const SERVING_EMOJI = {
@@ -96,7 +97,7 @@ export default memo(function CheckInCard({ item, onToastToggle }) {
 
       {rating.image_url && (
         <img
-          src={`/api${rating.image_url}`}
+          src={mediaUrl(rating.image_url)}
           alt={`${username}'s tasting photo`}
           className="checkin-photo"
           loading="lazy"

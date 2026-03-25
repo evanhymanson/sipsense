@@ -66,6 +66,7 @@ export default function WhiskeyDetail() {
   }, [])
 
   useEffect(() => {
+    let cancelled = false
     setLoading(true)
     setBlurb(null)
     setSimilar([])
@@ -90,40 +91,43 @@ export default function WhiskeyDetail() {
     setReviewSort('recent')
     setSelectedTags([])
 
-    api.getFlavorTags().then(setAvailableTags).catch(() => {})
+    api.getFlavorTags().then(t => { if (!cancelled) setAvailableTags(t) }).catch(() => {})
 
     api.getWhiskey(id)
       .then((w) => {
+        if (cancelled) return
         setWhiskey(w)
         setBlurbLoading(true)
+        const blurbTimeout = setTimeout(() => {
+          if (!cancelled) { setBlurbLoading(false); setBlurbStatus('timeout') }
+        }, 15000)
         api.getBlurb(id)
           .then((r) => {
+            clearTimeout(blurbTimeout)
+            if (cancelled) return
             setBlurb(r?.blurb || null)
             setBlurbStatus(r?.status || null)
-            // Update flavor scores if the blurb endpoint computed them
             if (r?.flavor_x != null && r?.flavor_y != null) {
               setWhiskey(prev => prev ? { ...prev, flavor_x: r.flavor_x, flavor_y: r.flavor_y } : prev)
             }
           })
-          .catch(() => setBlurbStatus('error'))
-          .finally(() => setBlurbLoading(false))
-        api.getSimilar(id, 5).then(setSimilar).catch(() => {})
-        api.getRatings(id).then(setReviews).catch(() => {})
-        api.getReviewSummary(id).then(setReviewSummary).catch(() => {})
-        setPairingsError(false)
-        setPairingsLoading(true)
+          .catch(() => { clearTimeout(blurbTimeout); if (!cancelled) setBlurbStatus('error') })
+          .finally(() => { if (!cancelled) setBlurbLoading(false) })
+        api.getSimilar(id, 5).then(s => { if (!cancelled) setSimilar(s) }).catch(() => {})
+        api.getRatings(id).then(r => { if (!cancelled) setReviews(r) }).catch(() => {})
+        api.getReviewSummary(id).then(r => { if (!cancelled) setReviewSummary(r) }).catch(() => {})
+        if (!cancelled) { setPairingsError(false); setPairingsLoading(true) }
         api.getPairings(id)
-          .then(setPairings)
-          .catch(() => {
-              setPairingsError(true)
-          })
-          .finally(() => setPairingsLoading(false))
-        api.getPriceContext(id).then(setPriceContext).catch(() => {})
-        api.getBuyLinks(id).then(setBuyLinks).catch(() => {})
-        api.getWhiskeyVideos(id, { limit: 4 }).then(r => setWhiskeyVideos(r.items || [])).catch(() => {})
+          .then(p => { if (!cancelled) setPairings(p) })
+          .catch(() => { if (!cancelled) setPairingsError(true) })
+          .finally(() => { if (!cancelled) setPairingsLoading(false) })
+        api.getPriceContext(id).then(p => { if (!cancelled) setPriceContext(p) }).catch(() => {})
+        api.getBuyLinks(id).then(b => { if (!cancelled) setBuyLinks(b) }).catch(() => {})
+        api.getWhiskeyVideos(id, { limit: 4 }).then(r => { if (!cancelled) setWhiskeyVideos(r.items || []) }).catch(() => {})
       })
-      .catch((e) => setError(e.message))
-      .finally(() => setLoading(false))
+      .catch((e) => { if (!cancelled) setError(e.message) })
+      .finally(() => { if (!cancelled) setLoading(false) })
+    return () => { cancelled = true }
   }, [id])
 
   // Check if favorited + watching
@@ -207,7 +211,14 @@ export default function WhiskeyDetail() {
         setTimeout(() => setNewBadges([]), 5000)
       }
     } catch (err) {
-      setRatingMsg(`Error: ${err.message}`)
+      const msg = err.message || ''
+      if (msg.includes('already rated') || msg.includes('duplicate')) {
+        setRatingMsg('You already checked in this whiskey — your review has been updated.')
+      } else if (msg.includes('401') || msg.includes('auth') || msg.includes('log in')) {
+        setRatingMsg('Please log in to check in.')
+      } else {
+        setRatingMsg('Something went wrong saving your check-in. Please try again.')
+      }
     }
   }
 
@@ -261,7 +272,10 @@ export default function WhiskeyDetail() {
               width={200}
               height={400}
               decoding="async"
-              onError={(e) => { e.target.style.display = 'none' }}
+              onError={(e) => {
+                e.target.style.display = 'none'
+                e.target.parentElement.querySelector('.detail-bottle-icon').style.display = 'flex'
+              }}
             />
           )}
         </div>
@@ -372,11 +386,24 @@ export default function WhiskeyDetail() {
       <div className="detail-blurb">
         <h3>What makes this special</h3>
         {blurbLoading ? (
-          <p className="blurb-loading">Generating description…</p>
+          <p className="blurb-loading">
+            <span className="spinner" /> Generating description…
+          </p>
         ) : (blurb || whiskey.description) ? (
           <p>{blurb || whiskey.description}</p>
-        ) : blurbStatus === 'error' ? (
-          <p className="blurb-empty">Description generation failed — try refreshing.</p>
+        ) : (blurbStatus === 'error' || blurbStatus === 'timeout') ? (
+          <p className="blurb-empty">
+            Couldn't load description.{' '}
+            <button className="retry-btn" onClick={() => {
+              setBlurbLoading(true)
+              setBlurbStatus(null)
+              const t = setTimeout(() => { setBlurbLoading(false); setBlurbStatus('timeout') }, 15000)
+              api.getBlurb(id)
+                .then(r => { clearTimeout(t); setBlurb(r?.blurb || null); setBlurbStatus(r?.status || null) })
+                .catch(() => { clearTimeout(t); setBlurbStatus('error') })
+                .finally(() => setBlurbLoading(false))
+            }}>Retry</button>
+          </p>
         ) : (
           <p className="blurb-empty">No description available yet.</p>
         )}
@@ -513,7 +540,12 @@ export default function WhiskeyDetail() {
             ))}
           </div>
         ) : (
-          <p className="reviews-empty">No reviews yet. Be the first to check in!</p>
+          <div className="reviews-empty">
+            <p>No reviews yet.</p>
+            <button className="btn-secondary" onClick={() => document.getElementById('check-in')?.scrollIntoView({ behavior: 'smooth' })}>
+              Be the first to check in
+            </button>
+          </div>
         )}
 
         {!showAllReviews && reviews.length > REVIEW_PAGE_SIZE && (

@@ -27,7 +27,8 @@ export default defineConfig({
         manualChunks: {
           // Split heavy vendor libraries into separate cacheable chunks
           'vendor-react': ['react', 'react-dom', 'react-router-dom'],
-          'vendor-leaflet': ['leaflet', 'react-leaflet'],
+          // Leaflet is NOT included here — it stays in its own lazy-loaded
+          // chunk so it only downloads when the map sidebar is opened.
         },
       },
     },
