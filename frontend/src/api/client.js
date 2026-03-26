@@ -9,10 +9,11 @@ export function getToken() {
   try { return localStorage.getItem('sipsense_token') } catch { return null }
 }
 
-export function setAuth(token, username) {
+export function setAuth(token, username, refreshToken) {
   try {
     localStorage.setItem('sipsense_token', token)
     localStorage.setItem('sipsense_user', username)
+    if (refreshToken) localStorage.setItem('sipsense_refresh', refreshToken)
   } catch { /* private browsing — auth won't persist across reloads */ }
 }
 
@@ -20,7 +21,12 @@ export function clearAuth() {
   try {
     localStorage.removeItem('sipsense_token')
     localStorage.removeItem('sipsense_user')
+    localStorage.removeItem('sipsense_refresh')
   } catch { /* private browsing */ }
+}
+
+function getRefreshToken() {
+  try { return localStorage.getItem('sipsense_refresh') } catch { return null }
 }
 
 export function getUsername() {
@@ -100,10 +106,25 @@ async function _doRequest(path, options = {}, _retryCount = 0) {
   }
   if (timeoutId) clearTimeout(timeoutId)
 
-  // If token expired / invalid, clear auth and let React Router handle redirect
+  // If token expired / invalid, try silent refresh before forcing logout
   if (res.status === 401) {
+    const refreshToken = getRefreshToken()
+    if (refreshToken && _retryCount === 0) {
+      try {
+        const refreshRes = await fetch(`${BASE}/auth/refresh`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ refresh_token: refreshToken }),
+        })
+        if (refreshRes.ok) {
+          const data = await refreshRes.json()
+          setAuth(data.access_token, data.username, data.refresh_token)
+          // Retry the original request with the new token
+          return request(path, options, 1)
+        }
+      } catch { /* refresh failed, fall through to logout */ }
+    }
     clearAuth()
-    // Dispatch custom event so App can redirect via React Router (no full reload)
     window.dispatchEvent(new CustomEvent('auth:expired'))
     throw new Error('Session expired. Please log in again.')
   }

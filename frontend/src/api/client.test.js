@@ -37,13 +37,13 @@ afterEach(() => {
 
 describe('auth helpers', () => {
   it('stores and retrieves token + username', () => {
-    setAuth('tok123', 'alice')
+    setAuth('tok123', 'alice', 'ref123')
     expect(getToken()).toBe('tok123')
     expect(isLoggedIn()).toBe(true)
   })
 
   it('clearAuth removes credentials', () => {
-    setAuth('tok123', 'alice')
+    setAuth('tok123', 'alice', 'ref123')
     clearAuth()
     expect(getToken()).toBeNull()
     expect(isLoggedIn()).toBe(false)
@@ -72,7 +72,7 @@ describe('GET deduplication', () => {
     const fetchSpy = mockFetch({ ok: true }, 201)
     vi.stubGlobal('fetch', fetchSpy)
 
-    setAuth('tok', 'user')
+    setAuth('tok', 'user', 'ref')
 
     await Promise.all([
       api.addFavorite(1),
@@ -117,7 +117,7 @@ describe('abort handling', () => {
 
 describe('5xx retry', () => {
   it('retries once on server error then succeeds', async () => {
-    setAuth('tok', 'user')
+    setAuth('tok', 'user', 'ref')
     let calls = 0
     vi.stubGlobal('fetch', () => {
       calls++
@@ -142,7 +142,7 @@ describe('5xx retry', () => {
   })
 
   it('throws after second 5xx failure', async () => {
-    setAuth('tok', 'user')
+    setAuth('tok', 'user', 'ref')
     vi.stubGlobal('fetch', () =>
       Promise.resolve({
         ok: false,
@@ -160,7 +160,7 @@ describe('5xx retry', () => {
 
 describe('network error retry', () => {
   it('retries once on network error then succeeds', async () => {
-    setAuth('tok', 'user')
+    setAuth('tok', 'user', 'ref')
     let calls = 0
     vi.stubGlobal('fetch', () => {
       calls++
@@ -182,7 +182,7 @@ describe('network error retry', () => {
 
 describe('auth header', () => {
   it('includes Authorization header when logged in', async () => {
-    setAuth('my-jwt', 'alice')
+    setAuth('my-jwt', 'alice', 'ref')
     const fetchSpy = mockFetch({ ok: true })
     vi.stubGlobal('fetch', fetchSpy)
 
@@ -207,7 +207,7 @@ describe('auth header', () => {
 
 describe('401 handling', () => {
   it('clears auth and throws on 401', async () => {
-    setAuth('expired-token', 'alice')
+    setAuth('expired-token', 'alice', 'expired-refresh')
     vi.stubGlobal('fetch', mockFetch({}, 401))
 
     await expect(api.getMe()).rejects.toThrow('Session expired')
@@ -223,7 +223,7 @@ describe('204 No Content', () => {
       Promise.resolve({ ok: true, status: 204 })
     )
 
-    setAuth('tok', 'user')
+    setAuth('tok', 'user', 'ref')
     const result = await api.removeFavorite(42)
     expect(result).toBeNull()
   })

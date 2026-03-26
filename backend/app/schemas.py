@@ -1,5 +1,7 @@
 from enum import Enum
 
+import re
+
 from pydantic import BaseModel, EmailStr, Field, model_validator
 from typing import Optional, Literal
 from datetime import datetime
@@ -30,16 +32,26 @@ def _prefer_nobg(url: str | None) -> str | None:
 class UserRegister(BaseModel):
     username: str = Field(..., min_length=2, max_length=30, pattern=r'^[a-zA-Z0-9_]+$')
     email: EmailStr
-    password: str = Field(..., min_length=6, max_length=128)
+    password: str = Field(..., min_length=8, max_length=128)
+
+    @model_validator(mode="after")
+    def password_complexity(self):
+        pw = self.password
+        if not re.search(r"[A-Z]", pw):
+            raise ValueError("Password must contain at least one uppercase letter")
+        if not re.search(r"\d", pw):
+            raise ValueError("Password must contain at least one digit")
+        return self
 
 
 class UserLogin(BaseModel):
     username: str = Field(..., min_length=1, max_length=30)
-    password: str = Field(..., min_length=6, max_length=128)
+    password: str = Field(..., min_length=1, max_length=128)
 
 
 class TokenResponse(BaseModel):
     access_token: str
+    refresh_token: str
     token_type: str = "bearer"
     username: str
 

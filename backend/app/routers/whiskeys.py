@@ -212,7 +212,7 @@ def get_blurb(whiskey_id: int, background_tasks: BackgroundTasks, db: Session = 
 
     api_key = os.getenv("ANTHROPIC_API_KEY")
     if not api_key:
-        return {"blurb": desc if has_blurb else None, "status": "no_key",
+        return {"blurb": desc if has_blurb else None, "status": "unavailable",
                 "flavor_x": whiskey.flavor_x, "flavor_y": whiskey.flavor_y}
 
     # Schedule generation in background — return immediately
