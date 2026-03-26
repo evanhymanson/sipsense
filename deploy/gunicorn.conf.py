@@ -15,6 +15,9 @@ worker_class = "uvicorn.workers.UvicornWorker"
 # Timeout: 120s for slow ML inference or Claude API calls
 timeout = 120
 
+# Keep connections alive for reuse by nginx (avoids new TCP handshake per request)
+keepalive = 5
+
 # Graceful restart timeout
 graceful_timeout = 30
 

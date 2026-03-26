@@ -1,14 +1,15 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import * as Sentry from '@sentry/react'
 import './index.css'
 import App from './App.jsx'
 
-// Initialize Sentry error tracking (only when DSN is configured)
+// Initialize Sentry lazily — keep it off the critical rendering path
 if (import.meta.env.VITE_SENTRY_DSN) {
-  Sentry.init({
-    dsn: import.meta.env.VITE_SENTRY_DSN,
-    environment: import.meta.env.MODE,
+  import('@sentry/react').then(Sentry => {
+    Sentry.init({
+      dsn: import.meta.env.VITE_SENTRY_DSN,
+      environment: import.meta.env.MODE,
+    })
   })
 }
 
