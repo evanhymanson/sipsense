@@ -91,15 +91,16 @@ export default function WhiskeyDetail() {
     setReviewSort('recent')
     setSelectedTags([])
 
-    // Safety timeout — cleared as soon as getWhiskey resolves so it can
-    // never overwrite a successfully loaded page.
+    // Safety timeout: if loading hasn't cleared in 15s, show an error.
+    // Cleared as soon as getWhiskey resolves so it can never overwrite a
+    // successfully loaded page.
     const loadingTimeout = setTimeout(() => {
       if (!cancelled) { setLoading(false); setError('Page took too long to load.') }
     }, 15000)
 
-    // Fire the critical request alone. Secondary requests chain off its
-    // completion so getWhiskey() never competes with them for the
-    // 2-worker backend pool.
+    // Fire the critical render-blocking request first. Secondary requests
+    // are chained off its completion so getWhiskey() never competes with
+    // them for the 2-worker backend pool.
     api.getWhiskey(id)
       .then((w) => {
         if (cancelled) return
