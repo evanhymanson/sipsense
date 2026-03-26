@@ -1903,7 +1903,7 @@ def _build_system_prompt(
 
 def build_agent():
     llm = ChatAnthropic(
-        model=os.environ.get("CLAUDE_MODEL", "claude-sonnet-4-20250514"),
+        model=os.environ.get("CLAUDE_MODEL", "claude-sonnet-4-6"),
         api_key=os.environ.get("ANTHROPIC_API_KEY", ""),
         streaming=True,
     )
