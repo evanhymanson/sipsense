@@ -7,11 +7,15 @@ GET  /auth/me        — get current user info (requires token)
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from .. import models, schemas
 from ..database import get_db
-from ..auth import hash_password, verify_password, create_access_token, get_current_user
+from ..auth import (
+    hash_password, verify_password, create_access_token, create_refresh_token,
+    decode_refresh_token, get_current_user,
+)
 from ..rate_limit import auth_rate_limit
 from ..track import track_action
 from ..analytics_constants import ACTION_REGISTER, ACTION_LOGIN
@@ -41,7 +45,8 @@ def register(body: schemas.UserRegister, db: Session = Depends(get_db), _: None 
     track_action(db, user.username, ACTION_REGISTER)
     db.commit()
     token = create_access_token(user.username)
-    return schemas.TokenResponse(access_token=token, username=user.username)
+    refresh = create_refresh_token(user.username)
+    return schemas.TokenResponse(access_token=token, refresh_token=refresh, username=user.username)
 
 
 @router.post("/login", response_model=schemas.TokenResponse)
@@ -61,7 +66,31 @@ def login(body: schemas.UserLogin, db: Session = Depends(get_db), _: None = Depe
     track_action(db, user.username, ACTION_LOGIN)
     db.commit()
     token = create_access_token(user.username)
-    return schemas.TokenResponse(access_token=token, username=user.username)
+    refresh = create_refresh_token(user.username)
+    return schemas.TokenResponse(access_token=token, refresh_token=refresh, username=user.username)
+
+
+class _RefreshRequest(BaseModel):
+    refresh_token: str
+
+
+@router.post("/refresh", response_model=schemas.TokenResponse)
+def refresh_token(body: _RefreshRequest, db: Session = Depends(get_db)):
+    username = decode_refresh_token(body.refresh_token)
+    if username is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired refresh token",
+        )
+    user = db.query(models.User).filter(models.User.username == username).first()
+    if not user or not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired refresh token",
+        )
+    new_access = create_access_token(user.username)
+    new_refresh = create_refresh_token(user.username)
+    return schemas.TokenResponse(access_token=new_access, refresh_token=new_refresh, username=user.username)
 
 
 @router.get("/me", response_model=schemas.UserRead)

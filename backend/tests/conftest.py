@@ -87,6 +87,7 @@ def client(db_session):
     _rate_buckets.clear()
     from app.rate_limit import auth_rate_limit
     auth_rate_limit._attempts.clear()
+    auth_rate_limit._lockouts.clear()
 
     with TestClient(app, raise_server_exceptions=False) as c:
         yield c
@@ -100,7 +101,7 @@ def auth_headers(client):
     resp = client.post("/auth/register", json={
         "username": "testuser",
         "email": "test@example.com",
-        "password": "password123",
+        "password": "Password123",
     })
     assert resp.status_code == 201, f"Registration failed: {resp.text}"
     token = resp.json()["access_token"]
@@ -112,7 +113,7 @@ def second_auth_headers(client):
     resp = client.post("/auth/register", json={
         "username": "testuser2",
         "email": "test2@example.com",
-        "password": "password456",
+        "password": "Password456",
     })
     assert resp.status_code == 201
     token = resp.json()["access_token"]

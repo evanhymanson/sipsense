@@ -28,7 +28,7 @@ export default function Onboarding() {
       } else {
         data = await api.login(username.trim(), password)
       }
-      setAuth(data.access_token, data.username)
+      setAuth(data.access_token, data.username, data.refresh_token)
       navigate(mode === 'register' ? '/quiz' : '/')
     } catch (err) {
       setError(err.message)
