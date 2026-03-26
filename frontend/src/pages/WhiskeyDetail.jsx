@@ -91,45 +91,61 @@ export default function WhiskeyDetail() {
     setReviewSort('recent')
     setSelectedTags([])
 
-    // Fire ALL requests in parallel — none of the secondary calls need
-    // the whiskey object, they only need the id from the URL.
-    api.getFlavorTags().then(t => { if (!cancelled) setAvailableTags(t) }).catch(() => {})
-
+    // Fire the critical render-blocking request first, then stagger the
+    // heavier secondary requests so getWhiskey() isn't queued behind them
+    // on the 2-worker backend.
     api.getWhiskey(id)
       .then((w) => { if (!cancelled) setWhiskey(w) })
       .catch((e) => { if (!cancelled) setError(e.message) })
       .finally(() => { if (!cancelled) setLoading(false) })
 
-    setBlurbLoading(true)
-    const blurbTimeout = setTimeout(() => {
-      if (!cancelled) { setBlurbLoading(false); setBlurbStatus('timeout') }
+    // Safety timeout: if loading hasn't cleared in 15s, show an error
+    const loadingTimeout = setTimeout(() => {
+      if (!cancelled) { setLoading(false); setError('Page took too long to load.') }
     }, 15000)
-    api.getBlurb(id)
-      .then((r) => {
-        clearTimeout(blurbTimeout)
-        if (cancelled) return
-        setBlurb(r?.blurb || null)
-        setBlurbStatus(r?.status || null)
-        if (r?.flavor_x != null && r?.flavor_y != null) {
-          setWhiskey(prev => prev ? { ...prev, flavor_x: r.flavor_x, flavor_y: r.flavor_y } : prev)
-        }
-      })
-      .catch(() => { clearTimeout(blurbTimeout); if (!cancelled) setBlurbStatus('error') })
-      .finally(() => { if (!cancelled) setBlurbLoading(false) })
 
-    api.getSimilar(id, 5).then(s => { if (!cancelled) setSimilar(s) }).catch(() => {})
-    api.getRatings(id).then(r => { if (!cancelled) setReviews(r) }).catch(() => {})
-    api.getReviewSummary(id).then(r => { if (!cancelled) setReviewSummary(r) }).catch(() => {})
-    setPairingsError(false)
-    setPairingsLoading(true)
-    api.getPairings(id)
-      .then(p => { if (!cancelled) setPairings(p) })
-      .catch(() => { if (!cancelled) setPairingsError(true) })
-      .finally(() => { if (!cancelled) setPairingsLoading(false) })
-    api.getPriceContext(id).then(p => { if (!cancelled) setPriceContext(p) }).catch(() => {})
-    api.getBuyLinks(id).then(b => { if (!cancelled) setBuyLinks(b) }).catch(() => {})
-    api.getWhiskeyVideos(id, { limit: 4 }).then(r => { if (!cancelled) setWhiskeyVideos(r.items || []) }).catch(() => {})
-    return () => { cancelled = true }
+    // Fire secondary requests after a short delay so getWhiskey() gets
+    // priority on the backend worker pool.
+    const secondaryTimer = setTimeout(() => {
+      if (cancelled) return
+      api.getFlavorTags().then(t => { if (!cancelled) setAvailableTags(t) }).catch(() => {})
+
+      setBlurbLoading(true)
+      const blurbTimeout = setTimeout(() => {
+        if (!cancelled) { setBlurbLoading(false); setBlurbStatus('timeout') }
+      }, 15000)
+      api.getBlurb(id)
+        .then((r) => {
+          clearTimeout(blurbTimeout)
+          if (cancelled) return
+          setBlurb(r?.blurb || null)
+          setBlurbStatus(r?.status || null)
+          if (r?.flavor_x != null && r?.flavor_y != null) {
+            setWhiskey(prev => prev ? { ...prev, flavor_x: r.flavor_x, flavor_y: r.flavor_y } : prev)
+          }
+        })
+        .catch(() => { clearTimeout(blurbTimeout); if (!cancelled) setBlurbStatus('error') })
+        .finally(() => { if (!cancelled) setBlurbLoading(false) })
+
+      api.getSimilar(id, 5).then(s => { if (!cancelled) setSimilar(s) }).catch(() => {})
+      api.getRatings(id).then(r => { if (!cancelled) setReviews(r) }).catch(() => {})
+      api.getReviewSummary(id).then(r => { if (!cancelled) setReviewSummary(r) }).catch(() => {})
+      setPairingsError(false)
+      setPairingsLoading(true)
+      api.getPairings(id)
+        .then(p => { if (!cancelled) setPairings(p) })
+        .catch(() => { if (!cancelled) setPairingsError(true) })
+        .finally(() => { if (!cancelled) setPairingsLoading(false) })
+      api.getPriceContext(id).then(p => { if (!cancelled) setPriceContext(p) }).catch(() => {})
+      api.getBuyLinks(id).then(b => { if (!cancelled) setBuyLinks(b) }).catch(() => {})
+      api.getWhiskeyVideos(id, { limit: 4 }).then(r => { if (!cancelled) setWhiskeyVideos(r.items || []) }).catch(() => {})
+    }, 100)
+
+    return () => {
+      cancelled = true
+      clearTimeout(loadingTimeout)
+      clearTimeout(secondaryTimer)
+    }
   }, [id])
 
   // Check if favorited + watching
