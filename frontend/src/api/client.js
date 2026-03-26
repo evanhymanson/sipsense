@@ -51,7 +51,12 @@ async function request(path, options = {}, _retryCount = 0) {
   const promise = _doRequest(path, options, _retryCount)
   if (dedupeKey) {
     _inflight.set(dedupeKey, promise)
-    promise.finally(() => _inflight.delete(dedupeKey))
+    // Use .then(fn, fn) instead of .finally() to avoid creating an unhandled
+    // rejection on the cleanup chain when the original promise rejects.
+    promise.then(
+      () => _inflight.delete(dedupeKey),
+      () => _inflight.delete(dedupeKey),
+    )
   }
   return promise
 }

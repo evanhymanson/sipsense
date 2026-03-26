@@ -31,6 +31,13 @@ class TestGiftFinder:
             "budget": "premium",
         })
         assert resp.status_code == 200
+        data = resp.json()
+        assert isinstance(data["picks"], list)
+        if data["picks"]:
+            pick = data["picks"][0]
+            assert "name" in pick
+            assert "category" in pick
+            assert "why" in pick
 
     def test_style_filter(self, client, sample_whiskeys):
         resp = client.post("/gift/", json={
@@ -45,3 +52,15 @@ class TestGiftFinder:
         for tier in ["budget", "mid", "premium", "luxury"]:
             resp = client.post("/gift/", json={"budget": tier})
             assert resp.status_code == 200
+            data = resp.json()
+            assert isinstance(data["picks"], list)
+            assert isinstance(data["message"], str)
+
+    def test_picks_have_required_fields(self, client, sample_whiskeys):
+        resp = client.post("/gift/", json={"budget": "budget"})
+        data = resp.json()
+        for pick in data["picks"]:
+            assert "id" in pick
+            assert "name" in pick
+            assert "category" in pick
+            assert "price_usd" in pick or "abv" in pick
