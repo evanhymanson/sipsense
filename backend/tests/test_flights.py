@@ -43,6 +43,21 @@ class TestGetFlight:
     def test_world_tour(self, client, sample_whiskeys):
         resp = client.get("/flights/world-tour")
         assert resp.status_code == 200
+        data = resp.json()
+        assert "theme" in data
+        assert "bottles" in data
+        assert isinstance(data["bottles"], list)
+
+    def test_bottle_structure(self, client, sample_whiskeys):
+        resp = client.get("/flights/beginner")
+        data = resp.json()
+        for bottle in data["bottles"]:
+            assert "step" in bottle
+            assert "whiskey" in bottle
+            assert "lesson" in bottle
+            whiskey = bottle["whiskey"]
+            assert "name" in whiskey
+            assert "category" in whiskey
 
     def test_invalid_theme(self, client):
         resp = client.get("/flights/nonexistent")
