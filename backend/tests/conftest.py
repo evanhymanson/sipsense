@@ -243,7 +243,7 @@ def second_user_with_ratings(client, second_auth_headers, sample_whiskeys):
 
 @pytest.fixture()
 def testuser_rating_id(client, auth_headers, sample_whiskeys):
-    """Single rating by testuser -- returns its id."""
+    """Single rating by testuser — returns its id."""
     resp = client.post(
         f"/whiskeys/{sample_whiskeys[0].id}/rate",
         json={"score": 4.0, "notes": "Fixture rating"},
@@ -254,7 +254,7 @@ def testuser_rating_id(client, auth_headers, sample_whiskeys):
 
 @pytest.fixture()
 def testuser2_rating_id(client, second_auth_headers, sample_whiskeys):
-    """Single rating by testuser2 -- returns its id."""
+    """Single rating by testuser2 — returns its id."""
     resp = client.post(
         f"/whiskeys/{sample_whiskeys[1].id}/rate",
         json={"score": 4.5, "notes": "Fixture rating 2"},
