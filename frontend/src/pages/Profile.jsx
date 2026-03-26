@@ -784,7 +784,10 @@ function JournalTab() {
 
 export default function Profile() {
   const navigate = useNavigate()
+  const addToast = useToast()
   const [searchParams, setSearchParams] = useSearchParams()
+  let currentUser = null
+  try { currentUser = localStorage.getItem('sipsense_user') } catch { /* private browsing */ }
   const tabFromUrl = searchParams.get('tab')
   const [activeTab, setActiveTabRaw] = useState(
     TABS.some(t => t.id === tabFromUrl) ? tabFromUrl : 'palate'
@@ -852,6 +855,23 @@ export default function Profile() {
       setListUsers(users)
     } catch { setListUsers([]) }
     finally { setListLoading(false) }
+  }
+
+  async function toggleListFollow(target) {
+    const user = listUsers.find(u => u.username === target)
+    if (!user) return
+    try {
+      if (user.is_following) {
+        await api.unfollowUser(target)
+      } else {
+        await api.followUser(target)
+      }
+      setListUsers(prev => prev.map(u =>
+        u.username === target ? { ...u, is_following: !u.is_following } : u
+      ))
+    } catch {
+      addToast('Failed to update follow', 'error')
+    }
   }
 
   if (loading) {
@@ -1002,11 +1022,19 @@ export default function Profile() {
                 <p className="status">{listModal === 'followers' ? 'No followers yet' : 'Not following anyone yet'}</p>
               ) : (
                 listUsers.map(u => (
-                  <div key={u.username} className="follow-modal-user">
-                    <Link to={`/user/${u.username}`} className="follow-modal-name" onClick={() => setListModal(null)}>
+                  <div key={u.username} className="follow-modal-row">
+                    <Link to={`/user/${u.username}`} className="follow-modal-username" onClick={() => setListModal(null)}>
                       {u.username}
                     </Link>
-                    <span className="follow-modal-meta">{u.total_checkins} check-ins</span>
+                    <span className="follow-modal-meta">{u.total_checkins} check-in{u.total_checkins !== 1 ? 's' : ''}</span>
+                    {currentUser && u.username !== currentUser && (
+                      <button
+                        className={`follow-modal-btn${u.is_following ? ' follow-modal-btn--following' : ''}`}
+                        onClick={() => toggleListFollow(u.username)}
+                      >
+                        {u.is_following ? 'Following' : 'Follow'}
+                      </button>
+                    )}
                   </div>
                 ))
               )}

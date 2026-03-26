@@ -321,7 +321,7 @@ export default function UserProfile() {
               ) : (
                 listUsers.map(u => (
                   <div key={u.username} className="follow-modal-row">
-                    <Link to={`/profile/${u.username}`} className="follow-modal-username" onClick={() => setListModal(null)}>
+                    <Link to={`/user/${u.username}`} className="follow-modal-username" onClick={() => setListModal(null)}>
                       {u.username}
                     </Link>
                     <span className="follow-modal-meta">{u.total_checkins} check-in{u.total_checkins !== 1 ? 's' : ''}</span>
