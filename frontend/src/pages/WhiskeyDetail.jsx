@@ -297,18 +297,20 @@ export default function WhiskeyDetail() {
       {/* ── Hero: bottle image + key info ─────────────────── */}
       <div className="detail-hero">
         <div className={`detail-bottle-bg ${bgCls}`}>
-          <span className="detail-bottle-icon">{emoji}</span>
+          {!whiskey.image_url && <span className="detail-bottle-icon">{emoji}</span>}
           {whiskey.image_url && (
             <img
               src={whiskey.image_url}
               alt={whiskey.name}
               className="detail-bottle-img"
-              width={200}
-              height={400}
               decoding="async"
               onError={(e) => {
                 e.target.style.display = 'none'
-                e.target.parentElement.querySelector('.detail-bottle-icon').style.display = 'flex'
+                const icon = document.createElement('span')
+                icon.className = 'detail-bottle-icon'
+                icon.textContent = emoji
+                icon.style.display = 'flex'
+                e.target.parentElement.appendChild(icon)
               }}
             />
           )}
