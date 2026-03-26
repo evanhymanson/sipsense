@@ -40,7 +40,11 @@ const _inflight = new Map()
 
 async function request(path, options = {}, _retryCount = 0) {
   const method = (options.method || 'GET').toUpperCase()
-  const dedupeKey = method === 'GET' ? path : null
+  // Skip dedup when caller provides their own AbortSignal — the deduped
+  // promise could be tied to a *different* caller's abort lifecycle,
+  // causing "signal is aborted without reason" errors when the original
+  // caller unmounts but the new caller's signal is still active.
+  const dedupeKey = method === 'GET' && !options.signal ? path : null
   if (dedupeKey && _inflight.has(dedupeKey)) {
     return _inflight.get(dedupeKey)
   }
@@ -78,8 +82,14 @@ async function _doRequest(path, options = {}, _retryCount = 0) {
     if (_retryCount === 0 && err.name !== 'AbortError') {
       return request(path, options, 1)
     }
-    if (err.name === 'AbortError' && !options.signal) {
-      throw new Error('Request timed out. Please try again.')
+    if (err.name === 'AbortError') {
+      if (!options.signal) {
+        throw new Error('Request timed out. Please try again.')
+      }
+      // Caller-provided signal was aborted (component unmount, navigation, etc.)
+      // Re-throw as AbortError so callers can detect it, but with a clean message
+      const abort = new DOMException('Request cancelled', 'AbortError')
+      throw abort
     }
     throw err
   }
