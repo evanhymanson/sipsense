@@ -14,15 +14,14 @@ Usage:
 import os
 import sys
 import re
+from io import BytesIO
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from PIL import Image, ImageDraw, ImageFont
 from app.database import SessionLocal
 from app import models
-
-BOTTLES_DIR = os.path.join(os.path.dirname(__file__), "..", "uploads", "bottles")
-os.makedirs(BOTTLES_DIR, exist_ok=True)
+from app.storage import upload_bytes
 
 # Color themes per category (bg, bottle_color, label_bg, label_text, accent)
 CATEGORY_COLORS = {
@@ -235,7 +234,6 @@ def main():
     count = 0
     for w in whiskeys:
         filename = f"{slugify(w.name)}.png"
-        filepath = os.path.join(BOTTLES_DIR, filename)
 
         img = generate_bottle_image(
             name=w.name,
@@ -245,7 +243,10 @@ def main():
             abv=w.abv,
             region=w.region,
         )
-        img.save(filepath, "PNG")
+
+        buf = BytesIO()
+        img.save(buf, "PNG")
+        upload_bytes(buf.getvalue(), f"bottles/{filename}", content_type="image/png")
 
         # Update database with image URL
         w.image_url = f"/uploads/bottles/{filename}"
@@ -254,7 +255,7 @@ def main():
 
     db.commit()
     db.close()
-    print(f"\nGenerated {count} bottle images in {BOTTLES_DIR}")
+    print(f"\nGenerated {count} bottle images -> S3 bottles/")
 
 
 if __name__ == "__main__":

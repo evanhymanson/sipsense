@@ -11,6 +11,8 @@ Usage:
     python -m scripts.fetch_cocktail_images --size 400 # custom size
 """
 
+import os
+import sys
 import argparse
 import json
 import re
@@ -23,7 +25,8 @@ from PIL import Image
 from io import BytesIO
 from tqdm import tqdm
 
-UPLOAD_DIR = Path(__file__).resolve().parent.parent / "uploads" / "cocktails"
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+from app.storage import upload_bytes, list_files
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
@@ -153,7 +156,7 @@ def search_bing_images(query: str, max_results: int = 8) -> list[str]:
     return urls[:max_results]
 
 
-def download_and_resize(url: str, output_path: Path, size: int = 300) -> bool:
+def download_and_resize(url: str, s3_key: str, size: int = 300) -> bool:
     try:
         resp = httpx.get(url, timeout=15, follow_redirects=True, headers=HEADERS)
         resp.raise_for_status()
@@ -176,7 +179,10 @@ def download_and_resize(url: str, output_path: Path, size: int = 300) -> bool:
         img = img.crop((left, top, left + side, top + side))
 
         img = img.resize((size, size), Image.LANCZOS)
-        img.save(output_path, "JPEG", quality=85)
+
+        buf = BytesIO()
+        img.save(buf, "JPEG", quality=85)
+        upload_bytes(buf.getvalue(), s3_key, content_type="image/jpeg")
         return True
 
     except Exception as e:
@@ -185,11 +191,11 @@ def download_and_resize(url: str, output_path: Path, size: int = 300) -> bool:
 
 
 def fetch_all(force: bool = False, size: int = 300):
-    UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+    existing = list_files("cocktails") if not force else set()
 
     items = list(COCKTAIL_ITEMS.items())
     print(f"Fetching images for {len(items)} cocktail items...")
-    print(f"Output: {UPLOAD_DIR}")
+    print(f"Output: S3 cocktails/")
     print(f"Size: {size}x{size}px | Force: {force}\n")
 
     success = 0
@@ -198,9 +204,9 @@ def fetch_all(force: bool = False, size: int = 300):
 
     for name, query in tqdm(items, desc="Downloading"):
         slug = slugify(name)
-        out_path = UPLOAD_DIR / f"{slug}.jpg"
+        filename = f"{slug}.jpg"
 
-        if out_path.exists() and not force:
+        if filename in existing:
             skipped += 1
             continue
 
@@ -208,7 +214,7 @@ def fetch_all(force: bool = False, size: int = 300):
         downloaded = False
 
         for url in urls:
-            if download_and_resize(url, out_path, size):
+            if download_and_resize(url, f"cocktails/{filename}", size):
                 downloaded = True
                 break
 
@@ -221,7 +227,6 @@ def fetch_all(force: bool = False, size: int = 300):
         time.sleep(2.0)
 
     print(f"\nDone! {success} downloaded, {skipped} skipped, {failed} failed")
-    print(f"Images saved to: {UPLOAD_DIR}")
 
 
 if __name__ == "__main__":

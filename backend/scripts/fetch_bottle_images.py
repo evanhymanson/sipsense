@@ -49,11 +49,7 @@ load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"))
 
 from app.database import SessionLocal
 from app import models
-
-BOTTLES_DIR = os.path.abspath(
-    os.path.join(os.path.dirname(__file__), "..", "uploads", "bottles")
-)
-os.makedirs(BOTTLES_DIR, exist_ok=True)
+from app.storage import upload_bytes, list_files
 
 MIN_WIDTH        = 150
 MIN_HEIGHT       = 200
@@ -920,20 +916,9 @@ _hash_lock = _threading.Lock()
 
 
 def _init_saved_hashes():
-    """Scan existing bottle images and populate the hash set."""
-    if not os.path.isdir(BOTTLES_DIR):
-        return
-    for fname in os.listdir(BOTTLES_DIR):
-        fpath = os.path.join(BOTTLES_DIR, fname)
-        if os.path.isfile(fpath):
-            h = hashlib.md5(open(fpath, "rb").read()).hexdigest()
-            _saved_hashes.add(h)
-
-
-NOBG_DIR = os.path.abspath(
-    os.path.join(os.path.dirname(__file__), "..", "uploads", "bottles_nobg")
-)
-os.makedirs(NOBG_DIR, exist_ok=True)
+    """Note: with S3 storage, dedup relies on DB image_url checks.
+    Hash-based dedup only applies within a single run."""
+    pass
 
 # Lazy-loaded rembg session (shared across threads via lock)
 _rembg_session = None
@@ -983,7 +968,7 @@ def _remove_background(img: Image.Image) -> Image.Image:
 
 
 def save_image(img: Image.Image, name: str, whiskey_id: int) -> str | None:
-    """Save original image, dedup by hash. BG removal runs separately after.
+    """Remove background, dedup by hash, upload to S3 (bottles_nobg/).
     Returns relative path on success, None if duplicate."""
 
     result = img.convert("RGB")
@@ -1001,10 +986,20 @@ def save_image(img: Image.Image, name: str, whiskey_id: int) -> str | None:
         _saved_hashes.add(img_hash)
 
     filename = f"{whiskey_id}-{slugify(name)}.png"
-    with open(os.path.join(BOTTLES_DIR, filename), "wb") as f:
-        f.write(img_bytes)
 
-    return f"/uploads/bottles/{filename}"
+    # Upload original to bottles/ (kept as reference)
+    upload_bytes(img_bytes, f"bottles/{filename}", content_type="image/png")
+
+    # Remove background and upload to bottles_nobg/
+    try:
+        nobg = _remove_background(result)
+        nobg_buf = _BytesIO()
+        nobg.save(nobg_buf, "PNG", optimize=True)
+        upload_bytes(nobg_buf.getvalue(), f"bottles_nobg/{filename}", content_type="image/png")
+    except Exception as e:
+        print(f"  BG removal failed for {filename}: {e}")
+
+    return f"/uploads/bottles_nobg/{filename}"
 
 
 # ── Core fetch ───────────────────────────────────────────────────────────
@@ -1151,7 +1146,7 @@ def main():
     cse_label = "Google CSE" if use_google_cse else "Bing scraping"
     ai_label = "Claude Vision" if use_ocr else "none"
     print(f"Processing {total} whiskeys  (overwrite={args.overwrite}, ai_verify={ai_label}, search={cse_label})")
-    print(f"Images -> {BOTTLES_DIR}\n")
+    print(f"Images -> S3 bottles_nobg/\n")
 
     # Initialize hash dedup from existing images on disk
     _init_saved_hashes()
