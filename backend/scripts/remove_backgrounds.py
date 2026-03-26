@@ -31,17 +31,12 @@ import os
 import sys
 import time
 import argparse
+from io import BytesIO
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from PIL import Image
-
-BOTTLES_DIR = os.path.abspath(
-    os.path.join(os.path.dirname(__file__), "..", "uploads", "bottles")
-)
-OUTPUT_DIR = os.path.abspath(
-    os.path.join(os.path.dirname(__file__), "..", "uploads", "bottles_nobg")
-)
+from app.storage import upload_bytes, download_bytes, list_files
 
 
 # ── BiRefNet provider (HuggingFace transformers + PyTorch) ────────────────
@@ -158,10 +153,11 @@ def trim_transparent(img: Image.Image, margin: int = 8) -> Image.Image:
     return img.crop((x0, y0, x1, y1))
 
 
-def process_image(provider, input_path: str, output_path: str) -> bool:
-    """Remove background from a single image using the given provider."""
+def process_image(provider, filename: str) -> bool:
+    """Download from S3 bottles/, remove background, upload to S3 bottles_nobg/."""
     try:
-        img = Image.open(input_path)
+        img_bytes = download_bytes(f"bottles/{filename}")
+        img = Image.open(BytesIO(img_bytes))
         img.load()
 
         result = provider.remove_background(img)
@@ -175,7 +171,10 @@ def process_image(provider, input_path: str, output_path: str) -> bool:
         if result.width < 80 or result.height < 80:
             return False
 
-        result.save(output_path, "PNG", optimize=True)
+        out_name = os.path.splitext(filename)[0] + ".png"
+        buf = BytesIO()
+        result.save(buf, "PNG", optimize=True)
+        upload_bytes(buf.getvalue(), f"bottles_nobg/{out_name}", content_type="image/png")
         return True
 
     except Exception as e:
@@ -207,8 +206,6 @@ def main():
     )
     args = parser.parse_args()
 
-    os.makedirs(OUTPUT_DIR, exist_ok=True)
-
     # Initialize the segmentation provider
     if args.provider == "birefnet":
         try:
@@ -219,15 +216,14 @@ def main():
     else:
         provider = RembgProvider()
 
-    # Find all source images
+    # Find all source images from S3 (or local)
     source_files = sorted([
-        f for f in os.listdir(BOTTLES_DIR)
+        f for f in list_files("bottles")
         if f.lower().endswith((".png", ".jpg", ".jpeg"))
-        and os.path.isfile(os.path.join(BOTTLES_DIR, f))
     ])
 
     if args.skip_existing:
-        existing = set(os.listdir(OUTPUT_DIR))
+        existing = list_files("bottles_nobg")
         source_files = [f for f in source_files if f not in existing]
 
     if args.limit:
@@ -236,21 +232,16 @@ def main():
     total = len(source_files)
     print(f"Processing {total} bottle images")
     print(f"  Provider: {args.provider}")
-    print(f"  Input:    {BOTTLES_DIR}")
-    print(f"  Output:   {OUTPUT_DIR}\n")
+    print(f"  Input:    S3 bottles/")
+    print(f"  Output:   S3 bottles_nobg/\n")
 
     success = 0
     failed = 0
     start_time = time.time()
 
     for i, filename in enumerate(source_files, 1):
-        input_path = os.path.join(BOTTLES_DIR, filename)
-        # Always output as PNG regardless of input format
-        out_name = os.path.splitext(filename)[0] + ".png"
-        output_path = os.path.join(OUTPUT_DIR, out_name)
-
         t0 = time.time()
-        ok = process_image(provider, input_path, output_path)
+        ok = process_image(provider, filename)
         elapsed = time.time() - t0
 
         if ok:
@@ -267,7 +258,6 @@ def main():
     avg = total_time / total if total else 0
     print(f"\nDone — {success}/{total} ({pct}%) processed, {failed} failed")
     print(f"Total time: {total_time:.0f}s ({avg:.1f}s avg per image)")
-    print(f"Output: {OUTPUT_DIR}")
 
     # Update DB to point to processed images
     if success > 0 and not args.skip_db:
@@ -276,10 +266,10 @@ def main():
         from app import models
         db = SessionLocal()
         updated = 0
+        nobg_files = list_files("bottles_nobg")
         for filename in source_files:
             out_name = os.path.splitext(filename)[0] + ".png"
-            nobg_path = os.path.join(OUTPUT_DIR, out_name)
-            if os.path.isfile(nobg_path):
+            if out_name in nobg_files:
                 try:
                     wid = int(filename.split("-", 1)[0])
                 except (ValueError, IndexError):

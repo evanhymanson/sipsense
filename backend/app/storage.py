@@ -18,6 +18,8 @@ AWS_REGION = os.getenv("AWS_REGION", "us-east-2")
 
 _UPLOADS_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "uploads"))
 
+CACHE_CONTROL = "public, max-age=31536000, immutable"
+
 _s3_client = None
 
 
@@ -39,7 +41,7 @@ def upload_file(local_path: str, s3_key: str, content_type: str | None = None) -
     if not s3:
         return f"/uploads/{s3_key}"
 
-    extra = {}
+    extra = {"CacheControl": CACHE_CONTROL}
     if content_type:
         extra["ContentType"] = content_type
 
@@ -51,14 +53,39 @@ def upload_bytes(data: bytes, s3_key: str, content_type: str | None = None) -> s
     """Upload raw bytes to S3.  Returns the CDN URL (or local path in dev)."""
     s3 = _get_s3()
     if not s3:
+        # Dev fallback: write to local disk
+        local_path = os.path.join(_UPLOADS_ROOT, s3_key)
+        os.makedirs(os.path.dirname(local_path), exist_ok=True)
+        with open(local_path, "wb") as f:
+            f.write(data)
         return f"/uploads/{s3_key}"
 
-    extra = {}
+    extra = {"CacheControl": CACHE_CONTROL}
     if content_type:
         extra["ContentType"] = content_type
 
     s3.put_object(Bucket=S3_BUCKET, Key=f"uploads/{s3_key}", Body=data, **extra)
     return f"{CDN_BASE_URL}/uploads/{s3_key}"
+
+
+def download_bytes(s3_key: str) -> bytes:
+    """Download a file from S3 as bytes.  Falls back to local disk in dev."""
+    s3 = _get_s3()
+    if not s3:
+        local_path = os.path.join(_UPLOADS_ROOT, s3_key)
+        with open(local_path, "rb") as f:
+            return f.read()
+
+    resp = s3.get_object(Bucket=S3_BUCKET, Key=f"uploads/{s3_key}")
+    return resp["Body"].read()
+
+
+def list_files(subdir: str) -> set[str]:
+    """List filenames in an uploads subdirectory (local or S3).
+
+    Public wrapper around _load_file_set for use in scripts.
+    """
+    return _load_file_set(subdir)
 
 
 def file_exists_local(relative_path: str) -> bool:
