@@ -1,14 +1,14 @@
 import { BrowserRouter, Routes, Route, NavLink, useNavigate, useLocation, Navigate } from 'react-router-dom'
 import { useState, useEffect, Component, lazy, Suspense } from 'react'
-import Onboarding from './pages/Onboarding'
-import ChatSidebar from './components/ChatSidebar'
 import { isLoggedIn, getUsername, clearAuth, api } from './api/client'
 import { trackPageView, trackEvent, startPageTimer, endPageTimer } from './api/analytics'
 import { ToastProvider } from './components/Toast'
-import InstallPrompt from './components/InstallPrompt'
 import './App.css'
 
-// Lazy-load page components for code splitting
+// Lazy-load page components and non-critical UI for code splitting
+const Onboarding = lazy(() => import('./pages/Onboarding'))
+const ChatSidebar = lazy(() => import('./components/ChatSidebar'))
+const InstallPrompt = lazy(() => import('./components/InstallPrompt'))
 const Browse = lazy(() => import('./pages/Browse'))
 const WhiskeyDetail = lazy(() => import('./pages/WhiskeyDetail'))
 const Discover = lazy(() => import('./pages/Discover'))
