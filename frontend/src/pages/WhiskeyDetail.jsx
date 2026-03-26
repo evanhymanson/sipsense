@@ -149,21 +149,7 @@ export default function WhiskeyDetail() {
       cancelled = true
       clearTimeout(loadingTimeout)
     }
-  }, [id, retryKey])
-
-  // Auto-retry when tab returns from background with an error.
-  // Browsers throttle/kill fetches in background tabs, causing timeouts
-  // that aren't real failures.
-  useEffect(() => {
-    function onVisible() {
-      if (document.visibilityState === 'visible' && error) {
-        setError(null)
-        setRetryKey(k => k + 1)
-      }
-    }
-    document.addEventListener('visibilitychange', onVisible)
-    return () => document.removeEventListener('visibilitychange', onVisible)
-  }, [error])
+  }, [id])
 
   // Check if favorited + watching
   useEffect(() => {

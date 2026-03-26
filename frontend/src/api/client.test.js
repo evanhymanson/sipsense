@@ -21,11 +21,6 @@ function mockFetch(body = {}, status = 200) {
   )
 }
 
-/** Stub fetch that rejects with a network error. */
-function mockFetchError(message = 'network error') {
-  return vi.fn(() => Promise.reject(new TypeError(message)))
-}
-
 beforeEach(() => {
   vi.useFakeTimers()
   localStorage.clear()
