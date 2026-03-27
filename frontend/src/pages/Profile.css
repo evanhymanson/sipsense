@@ -219,8 +219,10 @@
 .prof-ai-btn {
   margin-top: 0.5rem; padding: 0.4rem 1rem;
   background: var(--amber-dim); color: var(--amber); border: 1px solid var(--amber);
-  border-radius: 999px; font-size: 0.78rem; cursor: pointer;
+  border-radius: 999px; font-size: 0.78rem; font-family: inherit; font-weight: 600;
+  cursor: pointer;
 }
+.prof-ai-btn:hover { background: var(--amber); color: #1a1a1a; }
 .prof-ai-loading { font-size: 0.82rem; color: var(--text-muted); font-style: italic; }
 
 .prof-bars { display: flex; flex-direction: column; gap: 0.35rem; }

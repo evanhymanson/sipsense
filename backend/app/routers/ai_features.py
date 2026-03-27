@@ -200,7 +200,8 @@ palate portrait for this user based on their data. Be specific, personal, and en
 User data: {json.dumps(data)}
 
 Write like you're a friend who really gets their taste. Reference specific patterns you notice.
-Suggest what direction their palate might naturally evolve toward. Keep it under 200 words."""
+Suggest what direction their palate might naturally evolve toward. Keep it under 200 words.
+Do not use any markdown formatting — no bold, no italics, no asterisks, no headers. Plain text only."""
 
     try:
         client = _get_client()
