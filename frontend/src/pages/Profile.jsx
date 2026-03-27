@@ -799,8 +799,12 @@ export default function Profile() {
   const [activeTab, setActiveTabRaw] = useState(
     TABS.some(t => t.id === tabFromUrl) ? tabFromUrl : 'palate'
   )
+  const [visitedTabs, setVisitedTabs] = useState(() => new Set([
+    TABS.some(t => t.id === tabFromUrl) ? tabFromUrl : 'palate'
+  ]))
   const setActiveTab = useCallback((id) => {
     setActiveTabRaw(id)
+    setVisitedTabs(prev => prev.has(id) ? prev : new Set([...prev, id]))
     setSearchParams({ tab: id }, { replace: true })
   }, [setSearchParams])
   const [personality, setPersonality] = useState(null)
@@ -1000,20 +1004,23 @@ export default function Profile() {
 
       {/* ── Tab Content ──────────────────────────────────────── */}
       <div className="prof-tab-content" role="tabpanel">
-        {activeTab === 'palate' && <PalateTab palateData={palateData} />}
-        {activeTab === 'foryou' && <ForYouTab />}
-        {activeTab === 'favorites' && <FavoritesTab />}
-        {activeTab === 'collection' && <CollectionTab initialStats={initialColStats} />}
-        {activeTab === 'journal' && <JournalTab initialEntries={initialJournal?.entries} />}
-        {activeTab === 'badges' && (
-          palateData?.badges?.length > 0
-            ? <BadgeGrid badges={palateData.badges} showDate />
-            : <div className="prof-empty-state">
-                <div className="prof-empty-icon">🏆</div>
-                <h2>No badges yet</h2>
-                <p>Rate whiskeys and explore to earn achievements!</p>
-                <button className="prof-cta-btn" onClick={() => navigate('/')}>Browse Whiskeys</button>
-              </div>
+        {visitedTabs.has('palate') && <div style={{ display: activeTab === 'palate' ? undefined : 'none' }}><PalateTab palateData={palateData} /></div>}
+        {visitedTabs.has('foryou') && <div style={{ display: activeTab === 'foryou' ? undefined : 'none' }}><ForYouTab /></div>}
+        {visitedTabs.has('favorites') && <div style={{ display: activeTab === 'favorites' ? undefined : 'none' }}><FavoritesTab /></div>}
+        {visitedTabs.has('collection') && <div style={{ display: activeTab === 'collection' ? undefined : 'none' }}><CollectionTab initialStats={initialColStats} /></div>}
+        {visitedTabs.has('journal') && <div style={{ display: activeTab === 'journal' ? undefined : 'none' }}><JournalTab initialEntries={initialJournal?.entries} /></div>}
+        {visitedTabs.has('badges') && (
+          <div style={{ display: activeTab === 'badges' ? undefined : 'none' }}>
+            {palateData?.badges?.length > 0
+              ? <BadgeGrid badges={palateData.badges} showDate />
+              : <div className="prof-empty-state">
+                  <div className="prof-empty-icon">🏆</div>
+                  <h2>No badges yet</h2>
+                  <p>Rate whiskeys and explore to earn achievements!</p>
+                  <button className="prof-cta-btn" onClick={() => navigate('/')}>Browse Whiskeys</button>
+                </div>
+            }
+          </div>
         )}
       </div>
 
