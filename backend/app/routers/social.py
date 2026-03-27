@@ -490,3 +490,116 @@ def get_user_profile(
         following_count=following_count,
         is_following=is_following,
     )
+
+
+# ── User Ratings (paginated) ────────────────────────────────────────────
+
+@router.get("/users/{username}/ratings", response_model=schemas.UserRatingsResponse)
+def get_user_ratings(
+    username: str,
+    sort_by: schemas.ReviewSortOption = Query(
+        schemas.ReviewSortOption.recent, description="Sort order"
+    ),
+    skip: int = Query(0, ge=0, le=10000),
+    limit: int = Query(10, ge=1, le=50),
+    current_user: Optional[models.User] = Depends(get_optional_user),
+    db: Session = Depends(get_db),
+):
+    """Paginated, sortable list of a user's check-ins with whiskey info."""
+    user = db.query(models.User).filter(models.User.username == username).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    base_q = db.query(models.UserRating).filter(models.UserRating.user_id == username)
+    total = base_q.count()
+
+    # Apply sort order
+    if sort_by == schemas.ReviewSortOption.highest:
+        base_q = base_q.order_by(models.UserRating.score.desc(), models.UserRating.created_at.desc())
+    elif sort_by == schemas.ReviewSortOption.lowest:
+        base_q = base_q.order_by(models.UserRating.score.asc(), models.UserRating.created_at.desc())
+    elif sort_by == schemas.ReviewSortOption.helpful:
+        toast_sub = (
+            db.query(
+                models.Toast.rating_id,
+                sqlfunc.count(models.Toast.id).label("tc"),
+            )
+            .group_by(models.Toast.rating_id)
+            .subquery()
+        )
+        base_q = (
+            base_q.outerjoin(toast_sub, models.UserRating.id == toast_sub.c.rating_id)
+            .order_by(toast_sub.c.tc.desc().nullslast(), models.UserRating.created_at.desc())
+        )
+    else:  # recent
+        base_q = base_q.order_by(models.UserRating.created_at.desc())
+
+    ratings = (
+        base_q
+        .options(joinedload(models.UserRating.whiskey))
+        .offset(skip)
+        .limit(limit + 1)
+        .all()
+    )
+    has_more = len(ratings) > limit
+    ratings = ratings[:limit]
+
+    # Batch-load toast counts, comment counts, user toast status
+    rating_ids = [r.id for r in ratings]
+    toast_counts: dict[int, int] = {}
+    comment_counts: dict[int, int] = {}
+    user_toasts: set[int] = set()
+
+    if rating_ids:
+        counts = (
+            db.query(models.Toast.rating_id, sqlfunc.count(models.Toast.id))
+            .filter(models.Toast.rating_id.in_(rating_ids))
+            .group_by(models.Toast.rating_id)
+            .all()
+        )
+        toast_counts = {rid: cnt for rid, cnt in counts}
+
+        c_rows = (
+            db.query(models.CheckInComment.rating_id, sqlfunc.count(models.CheckInComment.id))
+            .filter(models.CheckInComment.rating_id.in_(rating_ids))
+            .group_by(models.CheckInComment.rating_id)
+            .all()
+        )
+        comment_counts = {rid: cnt for rid, cnt in c_rows}
+
+        if current_user:
+            user_toast_rows = (
+                db.query(models.Toast.rating_id)
+                .filter(
+                    models.Toast.rating_id.in_(rating_ids),
+                    models.Toast.user_id == current_user.username,
+                )
+                .all()
+            )
+            user_toasts = {row[0] for row in user_toast_rows}
+
+    items = []
+    for r in ratings:
+        if r.whiskey is None:
+            continue
+        items.append(schemas.FeedItem(
+            rating=schemas.RatingRead(
+                id=r.id,
+                user_id=r.user_id,
+                whiskey_id=r.whiskey_id,
+                score=r.score,
+                notes=r.notes,
+                serving_style=r.serving_style,
+                location_note=r.location_note,
+                image_url=r.image_url,
+                created_at=r.created_at,
+                toast_count=toast_counts.get(r.id, 0),
+            ),
+            whiskey=schemas.WhiskeyRead.model_validate(r.whiskey),
+            username=r.user_id,
+            toast_count=toast_counts.get(r.id, 0),
+            user_toasted=r.id in user_toasts,
+            comment_count=comment_counts.get(r.id, 0),
+        ))
+
+    return schemas.UserRatingsResponse(items=items, total=total, has_more=has_more)

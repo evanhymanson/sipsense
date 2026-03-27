@@ -363,6 +363,53 @@
   color: var(--red);
 }
 
+/* Reviews section header with sort dropdown */
+.profile-reviews-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.profile-reviews-header h2 {
+  margin-bottom: 0;
+}
+
+.profile-reviews-empty {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  text-align: center;
+  padding: 1.5rem 0;
+}
+
+.profile-load-more-btn {
+  display: block;
+  width: 100%;
+  padding: 0.75rem;
+  margin-top: 0.75rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--amber-light);
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.profile-load-more-btn:hover:not(:disabled) {
+  border-color: var(--amber);
+  background: rgba(200, 154, 43, 0.08);
+}
+
+.profile-load-more-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
 @media (max-width: 500px) {
   .profile-stats {
     grid-template-columns: repeat(2, 1fr);
