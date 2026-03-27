@@ -158,6 +158,14 @@ def _ensure_indexes():
         # Top lists
         ("idx_toplistitem_list", "top_list_items", "list_id"),
         ("idx_toplistitem_whiskey", "top_list_items", "whiskey_id"),
+        # User-created lists
+        ("idx_userlist_user", "user_lists", "user_id"),
+        ("idx_userlist_slug", "user_lists", "slug"),
+        ("idx_userlistitem_list", "user_list_items", "list_id"),
+        ("idx_userlistitem_whiskey", "user_list_items", "whiskey_id"),
+        # Critic scores
+        ("idx_critic_whiskey", "critic_scores", "whiskey_id"),
+        ("idx_critic_source", "critic_scores", "source"),
     ]
     # Composite indexes for common query patterns (e.g. feed: WHERE user_id=? ORDER BY created_at DESC)
     _composite_indexes = [

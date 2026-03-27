@@ -368,6 +368,8 @@ class PublicProfile(BaseModel):
     follower_count: int = 0
     following_count: int = 0
     is_following: bool = False
+    level: dict | None = None
+    user_lists: list[dict] = []
 
 
 # ── Watchlist & Alerts ────────────────────────────────────────────────────
@@ -521,3 +523,102 @@ class TopListSummary(BaseModel):
 
 class TopListDetail(TopListSummary):
     items: list[TopListItemRead] = []
+
+# ── User Levels ──────────────────────────────────────────────────────────
+
+
+class UserLevel(BaseModel):
+    rank: int
+    name: str
+    emoji: str
+    points: int
+    next_level_name: str | None = None
+    next_level_points: int | None = None
+    progress_pct: float = 0.0
+
+
+# ── User-Created Lists ──────────────────────────────────────────────────
+
+
+class UserListCreate(BaseModel):
+    title: str
+    description: str | None = None
+    is_public: bool = True
+    whiskey_ids: list[int] = []
+
+
+class UserListUpdate(BaseModel):
+    title: str | None = None
+    description: str | None = None
+    is_public: bool | None = None
+
+
+class UserListItemAdd(BaseModel):
+    whiskey_id: int
+    note: str | None = None
+
+
+class UserListReorder(BaseModel):
+    whiskey_ids: list[int]
+
+
+class UserListItemRead(BaseModel):
+    position: int
+    whiskey: WhiskeyRead
+    note: str | None = None
+    added_at: datetime | None = None
+
+    model_config = {"from_attributes": True}
+
+
+class UserListSummary(BaseModel):
+    id: int
+    slug: str
+    title: str
+    description: str | None = None
+    is_public: bool = True
+    username: str
+    item_count: int = 0
+    preview_whiskeys: list[WhiskeyRead] = []
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+
+    model_config = {"from_attributes": True}
+
+
+class UserListDetail(UserListSummary):
+    items: list[UserListItemRead] = []
+
+
+# ── Critic / Expert Scores ──────────────────────────────────────────────
+
+
+class CriticScoreRead(BaseModel):
+    id: int
+    source: str
+    source_display: str
+    score: float
+    max_score: float = 100.0
+    normalized_score: float = 0.0
+    review_year: int | None = None
+    review_text: str | None = None
+    url: str | None = None
+
+    model_config = {"from_attributes": True}
+
+
+class CriticScoreCreate(BaseModel):
+    whiskey_id: int
+    source: str
+    source_display: str
+    score: float
+    max_score: float = 100.0
+    review_year: int | None = None
+    review_text: str | None = None
+    url: str | None = None
+
+
+class WhiskeyCriticScores(BaseModel):
+    whiskey_id: int
+    scores: list[CriticScoreRead] = []
+    avg_critic_score: float | None = None

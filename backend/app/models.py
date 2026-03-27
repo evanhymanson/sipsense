@@ -500,6 +500,70 @@ class TopListItem(Base):
     whiskey = relationship("Whiskey")
 
 
+
+# ── User-Created Lists ───────────────────────────────────────────────
+
+
+class UserList(Base):
+    __tablename__ = "user_lists"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(String, nullable=False, index=True)
+    slug = Column(String, unique=True, nullable=False, index=True)
+    title = Column(String(200), nullable=False)
+    description = Column(Text)
+    is_public = Column(Boolean, default=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    items = relationship(
+        "UserListItem",
+        back_populates="user_list",
+        order_by="UserListItem.position",
+        cascade="all, delete-orphan",
+    )
+
+
+class UserListItem(Base):
+    __tablename__ = "user_list_items"
+    __table_args__ = (
+        UniqueConstraint("list_id", "whiskey_id", name="uq_userlist_whiskey"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    list_id = Column(Integer, ForeignKey("user_lists.id", ondelete="CASCADE"), nullable=False, index=True)
+    whiskey_id = Column(Integer, ForeignKey("whiskeys.id", ondelete="CASCADE"), nullable=False, index=True)
+    position = Column(Integer, nullable=False)
+    note = Column(Text)
+    added_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    user_list = relationship("UserList", back_populates="items")
+    whiskey = relationship("Whiskey")
+
+
+# ── Critic / Expert Scores ───────────────────────────────────────────
+
+
+class CriticScore(Base):
+    __tablename__ = "critic_scores"
+    __table_args__ = (
+        UniqueConstraint("whiskey_id", "source", name="uq_critic_whiskey_source"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    whiskey_id = Column(Integer, ForeignKey("whiskeys.id", ondelete="CASCADE"), nullable=False, index=True)
+    source = Column(String(100), nullable=False, index=True)
+    source_display = Column(String(200), nullable=False)
+    score = Column(Float, nullable=False)
+    max_score = Column(Float, nullable=False, default=100)
+    review_year = Column(Integer)
+    review_text = Column(Text)
+    url = Column(String)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    whiskey = relationship("Whiskey")
+
 # ── AI Response Cache ─────────────────────────────────────────────────
 
 
