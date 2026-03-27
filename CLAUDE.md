@@ -94,8 +94,10 @@ CI runs both on every PR and push to main.
 
 **Never commit directly to `main`.** All work goes through feature branches and pull requests.
 
+**CRITICAL: Before writing ANY code or making ANY file changes, you MUST create a new feature branch first.** Do not start editing files while on `main` or on a stale branch. The very first action for any new task is to create a branch. No exceptions.
+
 ### For every task:
-1. **Create a feature branch** before making any changes:
+1. **Create a feature branch FIRST** — before making any changes, before reading code to modify, before anything else:
    ```
    git checkout main && git pull
    git checkout -b feature/<short-description>
