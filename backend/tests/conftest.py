@@ -268,3 +268,116 @@ def testuser2_rating_id(client, second_auth_headers, sample_whiskeys):
 def both_users_with_ratings(sample_user_with_ratings, second_user_with_ratings):
     """Both testuser and testuser2 have ratings. Returns (headers1, headers2)."""
     return sample_user_with_ratings, second_user_with_ratings
+
+
+# ── Fixtures for new test files ──────────────────────────────────────────
+
+
+@pytest.fixture()
+def sample_journey(db_session, sample_whiskeys):
+    """A 3-step bourbon journey using sample whiskeys."""
+    journey = models.Journey(
+        slug="bourbon-basics",
+        title="Bourbon Basics",
+        description="Learn the fundamentals of bourbon",
+        category="bourbon",
+        difficulty="beginner",
+        bottle_count=3,
+        image_emoji="\U0001f943",
+    )
+    db_session.add(journey)
+    db_session.flush()
+
+    for i, w in enumerate(sample_whiskeys[:3]):
+        step = models.JourneyStep(
+            journey_id=journey.id,
+            step_number=i + 1,
+            whiskey_id=w.id,
+            lesson_text=f"Step {i + 1} lesson",
+            tasting_prompt=f"Step {i + 1} prompt",
+        )
+        db_session.add(step)
+    db_session.flush()
+    return journey
+
+
+@pytest.fixture()
+def sample_video(db_session, auth_headers, sample_whiskeys):
+    """A video record (no actual file -- just DB entry)."""
+    # auth_headers creates "testuser", so we can reference it
+    video = models.Video(
+        user_id="testuser",
+        title="Test Video",
+        description="A test video",
+        video_path="videos/test123.mp4",
+        thumbnail_path="videos/thumbs/test123.jpg",
+        duration_seconds=30.0,
+        whiskey_id=sample_whiskeys[0].id,
+        status="active",
+        view_count=0,
+    )
+    db_session.add(video)
+    db_session.flush()
+    return video
+
+
+@pytest.fixture()
+def sample_top_list_curated(db_session, sample_whiskeys):
+    """A curated top list with 3 whiskeys."""
+    tl = models.TopList(
+        slug="best-bourbons",
+        title="Best Bourbons",
+        description="Top bourbon picks",
+        list_type="curated",
+        category="bourbon",
+        is_active=True,
+        display_order=1,
+    )
+    db_session.add(tl)
+    db_session.flush()
+
+    for i, w in enumerate(sample_whiskeys[:3]):
+        item = models.TopListItem(
+            list_id=tl.id,
+            whiskey_id=w.id,
+            rank=i + 1,
+            note=f"Rank {i + 1} pick",
+        )
+        db_session.add(item)
+    db_session.flush()
+    return tl
+
+
+@pytest.fixture()
+def sample_top_list_dynamic(db_session, sample_whiskeys):
+    """A dynamic top list filtering by rating."""
+    tl = models.TopList(
+        slug="top-rated",
+        title="Top Rated Whiskeys",
+        description="Highest rated bottles",
+        list_type="dynamic",
+        category=None,
+        filters_json='{"sort": "rating", "min_rating": 3.5}',
+        is_active=True,
+        display_order=2,
+    )
+    db_session.add(tl)
+    db_session.flush()
+    return tl
+
+
+@pytest.fixture()
+def sample_sponsored_placement(db_session, sample_whiskeys):
+    """An active sponsored placement."""
+    sp = models.SponsoredPlacement(
+        advertiser_name="Test Distillery",
+        whiskey_id=sample_whiskeys[0].id,
+        placement_type="feed",
+        title="Featured Bourbon",
+        description="A great bourbon",
+        is_active=True,
+        priority=10,
+    )
+    db_session.add(sp)
+    db_session.flush()
+    return sp
