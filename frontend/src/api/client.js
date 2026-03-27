@@ -270,6 +270,10 @@ export const api = {
     request(`/ratings/${ratingId}/toast`, { method: 'POST' }),
   removeToast: (ratingId) =>
     request(`/ratings/${ratingId}/toast`, { method: 'DELETE' }),
+  markHelpful: (ratingId) =>
+    request(`/ratings/${ratingId}/helpful`, { method: 'POST' }),
+  unmarkHelpful: (ratingId) =>
+    request(`/ratings/${ratingId}/helpful`, { method: 'DELETE' }),
   getUserProfile: (username) =>
     request(`/users/${username}/profile`),
   followUser: (username) =>
@@ -429,6 +433,17 @@ export const api = {
     request(`/analytics/feature-adoption?days=${days}`),
   getAnalyticsPerformance: (days = 7) =>
     request(`/analytics/performance?days=${days}`),
+
+  // ── Match Scores ────────────────────────────────────────────────────────
+  getMatchScores: (whiskeyIds) =>
+    request('/match-scores/batch', {
+      method: 'POST',
+      body: JSON.stringify(whiskeyIds),
+    }),
+
+  // ── Top Lists ──────────────────────────────────────────────────────────
+  getTopLists: () => request('/toplists/'),
+  getTopList: (slug, limit = 20) => request(`/toplists/${slug}?limit=${limit}`),
 
   // ── Chat — returns raw Response for SSE stream ───────────────────────────
   chatStream: (messages, session_id = null, user_location = null, signal = null) => {

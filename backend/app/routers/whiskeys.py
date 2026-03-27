@@ -657,17 +657,17 @@ def get_ratings(
     elif sort_by == schemas.ReviewSortOption.lowest:
         query = query.order_by(models.UserRating.score.asc(), models.UserRating.created_at.desc())
     elif sort_by == schemas.ReviewSortOption.helpful:
-        toast_sub = (
+        helpful_sub = (
             db.query(
-                models.Toast.rating_id,
-                func.count(models.Toast.id).label("tc"),
+                models.ReviewHelpful.rating_id,
+                func.count(models.ReviewHelpful.id).label("hc"),
             )
-            .group_by(models.Toast.rating_id)
+            .group_by(models.ReviewHelpful.rating_id)
             .subquery()
         )
         query = (
-            query.outerjoin(toast_sub, models.UserRating.id == toast_sub.c.rating_id)
-            .order_by(toast_sub.c.tc.desc().nullslast(), models.UserRating.created_at.desc())
+            query.outerjoin(helpful_sub, models.UserRating.id == helpful_sub.c.rating_id)
+            .order_by(helpful_sub.c.hc.desc().nullslast(), models.UserRating.created_at.desc())
         )
     else:  # recent (default)
         query = query.order_by(models.UserRating.created_at.desc())
@@ -676,6 +676,7 @@ def get_ratings(
 
     rating_ids = [r.id for r in ratings]
     toast_counts: dict[int, int] = {}
+    helpful_counts: dict[int, int] = {}
     tag_map: dict[int, list[str]] = {}
     if rating_ids:
         counts = (
@@ -685,6 +686,14 @@ def get_ratings(
             .all()
         )
         toast_counts = {rid: cnt for rid, cnt in counts}
+
+        h_counts = (
+            db.query(models.ReviewHelpful.rating_id, func.count(models.ReviewHelpful.id))
+            .filter(models.ReviewHelpful.rating_id.in_(rating_ids))
+            .group_by(models.ReviewHelpful.rating_id)
+            .all()
+        )
+        helpful_counts = {rid: cnt for rid, cnt in h_counts}
 
         tag_rows = (
             db.query(models.ReviewFlavorTag.rating_id, models.ReviewFlavorTag.tag_name)
@@ -706,6 +715,7 @@ def get_ratings(
             image_url=r.image_url,
             created_at=r.created_at,
             toast_count=toast_counts.get(r.id, 0),
+            helpful_count=helpful_counts.get(r.id, 0),
             username=r.user_id,
             flavor_tags=tag_map.get(r.id, []),
         )

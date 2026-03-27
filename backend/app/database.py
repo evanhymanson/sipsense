@@ -152,6 +152,12 @@ def _ensure_indexes():
         ("idx_actions_user", "user_actions", "user_id"),
         ("idx_actions_action", "user_actions", "action"),
         ("idx_actions_whiskey", "user_actions", "whiskey_id"),
+        # Review helpfulness
+        ("idx_helpful_rating", "review_helpful", "rating_id"),
+        ("idx_helpful_user", "review_helpful", "user_id"),
+        # Top lists
+        ("idx_toplistitem_list", "top_list_items", "list_id"),
+        ("idx_toplistitem_whiskey", "top_list_items", "whiskey_id"),
     ]
     # Composite indexes for common query patterns (e.g. feed: WHERE user_id=? ORDER BY created_at DESC)
     _composite_indexes = [

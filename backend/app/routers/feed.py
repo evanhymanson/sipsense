@@ -46,10 +46,12 @@ def get_feed(
     has_more = len(ratings) > limit
     ratings = ratings[:limit]
 
-    # Batch-load toast counts
+    # Batch-load toast + helpful + comment counts
     rating_ids = [r.id for r in ratings]
     toast_counts: dict[int, int] = {}
+    helpful_counts: dict[int, int] = {}
     user_toasts: set[int] = set()
+    user_helpfuls: set[int] = set()
 
     comment_counts: dict[int, int] = {}
 
@@ -62,6 +64,14 @@ def get_feed(
             .all()
         )
         toast_counts = {rid: cnt for rid, cnt in counts}
+
+        h_counts = (
+            db.query(models.ReviewHelpful.rating_id, sqlfunc.count(models.ReviewHelpful.id))
+            .filter(models.ReviewHelpful.rating_id.in_(rating_ids))
+            .group_by(models.ReviewHelpful.rating_id)
+            .all()
+        )
+        helpful_counts = {rid: cnt for rid, cnt in h_counts}
 
         c_rows = (
             db.query(models.CheckInComment.rating_id, sqlfunc.count(models.CheckInComment.id))
@@ -81,6 +91,15 @@ def get_feed(
                 .all()
             )
             user_toasts = {row[0] for row in user_toast_rows}
+            user_helpful_rows = (
+                db.query(models.ReviewHelpful.rating_id)
+                .filter(
+                    models.ReviewHelpful.rating_id.in_(rating_ids),
+                    models.ReviewHelpful.user_id == current_user.username,
+                )
+                .all()
+            )
+            user_helpfuls = {row[0] for row in user_helpful_rows}
 
     items = []
     for r in ratings:
@@ -98,11 +117,15 @@ def get_feed(
                 image_url=r.image_url,
                 created_at=r.created_at,
                 toast_count=toast_counts.get(r.id, 0),
+                helpful_count=helpful_counts.get(r.id, 0),
+                user_marked_helpful=r.id in user_helpfuls,
             ),
             whiskey=schemas.WhiskeyRead.model_validate(r.whiskey),
             username=r.user_id,
             toast_count=toast_counts.get(r.id, 0),
             user_toasted=r.id in user_toasts,
+            helpful_count=helpful_counts.get(r.id, 0),
+            user_marked_helpful=r.id in user_helpfuls,
             comment_count=comment_counts.get(r.id, 0),
         ))
 

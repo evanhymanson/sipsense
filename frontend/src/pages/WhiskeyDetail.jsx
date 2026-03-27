@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { api } from '../api/client'
+import { api, isLoggedIn } from '../api/client'
 import { useToast } from '../components/Toast'
+import { StarDisplay } from '../utils/stars'
 import { getCategoryEmoji, foodEmoji, MAX_UPLOAD_SIZE, MAX_UPLOAD_SIZE_LABEL } from '../constants'
 import { mediaUrl } from '../utils/media'
 import WhiskeyCard from '../components/WhiskeyCard'
@@ -36,6 +37,7 @@ export default function WhiskeyDetail() {
   const [buyLinks, setBuyLinks] = useState(null)
   const [lastRatingId, setLastRatingId] = useState(null)
   const [whiskeyVideos, setWhiskeyVideos] = useState([])
+  const [matchScore, setMatchScore] = useState(null)
 
   // Rating form state
   const [score, setScore] = useState(0)
@@ -158,6 +160,17 @@ export default function WhiskeyDetail() {
       .catch(() => {})
     api.getWatchStatus(id)
       .then((r) => setWatching(r.watching))
+      .catch(() => {})
+  }, [id])
+
+  // Fetch personal match score
+  useEffect(() => {
+    if (!isLoggedIn()) return
+    setMatchScore(null)
+    api.getMatchScores([Number(id)])
+      .then(r => {
+        if (r.scores?.[id] != null) setMatchScore(r.scores[id])
+      })
       .catch(() => {})
   }, [id])
 
@@ -368,12 +381,15 @@ export default function WhiskeyDetail() {
           )}
           <div className="detail-hero-rating">
             <span className="big-rating">{(whiskey.rating_avg ?? 0).toFixed(1)}</span>
-            <span className="detail-hero-stars">
-              {'★'.repeat(Math.round(whiskey.rating_avg || 0))}
-              <span style={{opacity: 0.25}}>{'★'.repeat(Math.max(0, 5 - Math.round(whiskey.rating_avg || 0)))}</span>
-            </span>
+            <StarDisplay rating={whiskey.rating_avg || 0} className="detail-hero-stars" />
             <span className="rating-count">{whiskey.rating_count} ratings</span>
           </div>
+          {matchScore != null && (
+            <div className="detail-match-score">
+              <span className="detail-match-num">{matchScore}%</span>
+              <span className="detail-match-label">Match for You</span>
+            </div>
+          )}
         </div>
       </div>
 
@@ -465,12 +481,7 @@ export default function WhiskeyDetail() {
               <span className="rating-summary-score">
                 {reviewSummary.distribution.average.toFixed(1)}
               </span>
-              <span className="rating-summary-stars">
-                {'★'.repeat(Math.round(reviewSummary.distribution.average))}
-                <span style={{opacity: 0.25}}>
-                  {'★'.repeat(5 - Math.round(reviewSummary.distribution.average))}
-                </span>
-              </span>
+              <StarDisplay rating={reviewSummary.distribution.average} className="rating-summary-stars" />
               <span className="rating-summary-count">
                 {reviewSummary.distribution.total} rating{reviewSummary.distribution.total !== 1 ? 's' : ''}
               </span>
@@ -538,7 +549,7 @@ export default function WhiskeyDetail() {
               <div key={r.id} className="review-item">
                 <div className="review-header">
                   <Link to={`/user/${r.username || r.user_id}`} className="review-user">{r.username || r.user_id}</Link>
-                  <span className="review-stars">{'★'.repeat(Math.round(r.score || 0))}{'☆'.repeat(Math.max(0, 5 - Math.round(r.score || 0)))}</span>
+                  <StarDisplay rating={r.score || 0} className="review-stars" />
                   {r.serving_style && (
                     <span className="checkin-serving">{SERVING_EMOJI[r.serving_style] || ''} {r.serving_style}</span>
                   )}
@@ -556,9 +567,14 @@ export default function WhiskeyDetail() {
                   <img src={mediaUrl(r.image_url)} alt="Tasting photo" className="review-photo" loading="lazy" decoding="async" />
                 )}
                 {r.notes && <p className="review-notes">{r.notes}</p>}
-                {r.toast_count > 0 && (
-                  <span className="review-toasts">🍻 {r.toast_count}</span>
-                )}
+                <div className="review-actions">
+                  {r.toast_count > 0 && (
+                    <span className="review-toasts">🍻 {r.toast_count}</span>
+                  )}
+                  {r.helpful_count > 0 && (
+                    <span className="review-toasts">👍 {r.helpful_count}</span>
+                  )}
+                </div>
               </div>
             ))}
           </div>
@@ -763,18 +779,28 @@ export default function WhiskeyDetail() {
       <div id="check-in" className="rate-form">
         <h3>Check In This Whiskey</h3>
         <form onSubmit={submitRating}>
-          <div className="star-picker" role="radiogroup" aria-label="Rating">
+          <div className="star-picker half-star-picker" role="radiogroup" aria-label="Rating">
             {[1, 2, 3, 4, 5].map((n) => (
-              <button
-                key={n}
-                type="button"
-                className={`star ${n <= score ? 'filled' : ''}`}
-                onClick={() => setScore(n)}
-                aria-label={`${n} star${n > 1 ? 's' : ''}`}
-                aria-checked={score === n}
-                role="radio"
-              >★</button>
+              <span key={n} className="half-star-group">
+                <button
+                  type="button"
+                  className={`half-star half-star--left ${score >= n - 0.5 ? 'filled' : ''}`}
+                  onClick={() => setScore(n - 0.5)}
+                  aria-label={`${n - 0.5} stars`}
+                  aria-checked={score === n - 0.5}
+                  role="radio"
+                >★</button>
+                <button
+                  type="button"
+                  className={`half-star half-star--right ${score >= n ? 'filled' : ''}`}
+                  onClick={() => setScore(n)}
+                  aria-label={`${n} star${n > 1 ? 's' : ''}`}
+                  aria-checked={score === n}
+                  role="radio"
+                >★</button>
+              </span>
             ))}
+            {score > 0 && <span className="half-star-value">{score.toFixed(1)}</span>}
           </div>
 
           <div className="serving-picker">

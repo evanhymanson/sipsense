@@ -1,5 +1,6 @@
 import { memo } from 'react'
 import { Link } from 'react-router-dom'
+import { StarDisplay } from '../utils/stars'
 
 function imageCls(category) {
   const c = (category || '').toLowerCase()
@@ -14,7 +15,7 @@ function imageCls(category) {
   return 'card-img--default'
 }
 
-export default memo(function WhiskeyCard({ whiskey, score, compareMode, isCompared, onCompareToggle }) {
+export default memo(function WhiskeyCard({ whiskey, score, matchScore, compareMode, isCompared, onCompareToggle }) {
   const hasRating = whiskey.rating_avg > 0
 
   function handleImgError(e) {
@@ -27,6 +28,9 @@ export default memo(function WhiskeyCard({ whiskey, score, compareMode, isCompar
     e.stopPropagation()
     onCompareToggle?.(whiskey)
   }
+
+  // Determine match display: matchScore (0-100 int) or score (0-1 float from recs)
+  const displayMatch = matchScore != null ? matchScore : score != null ? Math.round(score * 100) : null
 
   return (
     <Link to={`/whiskey/${whiskey.id}`} className={`card${isCompared ? ' card--compared' : ''}`}>
@@ -73,10 +77,7 @@ export default memo(function WhiskeyCard({ whiskey, score, compareMode, isCompar
         {/* Rating row: number + stars + count */}
         <div className="card-rating-row">
           <span className="card-rating-num">{hasRating ? whiskey.rating_avg.toFixed(1) : '—'}</span>
-          <span className="card-stars" aria-label={`${whiskey.rating_avg?.toFixed(1) || 0} out of 5`}>
-            {'★'.repeat(Math.round(whiskey.rating_avg || 0))}
-            <span className="card-stars-empty">{'★'.repeat(Math.max(0, 5 - Math.round(whiskey.rating_avg || 0)))}</span>
-          </span>
+          <StarDisplay rating={whiskey.rating_avg || 0} className="card-stars" />
           <span className="card-rating-count">
             {whiskey.rating_count > 0 ? `${whiskey.rating_count} ratings` : 'No ratings yet'}
           </span>
@@ -92,9 +93,9 @@ export default memo(function WhiskeyCard({ whiskey, score, compareMode, isCompar
           ) : (
             <span className="card-price card-price--na">Price N/A</span>
           )}
-          {score != null && (
+          {displayMatch != null && (
             <span className="card-match">
-              <span className="card-match-num">{Math.round(score * 100)}%</span> Match
+              <span className="card-match-num">{displayMatch}%</span> Match
             </span>
           )}
         </div>

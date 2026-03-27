@@ -22,6 +22,7 @@ const Alerts = lazy(() => import('./pages/Alerts'))
 const VideoFeed = lazy(() => import('./pages/VideoFeed'))
 const Premium = lazy(() => import('./pages/Premium'))
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard'))
+const TopLists = lazy(() => import('./pages/TopLists'))
 
 function RequireAuth({ children }) {
   if (!isLoggedIn()) {
@@ -208,6 +209,8 @@ function AppShell() {
           <Route path="/videos" element={<RequireAuth><ErrorBoundary key="videos"><VideoFeed /></ErrorBoundary></RequireAuth>} />
           <Route path="/premium" element={<RequireAuth><ErrorBoundary key="premium"><Premium /></ErrorBoundary></RequireAuth>} />
           <Route path="/alerts" element={<RequireAuth><ErrorBoundary key="alerts"><Alerts /></ErrorBoundary></RequireAuth>} />
+          <Route path="/lists" element={<RequireAuth><ErrorBoundary key="toplists"><TopLists /></ErrorBoundary></RequireAuth>} />
+          <Route path="/lists/:slug" element={<RequireAuth><ErrorBoundary key="toplist-detail"><TopLists /></ErrorBoundary></RequireAuth>} />
           <Route path="/user/:username" element={<RequireAuth><ErrorBoundary key="userprofile"><UserProfile /></ErrorBoundary></RequireAuth>} />
           <Route path="/admin" element={<RequireAuth><ErrorBoundary key="admin"><AdminDashboard /></ErrorBoundary></RequireAuth>} />
           <Route path="*" element={

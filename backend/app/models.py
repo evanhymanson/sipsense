@@ -87,6 +87,7 @@ class UserRating(Base):
     toasts = relationship("Toast", back_populates="rating", cascade="all, delete-orphan")
     comments = relationship("CheckInComment", back_populates="rating", cascade="all, delete-orphan")
     flavor_tags = relationship("ReviewFlavorTag", back_populates="rating", cascade="all, delete-orphan")
+    helpful_votes = relationship("ReviewHelpful", back_populates="rating", cascade="all, delete-orphan")
 
 
 class UserMemory(Base):
@@ -161,6 +162,21 @@ class Toast(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     rating = relationship("UserRating", back_populates="toasts")
+
+
+class ReviewHelpful(Base):
+    """A 'helpful' vote on a review (check-in). Separate from toasts."""
+    __tablename__ = "review_helpful"
+    __table_args__ = (
+        UniqueConstraint("user_id", "rating_id", name="uq_helpful_user_rating"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(String, nullable=False, index=True)
+    rating_id = Column(Integer, ForeignKey("user_ratings.id", ondelete="CASCADE"), nullable=False, index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    rating = relationship("UserRating", back_populates="helpful_votes")
 
 
 class CheckInComment(Base):
@@ -431,6 +447,43 @@ class SponsoredPlacement(Base):
     ends_at = Column(DateTime(timezone=True))
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
+    whiskey = relationship("Whiskey")
+
+
+# ── Top Lists ────────────────────────────────────────────────────────────
+
+
+class TopList(Base):
+    """A curated or dynamic ranked list of whiskeys."""
+    __tablename__ = "top_lists"
+
+    id = Column(Integer, primary_key=True, index=True)
+    slug = Column(String, unique=True, nullable=False, index=True)
+    title = Column(String, nullable=False)
+    description = Column(Text)
+    list_type = Column(String, nullable=False, default="dynamic")  # curated | dynamic
+    category = Column(String, index=True)
+    filters_json = Column(Text)  # JSON: {"max_price": 50, "min_rating": 4.0, ...}
+    image_emoji = Column(String, default="\U0001f3c6")
+    display_order = Column(Integer, default=0)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    items = relationship("TopListItem", back_populates="top_list",
+                         order_by="TopListItem.rank", cascade="all, delete-orphan")
+
+
+class TopListItem(Base):
+    """A whiskey entry in a curated top list."""
+    __tablename__ = "top_list_items"
+
+    id = Column(Integer, primary_key=True, index=True)
+    list_id = Column(Integer, ForeignKey("top_lists.id", ondelete="CASCADE"), nullable=False, index=True)
+    whiskey_id = Column(Integer, ForeignKey("whiskeys.id", ondelete="CASCADE"), nullable=False, index=True)
+    rank = Column(Integer, nullable=False)
+    note = Column(Text)
+
+    top_list = relationship("TopList", back_populates="items")
     whiskey = relationship("Whiskey")
 
 
