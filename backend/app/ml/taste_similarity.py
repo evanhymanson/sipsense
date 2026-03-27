@@ -1,6 +1,7 @@
 """Taste vector similarity for palate matching and user suggestions."""
 
 import numpy as np
+from collections import defaultdict
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func as sqlfunc
 
@@ -8,29 +9,12 @@ from .. import models
 from .recommender import FLAVOR_TAGS, CATEGORIES, _whiskey_vector
 
 
-def build_taste_vector(username: str, db: Session) -> dict:
-    """Build a user's aggregated taste profile vector from their ratings.
-
-    Returns a dict with:
-      - has_data: bool
-      - vector: np.ndarray (normalized)
-      - total: int (number of ratings)
-      - category_scores: {category: {avg, count}}
-      - top_flavors: [str] (most common flavor tags)
-      - top_categories: [str] (most rated categories)
-    """
-    ratings = (
-        db.query(models.UserRating)
-        .filter(models.UserRating.user_id == username)
-        .options(joinedload(models.UserRating.whiskey))
-        .all()
-    )
-
+def _profile_from_ratings(ratings) -> dict:
+    """Build a taste profile dict from a list of (score, whiskey) rating objects."""
     if len(ratings) < 2:
         return {"has_data": False, "vector": np.zeros(0), "total": len(ratings),
                 "category_scores": {}, "top_flavors": [], "top_categories": []}
 
-    # Build weighted centroid of whiskey vectors (weighted by score)
     vectors = []
     weights = []
     category_data: dict[str, list[float]] = {}
@@ -43,11 +27,9 @@ def build_taste_vector(username: str, db: Session) -> dict:
         vectors.append(vec)
         weights.append(r.score)
 
-        # Track category scores
         cat = (r.whiskey.category or "unknown").lower()
         category_data.setdefault(cat, []).append(r.score)
 
-        # Track flavor mentions
         profile = (r.whiskey.flavor_profile or "").lower()
         for tag in FLAVOR_TAGS:
             if tag in profile:
@@ -57,7 +39,6 @@ def build_taste_vector(username: str, db: Session) -> dict:
         return {"has_data": False, "vector": np.zeros(0), "total": len(ratings),
                 "category_scores": {}, "top_flavors": [], "top_categories": []}
 
-    # Weighted centroid
     vecs = np.array(vectors)
     w = np.array(weights, dtype=np.float32)
     centroid = np.average(vecs, axis=0, weights=w)
@@ -65,13 +46,11 @@ def build_taste_vector(username: str, db: Session) -> dict:
     if norm > 0:
         centroid = centroid / norm
 
-    # Category scores
     category_scores = {
         cat: {"avg": round(sum(scores) / len(scores), 2), "count": len(scores)}
         for cat, scores in category_data.items()
     }
 
-    # Top flavors and categories
     top_flavors = sorted(flavor_counts, key=flavor_counts.get, reverse=True)[:8]
     top_categories = sorted(category_scores, key=lambda c: category_scores[c]["count"], reverse=True)[:5]
 
@@ -85,6 +64,33 @@ def build_taste_vector(username: str, db: Session) -> dict:
     }
 
 
+def build_taste_vector(username: str, db: Session) -> dict:
+    """Build a user's aggregated taste profile vector from their ratings."""
+    ratings = (
+        db.query(models.UserRating)
+        .filter(models.UserRating.user_id == username)
+        .options(joinedload(models.UserRating.whiskey))
+        .all()
+    )
+    return _profile_from_ratings(ratings)
+
+
+def _batch_build_taste_vectors(usernames: list[str], db: Session) -> dict[str, dict]:
+    """Build taste profiles for multiple users in a single DB query."""
+    if not usernames:
+        return {}
+    ratings = (
+        db.query(models.UserRating)
+        .filter(models.UserRating.user_id.in_(usernames))
+        .options(joinedload(models.UserRating.whiskey))
+        .all()
+    )
+    grouped: dict[str, list] = defaultdict(list)
+    for r in ratings:
+        grouped[r.user_id].append(r)
+    return {uid: _profile_from_ratings(rs) for uid, rs in grouped.items()}
+
+
 def cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:
     """Cosine similarity between two vectors."""
     dot = np.dot(a, b)
@@ -94,8 +100,11 @@ def cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:
 
 def compute_palate_match(username_a: str, username_b: str, db: Session) -> dict:
     """Full palate match comparison between two users."""
-    profile_a = build_taste_vector(username_a, db)
-    profile_b = build_taste_vector(username_b, db)
+    profiles = _batch_build_taste_vectors([username_a, username_b], db)
+    empty = {"has_data": False, "vector": np.zeros(0), "total": 0,
+             "category_scores": {}, "top_flavors": [], "top_categories": []}
+    profile_a = profiles.get(username_a, empty)
+    profile_b = profiles.get(username_b, empty)
 
     if not profile_a["has_data"] or not profile_b["has_data"]:
         return {
@@ -168,10 +177,15 @@ def find_similar_users(
         .all()
     )
 
+    # Batch-load all candidate taste profiles in one query (instead of N queries)
+    candidate_usernames = [u for u, _ in active_users]
+    checkin_map = {u: cnt for u, cnt in active_users}
+    candidate_profiles = _batch_build_taste_vectors(candidate_usernames, db)
+
     scored = []
-    for candidate_username, checkin_count in active_users:
-        candidate_profile = build_taste_vector(candidate_username, db)
-        if not candidate_profile["has_data"]:
+    for candidate_username in candidate_usernames:
+        candidate_profile = candidate_profiles.get(candidate_username)
+        if not candidate_profile or not candidate_profile["has_data"]:
             continue
         sim = cosine_similarity(my_profile["vector"], candidate_profile["vector"])
         match_pct = int(sim * 100)
@@ -192,7 +206,7 @@ def find_similar_users(
             "username": candidate_username,
             "match_score": match_pct,
             "reason": reason,
-            "checkin_count": checkin_count,
+            "checkin_count": checkin_map[candidate_username],
         })
 
     scored.sort(key=lambda x: x["match_score"], reverse=True)

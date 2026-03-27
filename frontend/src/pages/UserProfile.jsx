@@ -44,6 +44,8 @@ export default function UserProfile() {
     setLoading(true)
     setError(null)
     setListModal(null)
+
+    // Fire all initial requests in parallel (including reviews)
     api.getUserProfile(username)
       .then(p => {
         if (stale) return
@@ -60,7 +62,6 @@ export default function UserProfile() {
       .catch(() => { if (!stale) setVideosError(true) })
       .finally(() => { if (!stale) setVideosLoading(false) })
 
-    // Fetch palate match for other users (requires login)
     setPalateMatch(null)
     if (currentUser && currentUser !== username) {
       api.getPalateMatch(username)
@@ -68,11 +69,25 @@ export default function UserProfile() {
         .catch(() => {})
     }
 
+    setReviewsLoading(true)
+    setReviewSort('recent')
+    api.getUserRatings(username, { sort_by: 'recent', skip: 0, limit: REVIEW_PAGE_SIZE })
+      .then(data => {
+        if (stale) return
+        setReviews(data.items || [])
+        setReviewsTotal(data.total || 0)
+        setReviewsHasMore(data.has_more || false)
+      })
+      .catch(() => { if (!stale) setReviews([]) })
+      .finally(() => { if (!stale) setReviewsLoading(false) })
+
     return () => { stale = true }
   }, [username, currentUser])
 
-  // Fetch user reviews (paginated, re-fires on sort change)
+  // Re-fetch reviews on sort change (skip the initial mount — first effect handles it)
+  const reviewsInitRef = useRef(true)
   useEffect(() => {
+    if (reviewsInitRef.current) { reviewsInitRef.current = false; return }
     let stale = false
     setReviewsLoading(true)
     api.getUserRatings(username, { sort_by: reviewSort, skip: 0, limit: REVIEW_PAGE_SIZE })
