@@ -67,7 +67,7 @@ if _ENV in ("staging", "production"):
     logging.root.setLevel(logging.INFO)
 
 from .database import engine, Base
-from .routers import whiskeys, recommendations, quiz, favorites, chat, learn, flights, gift, palate, compare, stores, auth, trending, pairings, collection, personality, blindtasting, daily, feed, social, ai_features, journal, sharecard, journeys, watchlist, discover, videos, affiliate, subscription, sponsored, analytics
+from .routers import whiskeys, recommendations, quiz, favorites, chat, learn, flights, gift, palate, compare, stores, auth, trending, pairings, collection, personality, blindtasting, daily, feed, social, ai_features, journal, sharecard, journeys, watchlist, discover, videos, affiliate, subscription, sponsored, analytics, matchscores, toplists
 
 logger = logging.getLogger(__name__)
 
@@ -83,6 +83,8 @@ Base.metadata.create_all(bind=engine)
 _startup_db = SessionLocal()
 try:
     seed_badges(_startup_db)
+    from .seed_toplists import seed_toplists
+    seed_toplists(_startup_db)
 finally:
     _startup_db.close()
 from .analytics_middleware import cleanup_old_events
@@ -224,6 +226,8 @@ app.include_router(affiliate.router)
 app.include_router(subscription.router)
 app.include_router(sponsored.router)
 app.include_router(analytics.router)
+app.include_router(matchscores.router)
+app.include_router(toplists.router)
 
 
 @app.get("/", tags=["health"])

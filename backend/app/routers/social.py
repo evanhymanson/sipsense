@@ -44,6 +44,54 @@ def add_toast(
     return toast
 
 
+# ── Review Helpfulness ────────────────────────────────────────────────────
+
+@router.post("/ratings/{rating_id}/helpful", status_code=201)
+def mark_helpful(
+    rating_id: int,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Mark a review as helpful."""
+    rating = db.query(models.UserRating).filter(models.UserRating.id == rating_id).first()
+    if not rating:
+        raise HTTPException(status_code=404, detail="Check-in not found")
+    if rating.user_id == current_user.username:
+        raise HTTPException(status_code=400, detail="Can't mark your own review as helpful")
+
+    existing = (
+        db.query(models.ReviewHelpful)
+        .filter(models.ReviewHelpful.user_id == current_user.username,
+                models.ReviewHelpful.rating_id == rating_id)
+        .first()
+    )
+    if existing:
+        return {"status": "already_marked"}
+
+    helpful = models.ReviewHelpful(user_id=current_user.username, rating_id=rating_id)
+    db.add(helpful)
+    db.commit()
+    return {"status": "marked_helpful"}
+
+
+@router.delete("/ratings/{rating_id}/helpful", status_code=204)
+def unmark_helpful(
+    rating_id: int,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Remove helpfulness vote."""
+    helpful = (
+        db.query(models.ReviewHelpful)
+        .filter(models.ReviewHelpful.user_id == current_user.username,
+                models.ReviewHelpful.rating_id == rating_id)
+        .first()
+    )
+    if helpful:
+        db.delete(helpful)
+        db.commit()
+
+
 @router.delete("/ratings/{rating_id}/toast", status_code=204)
 def remove_toast(
     rating_id: int,
@@ -415,11 +463,13 @@ def get_user_profile(
             .first()
         ) is not None
 
-    # Recent check-ins with toast + comment counts
+    # Recent check-ins with toast + helpful + comment counts
     recent_ids = [r.id for r in ratings]
     toast_counts: dict[int, int] = {}
+    helpful_counts: dict[int, int] = {}
     comment_counts: dict[int, int] = {}
     user_toasts: set[int] = set()
+    user_helpfuls: set[int] = set()
     if recent_ids:
         counts = (
             db.query(models.Toast.rating_id, sqlfunc.count(models.Toast.id))
@@ -428,6 +478,14 @@ def get_user_profile(
             .all()
         )
         toast_counts = {rid: cnt for rid, cnt in counts}
+
+        h_counts = (
+            db.query(models.ReviewHelpful.rating_id, sqlfunc.count(models.ReviewHelpful.id))
+            .filter(models.ReviewHelpful.rating_id.in_(recent_ids))
+            .group_by(models.ReviewHelpful.rating_id)
+            .all()
+        )
+        helpful_counts = {rid: cnt for rid, cnt in h_counts}
 
         c_rows = (
             db.query(models.CheckInComment.rating_id, sqlfunc.count(models.CheckInComment.id))
@@ -447,6 +505,15 @@ def get_user_profile(
                 .all()
             )
             user_toasts = {row[0] for row in user_toast_rows}
+            user_helpful_rows = (
+                db.query(models.ReviewHelpful.rating_id)
+                .filter(
+                    models.ReviewHelpful.rating_id.in_(recent_ids),
+                    models.ReviewHelpful.user_id == current_user.username,
+                )
+                .all()
+            )
+            user_helpfuls = {row[0] for row in user_helpful_rows}
 
     recent_items = [
         schemas.FeedItem(
@@ -461,11 +528,15 @@ def get_user_profile(
                 image_url=r.image_url,
                 created_at=r.created_at,
                 toast_count=toast_counts.get(r.id, 0),
+                helpful_count=helpful_counts.get(r.id, 0),
+                user_marked_helpful=r.id in user_helpfuls,
             ),
             whiskey=schemas.WhiskeyRead.model_validate(r.whiskey),
             username=r.user_id,
             toast_count=toast_counts.get(r.id, 0),
             user_toasted=r.id in user_toasts,
+            helpful_count=helpful_counts.get(r.id, 0),
+            user_marked_helpful=r.id in user_helpfuls,
             comment_count=comment_counts.get(r.id, 0),
         )
         for r in ratings if r.whiskey

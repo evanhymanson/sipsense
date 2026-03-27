@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { api, getUsername } from '../api/client'
 import { useToast } from './Toast'
 import CheckInComments from './CheckInComments'
+import { StarDisplay } from '../utils/stars'
 import { mediaUrl } from '../utils/media'
 import './CheckInCard.css'
 
@@ -26,23 +27,30 @@ function timeAgo(dateStr) {
 }
 
 export default memo(function CheckInCard({ item, onToastToggle }) {
-  const { rating, whiskey, username, toast_count, user_toasted, comment_count = 0 } = item
+  const {
+    rating, whiskey, username,
+    toast_count, user_toasted,
+    helpful_count = 0, user_marked_helpful = false,
+    comment_count = 0,
+  } = item
   const [toasted, setToasted] = useState(user_toasted)
   const [count, setCount] = useState(toast_count)
+  const [helpfulCount, setHelpfulCount] = useState(helpful_count)
+  const [markedHelpful, setMarkedHelpful] = useState(user_marked_helpful)
   const [commentCount, setCommentCount] = useState(comment_count)
   const [showComments, setShowComments] = useState(false)
   useEffect(() => { setToasted(user_toasted) }, [user_toasted])
   useEffect(() => { setCount(toast_count) }, [toast_count])
+  useEffect(() => { setHelpfulCount(helpful_count) }, [helpful_count])
+  useEffect(() => { setMarkedHelpful(user_marked_helpful) }, [user_marked_helpful])
   useEffect(() => { setCommentCount(comment_count) }, [comment_count])
   const [busy, setBusy] = useState(false)
+  const [helpfulBusy, setHelpfulBusy] = useState(false)
   const currentUser = getUsername()
   const isOwn = currentUser === username
   const addToast = useToast()
 
   if (!whiskey) return null
-
-  const roundedScore = Math.round(rating.score || 0)
-  const stars = '★'.repeat(roundedScore) + '☆'.repeat(Math.max(0, 5 - roundedScore))
 
   async function handleToast() {
     if (busy) return
@@ -69,6 +77,30 @@ export default memo(function CheckInCard({ item, onToastToggle }) {
     }
   }
 
+  async function handleHelpful() {
+    if (helpfulBusy || !currentUser) return
+    if (isOwn) {
+      addToast("Can't mark your own review as helpful", 'info')
+      return
+    }
+    setHelpfulBusy(true)
+    try {
+      if (markedHelpful) {
+        await api.unmarkHelpful(rating.id)
+        setMarkedHelpful(false)
+        setHelpfulCount(c => c - 1)
+      } else {
+        await api.markHelpful(rating.id)
+        setMarkedHelpful(true)
+        setHelpfulCount(c => c + 1)
+      }
+    } catch {
+      addToast('Failed to update helpful vote', 'error')
+    } finally {
+      setHelpfulBusy(false)
+    }
+  }
+
   return (
     <div className="checkin-card">
       <div className="checkin-top">
@@ -84,7 +116,7 @@ export default memo(function CheckInCard({ item, onToastToggle }) {
       </Link>
 
       <div className="checkin-rating">
-        <span className="checkin-stars">{stars}</span>
+        <StarDisplay rating={rating.score || 0} className="checkin-stars" />
         {rating.serving_style && (
           <span className="checkin-serving">
             {SERVING_EMOJI[rating.serving_style] || ''} {rating.serving_style}
@@ -122,6 +154,21 @@ export default memo(function CheckInCard({ item, onToastToggle }) {
         {isOwn && count > 0 && (
           <span className="toast-btn toast-btn--own" aria-label="Toasts received">
             🍻 <span className="toast-count">{count}</span>
+          </span>
+        )}
+        {!isOwn && (
+          <button
+            className={`toast-btn helpful-btn ${markedHelpful ? 'helpful-btn--active' : ''}`}
+            onClick={handleHelpful}
+            disabled={helpfulBusy || !currentUser}
+            aria-label={markedHelpful ? 'Undo helpful' : 'Mark as helpful'}
+          >
+            👍 {helpfulCount > 0 && <span className="toast-count">{helpfulCount}</span>}
+          </button>
+        )}
+        {isOwn && helpfulCount > 0 && (
+          <span className="toast-btn" aria-label="Helpful votes">
+            👍 <span className="toast-count">{helpfulCount}</span>
           </span>
         )}
         <button

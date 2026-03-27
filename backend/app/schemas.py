@@ -120,6 +120,8 @@ class RatingCreate(BaseModel):
 
     @model_validator(mode="after")
     def validate_flavor_tags(self):
+        # Snap score to nearest 0.5 increment
+        self.score = round(self.score * 2) / 2
         if self.flavor_tags:
             valid = set(WHISKEY_FLAVOR_TAGS)
             self.flavor_tags = [t.lower().strip() for t in self.flavor_tags]
@@ -143,6 +145,8 @@ class RatingRead(BaseModel):
     image_url: Optional[str] = None
     created_at: datetime
     toast_count: int = 0
+    helpful_count: int = 0
+    user_marked_helpful: bool = False
     username: str = ""
     flavor_tags: list[str] = []
 
@@ -275,6 +279,8 @@ class FeedItem(BaseModel):
     username: str
     toast_count: int = 0
     user_toasted: bool = False  # whether the requesting user has toasted this
+    helpful_count: int = 0
+    user_marked_helpful: bool = False
     comment_count: int = 0
 
 
@@ -487,3 +493,31 @@ class SponsoredPlacementRead(BaseModel):
     whiskey: Optional[WhiskeyRead] = None
 
     model_config = {"from_attributes": True}
+
+
+# ── Top Lists ────────────────────────────────────────────────────────────
+
+
+class TopListItemRead(BaseModel):
+    rank: int
+    whiskey: WhiskeyRead
+    note: Optional[str] = None
+
+    model_config = {"from_attributes": True}
+
+
+class TopListSummary(BaseModel):
+    id: int
+    slug: str
+    title: str
+    description: Optional[str] = None
+    list_type: str
+    category: Optional[str] = None
+    image_emoji: str = "\U0001f3c6"
+    item_count: int = 0
+
+    model_config = {"from_attributes": True}
+
+
+class TopListDetail(TopListSummary):
+    items: list[TopListItemRead] = []

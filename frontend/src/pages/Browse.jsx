@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useSearchParams, Link } from 'react-router-dom'
-import { api } from '../api/client'
+import { api, isLoggedIn } from '../api/client'
 import { useToast } from '../components/Toast'
 import WhiskeyCard from '../components/WhiskeyCard'
 import SkeletonCard from '../components/SkeletonCard'
@@ -143,6 +143,9 @@ export default function Browse() {
   const [compareMode, setCompareMode] = useState(false)
   const [compareList, setCompareList] = useState([])
 
+  // Match scores
+  const [matchScores, setMatchScores] = useState({})
+
   const addToast = useToast()
 
   const [filters, setFilters] = useState(() => ({
@@ -210,6 +213,15 @@ export default function Browse() {
     }
     return () => controller.abort()
   }, [filters, specialMode])
+
+  // Fetch match scores for visible whiskeys
+  useEffect(() => {
+    if (!isLoggedIn() || whiskeys.length === 0) return
+    const ids = whiskeys.map(w => w.id)
+    api.getMatchScores(ids)
+      .then(r => { if (r.scores) setMatchScores(prev => ({ ...prev, ...r.scores })) })
+      .catch(() => {})
+  }, [whiskeys])
 
   // Handle special modes
   useEffect(() => {
@@ -332,6 +344,7 @@ export default function Browse() {
           <p>{heroText}</p>
         </div>
         <div className="browse-hero-links">
+          <Link to="/lists" className="browse-hero-link">🏆 Top Lists</Link>
           <Link to="/scan" className="browse-hero-link">📷 Scan</Link>
           <button
             className={`browse-hero-link${compareMode ? ' browse-hero-link--active' : ''}`}
@@ -464,7 +477,7 @@ export default function Browse() {
       ) : (
         <div className="card-grid">
           {whiskeys.map(w => (
-            <WhiskeyCard key={w.id} whiskey={w} compareMode={compareMode} isCompared={compareIds.has(w.id)} onCompareToggle={toggleCompare} />
+            <WhiskeyCard key={w.id} whiskey={w} matchScore={matchScores[w.id]} compareMode={compareMode} isCompared={compareIds.has(w.id)} onCompareToggle={toggleCompare} />
           ))}
           {whiskeys.length === 0 && <p className="status">No whiskeys found. Try adjusting filters.</p>}
         </div>

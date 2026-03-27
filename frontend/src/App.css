@@ -2762,3 +2762,152 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
   border-top: 1px solid var(--border);
 }
 .prof-find-people .user-search { width: 100%; }
+
+/* ─── Star Display (shared) ─────────────────────────────── */
+.star-display { color: var(--amber); font-size: 1rem; white-space: nowrap; }
+.star-display-empty { color: var(--border); }
+.star-half-icon {
+  display: inline-block;
+  overflow: hidden;
+  width: 0.55em;
+  clip-path: inset(0 50% 0 0);
+}
+
+/* ─── Half-Star Picker ──────────────────────────────────── */
+.half-star-picker { display: flex; align-items: center; gap: 0; cursor: pointer; }
+.half-star-group { display: inline-flex; position: relative; }
+.half-star {
+  font-size: 1.75rem;
+  color: var(--border);
+  transition: color 0.15s;
+  user-select: none;
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  line-height: 1;
+  cursor: pointer;
+}
+.half-star--left {
+  overflow: hidden;
+  width: 0.55em;
+  clip-path: inset(0 50% 0 0);
+}
+.half-star--right {
+  overflow: hidden;
+  width: 0.55em;
+  clip-path: inset(0 0 0 50%);
+  margin-left: -0.55em;
+}
+.half-star.filled { color: var(--amber); }
+.half-star-value {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--amber);
+  margin-left: 0.5rem;
+}
+
+/* ─── Match Score (detail page) ─────────────────────────── */
+.detail-match-score {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.5rem;
+  padding: 0.35rem 0.75rem;
+  background: rgba(212, 175, 55, 0.12);
+  border-radius: 999px;
+  width: fit-content;
+}
+.detail-match-num {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--amber);
+}
+.detail-match-label {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+/* ─── Helpful Button (CheckInCard) ──────────────────────── */
+.helpful-btn { gap: 0.25rem; }
+.helpful-btn--active { color: var(--amber) !important; }
+
+/* ─── Review Actions row ────────────────────────────────── */
+.review-actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 0.35rem;
+}
+
+/* ─── Top Lists Index ───────────────────────────────────── */
+.toplists-page { max-width: 800px; margin: 0 auto; }
+.toplists-page h1 { margin-bottom: 0.25rem; }
+.toplists-subtitle {
+  color: var(--text-muted);
+  font-size: 0.95rem;
+  margin-bottom: 1.5rem;
+}
+.toplists-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 1rem;
+}
+.toplist-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1.25rem;
+  background: var(--card-bg, #222);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 0.2s, transform 0.15s;
+}
+.toplist-card:hover {
+  border-color: var(--amber);
+  transform: translateY(-2px);
+}
+.toplist-emoji { font-size: 2rem; }
+.toplist-title {
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+.toplist-desc {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.back-link {
+  display: inline-block;
+  color: var(--amber);
+  text-decoration: none;
+  font-size: 0.9rem;
+  margin-bottom: 1rem;
+}
+.back-link:hover { text-decoration: underline; }
+.toplist-items {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.toplist-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+.toplist-rank {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--amber);
+  min-width: 2.5rem;
+  text-align: center;
+}
+.toplist-item-card { flex: 1; }
+.toplist-item-card .card { margin: 0; }
+.toplist-note {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  font-style: italic;
+}
