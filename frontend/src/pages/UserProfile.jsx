@@ -24,6 +24,13 @@ export default function UserProfile() {
   const [listUsers, setListUsers] = useState([])
   const [listLoading, setListLoading] = useState(false)
   const [palateMatch, setPalateMatch] = useState(null)
+  const [reviews, setReviews] = useState([])
+  const [reviewsTotal, setReviewsTotal] = useState(0)
+  const [reviewsLoading, setReviewsLoading] = useState(false)
+  const [reviewsHasMore, setReviewsHasMore] = useState(false)
+  const [reviewSort, setReviewSort] = useState('recent')
+  const [reviewsLoadingMore, setReviewsLoadingMore] = useState(false)
+  const REVIEW_PAGE_SIZE = 10
 
   let currentUser = null
   try { currentUser = localStorage.getItem('sipsense_user') } catch { /* private browsing */ }
@@ -62,6 +69,36 @@ export default function UserProfile() {
 
     return () => { stale = true }
   }, [username, currentUser])
+
+  // Fetch user reviews (paginated, re-fires on sort change)
+  useEffect(() => {
+    let stale = false
+    setReviewsLoading(true)
+    api.getUserRatings(username, { sort_by: reviewSort, skip: 0, limit: REVIEW_PAGE_SIZE })
+      .then(data => {
+        if (stale) return
+        setReviews(data.items || [])
+        setReviewsTotal(data.total || 0)
+        setReviewsHasMore(data.has_more || false)
+      })
+      .catch(() => { if (!stale) setReviews([]) })
+      .finally(() => { if (!stale) setReviewsLoading(false) })
+    return () => { stale = true }
+  }, [username, reviewSort])
+
+  async function loadMoreReviews() {
+    setReviewsLoadingMore(true)
+    try {
+      const data = await api.getUserRatings(username, {
+        sort_by: reviewSort,
+        skip: reviews.length,
+        limit: REVIEW_PAGE_SIZE,
+      })
+      setReviews(prev => [...prev, ...(data.items || [])])
+      setReviewsHasMore(data.has_more || false)
+    } catch { /* silent */ }
+    finally { setReviewsLoadingMore(false) }
+  }
 
   async function toggleFollow() {
     if (!currentUser) return
@@ -186,6 +223,52 @@ export default function UserProfile() {
         </div>
       </div>
 
+      {/* Reviews — Vivino style */}
+      <section className="profile-section profile-reviews-section">
+        <div className="profile-reviews-header">
+          <h2>Reviews ({reviewsTotal})</h2>
+          {reviewsTotal > 0 && (
+            <div className="review-sort-bar">
+              <label htmlFor="profile-review-sort">Sort by:</label>
+              <select
+                id="profile-review-sort"
+                value={reviewSort}
+                onChange={(e) => setReviewSort(e.target.value)}
+                className="review-sort-select"
+              >
+                <option value="recent">Most Recent</option>
+                <option value="helpful">Most Helpful</option>
+                <option value="highest">Highest Rated</option>
+                <option value="lowest">Lowest Rated</option>
+              </select>
+            </div>
+          )}
+        </div>
+
+        {reviewsLoading ? (
+          <p className="status">Loading reviews...</p>
+        ) : reviews.length === 0 ? (
+          <p className="profile-reviews-empty">No reviews yet.</p>
+        ) : (
+          <>
+            <div className="profile-checkins">
+              {reviews.map(item => (
+                <CheckInCard key={item.rating.id} item={item} />
+              ))}
+            </div>
+            {reviewsHasMore && (
+              <button
+                className="profile-load-more-btn"
+                onClick={loadMoreReviews}
+                disabled={reviewsLoadingMore}
+              >
+                {reviewsLoadingMore ? 'Loading...' : 'Load More Reviews'}
+              </button>
+            )}
+          </>
+        )}
+      </section>
+
       {palateMatch && palateMatch.match_score != null && (
         <section className="profile-section palate-match-card">
           <h2>Palate Match</h2>
@@ -290,17 +373,6 @@ export default function UserProfile() {
                 )}
                 <span className="profile-video-views">{v.view_count} view{v.view_count !== 1 ? 's' : ''}</span>
               </Link>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {profile.recent_checkins?.length > 0 && (
-        <section className="profile-section">
-          <h2>Recent Check-ins</h2>
-          <div className="profile-checkins">
-            {profile.recent_checkins.map(item => (
-              <CheckInCard key={item.rating.id} item={item} />
             ))}
           </div>
         </section>

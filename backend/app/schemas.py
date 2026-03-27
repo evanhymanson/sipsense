@@ -283,6 +283,12 @@ class FeedResponse(BaseModel):
     has_more: bool
 
 
+class UserRatingsResponse(BaseModel):
+    items: list[FeedItem]
+    total: int
+    has_more: bool
+
+
 class CheckInResponse(BaseModel):
     """Returned after a successful check-in (rate_whiskey)."""
     rating: RatingRead

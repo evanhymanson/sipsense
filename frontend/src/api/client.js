@@ -272,6 +272,8 @@ export const api = {
     request(`/ratings/${ratingId}/toast`, { method: 'DELETE' }),
   getUserProfile: (username) =>
     request(`/users/${username}/profile`),
+  getUserRatings: (username, { sort_by = 'recent', skip = 0, limit = 10 } = {}) =>
+    request(`/users/${username}/ratings?sort_by=${sort_by}&skip=${skip}&limit=${limit}`),
   followUser: (username) =>
     request(`/users/${username}/follow`, { method: 'POST' }),
   unfollowUser: (username) =>
