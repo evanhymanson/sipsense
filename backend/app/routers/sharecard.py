@@ -1,7 +1,8 @@
 """
-Share card generation — create branded shareable PNG images for ratings.
+Share card generation — create branded shareable PNG images for ratings and palate DNA.
 """
 import io
+from collections import Counter
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
@@ -195,4 +196,119 @@ def generate_whiskey_share_card(whiskey_id: int, db: Session = Depends(get_db)):
         buf,
         media_type="image/png",
         headers={"Content-Disposition": f"inline; filename=sipsense-{whiskey_id}.png"},
+    )
+
+
+@router.get("/palate/{username}")
+def generate_palate_dna_card(username: str, db: Session = Depends(get_db)):
+    """Generate a branded PNG 'Whiskey DNA' card for a user's palate."""
+    from PIL import Image, ImageDraw
+
+    user = db.query(models.User).filter(models.User.username == username).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    ratings = (
+        db.query(models.UserRating)
+        .filter(models.UserRating.user_id == username)
+        .all()
+    )
+    if not ratings:
+        raise HTTPException(status_code=404, detail="No ratings to generate DNA card")
+
+    rated_ids = [r.whiskey_id for r in ratings]
+    whiskeys = {
+        w.id: w
+        for w in db.query(models.Whiskey).filter(models.Whiskey.id.in_(rated_ids)).all()
+    }
+
+    cat_counter: Counter = Counter()
+    flavor_counter: Counter = Counter()
+    for r in ratings:
+        w = whiskeys.get(r.whiskey_id)
+        if not w:
+            continue
+        if w.category:
+            cat_counter[w.category] += 1
+        if w.flavor_profile:
+            for tag in w.flavor_profile.split(","):
+                tag = tag.strip().lower()
+                if tag:
+                    flavor_counter[tag] += 1
+
+    top_cats = [c for c, _ in cat_counter.most_common(3)]
+    top_flavors = [f for f, _ in flavor_counter.most_common(5)]
+    avg_score = round(sum(r.score for r in ratings) / len(ratings), 1)
+    total = len(ratings)
+
+    # Fun descriptor based on palate
+    if avg_score >= 4.2:
+        descriptor = "Discerning Palate"
+    elif avg_score >= 3.5:
+        descriptor = "Enthusiast"
+    else:
+        descriptor = "Explorer"
+    if total >= 50:
+        descriptor = f"Seasoned {descriptor}"
+    elif total >= 20:
+        descriptor = f"Rising {descriptor}"
+
+    font_lg, font_md, font_sm = _load_fonts()
+    DNA_W, DNA_H = 600, 420
+    img = Image.new("RGB", (DNA_W, DNA_H), BG_COLOR)
+    draw = ImageDraw.Draw(img)
+
+    # Top bar with branding
+    draw.rectangle([(0, 0), (DNA_W, 56)], fill=SURFACE_COLOR)
+    draw.text((20, 14), "SipSense", fill=AMBER_COLOR, font=font_md)
+    draw.text((DNA_W - 168, 18), "My Whiskey DNA", fill=MUTED_COLOR, font=font_sm)
+
+    # Username + descriptor
+    draw.text((30, 76), f"@{username}", fill=TEXT_COLOR, font=font_lg)
+    draw.text((30, 112), descriptor, fill=AMBER_COLOR, font=font_md)
+
+    # Stats row
+    y = 152
+    draw.text((30, y), f"{total} Bottles Rated", fill=TEXT_COLOR, font=font_md)
+    draw.text((250, y), f"Avg {avg_score}/5", fill=AMBER_COLOR, font=font_md)
+
+    # Divider
+    y = 188
+    draw.line([(30, y), (DNA_W - 30, y)], fill=MUTED_COLOR, width=1)
+
+    # Top categories (left column)
+    y = 204
+    draw.text((30, y), "Top Styles", fill=MUTED_COLOR, font=font_sm)
+    y += 24
+    for cat in top_cats:
+        draw.text((30, y), f"\u2022 {cat}", fill=TEXT_COLOR, font=font_md)
+        y += 26
+
+    # Top flavors (right column)
+    y = 204
+    draw.text((300, y), "Flavor DNA", fill=MUTED_COLOR, font=font_sm)
+    y += 24
+    for flav in top_flavors:
+        draw.text((300, y), f"\u2022 {flav}", fill=AMBER_COLOR, font=font_md)
+        y += 26
+
+    # Bottom bar
+    draw.rectangle([(0, DNA_H - 40), (DNA_W, DNA_H)], fill=SURFACE_COLOR)
+    draw.text(
+        (20, DNA_H - 32),
+        "Discover your whiskey DNA at sipsense.ai",
+        fill=AMBER_COLOR,
+        font=font_sm,
+    )
+
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    buf.seek(0)
+
+    return StreamingResponse(
+        buf,
+        media_type="image/png",
+        headers={
+            "Content-Disposition": f"inline; filename=sipsense-dna-{username}.png"
+        },
     )

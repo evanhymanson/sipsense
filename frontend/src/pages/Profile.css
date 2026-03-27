@@ -225,6 +225,14 @@
 .prof-ai-btn:hover { background: var(--amber); color: #1a1a1a; }
 .prof-ai-loading { font-size: 0.82rem; color: var(--text-muted); font-style: italic; }
 
+.prof-share-dna-btn {
+  margin-top: 0.5rem; margin-left: 0.5rem; padding: 0.4rem 1rem;
+  background: var(--amber); color: #1a1a1a; border: none;
+  border-radius: 999px; font-size: 0.78rem; font-family: inherit; font-weight: 600;
+  cursor: pointer;
+}
+.prof-share-dna-btn:hover { background: var(--amber-light); }
+
 .prof-bars { display: flex; flex-direction: column; gap: 0.35rem; }
 .prof-bar-row { display: flex; align-items: center; gap: 0.5rem; }
 .prof-bar-label { flex: 0 0 100px; font-size: 0.82rem; color: var(--text-soft); text-align: right; }

@@ -513,6 +513,25 @@
   border-color: var(--amber);
 }
 
+.sb-card-buy {
+  display: block;
+  margin-top: 0.35rem;
+  padding: 0.3rem 0.6rem;
+  background: var(--amber-dim, rgba(201, 168, 76, 0.1));
+  border: 1px solid var(--amber);
+  border-radius: 999px;
+  color: var(--amber);
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-align: center;
+  text-decoration: none;
+  transition: all 0.15s;
+}
+.sb-card-buy:hover {
+  background: var(--amber);
+  color: #1a1a1a;
+}
+
 /* ── Input area ──────────────────────────────────────────────────────────── */
 
 .sb-input-area {

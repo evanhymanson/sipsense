@@ -2122,6 +2122,74 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
   color: var(--bg);
 }
 
+/* ── Post Check-In Recommendation ────────────────────────────────────── */
+.post-checkin-rec {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: var(--surface);
+  border: 1px solid var(--amber);
+  border-radius: var(--radius);
+}
+.post-checkin-label {
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--amber);
+  font-weight: 700;
+  margin: 0 0 0.5rem;
+}
+.post-checkin-card {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+.post-checkin-link {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex: 1;
+  text-decoration: none;
+  color: var(--text);
+  min-width: 0;
+}
+.post-checkin-link:hover .post-checkin-name { color: var(--amber-light); }
+.post-checkin-bottle {
+  width: 50px;
+  height: 75px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.post-checkin-bottle img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+.post-checkin-info { min-width: 0; }
+.post-checkin-name {
+  font-weight: 700;
+  font-size: 0.92rem;
+  display: block;
+  transition: color 0.15s;
+}
+.post-checkin-detail {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+.post-checkin-buy {
+  flex-shrink: 0;
+  padding: 0.5rem 1rem;
+  background: var(--amber);
+  color: #1a1a1a;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 0.82rem;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.post-checkin-buy:hover { background: var(--amber-light); }
+
 /* ── Review Photo ────────────────────────────────────────────────────── */
 .review-photo {
   display: block;
@@ -2247,6 +2315,128 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
   .browse-hero-links {
     width: 100%;
   }
+}
+
+/* ── Your Next Bottle hero widget ─────────────────────────────────── */
+.next-bottle-hero {
+  position: relative;
+  background: linear-gradient(135deg, var(--surface) 0%, rgba(201, 168, 76, 0.08) 100%);
+  border: 1px solid var(--amber);
+  border-radius: var(--radius);
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 1rem;
+}
+.next-bottle-content {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+}
+.next-bottle-img {
+  flex-shrink: 0;
+  width: 80px;
+  height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.next-bottle-img img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+.next-bottle-emoji { font-size: 3rem; }
+.next-bottle-info { flex: 1; min-width: 0; }
+.next-bottle-label {
+  display: block;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--amber);
+  font-weight: 700;
+  margin-bottom: 0.2rem;
+}
+.next-bottle-name {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--text);
+  text-decoration: none;
+  display: block;
+}
+.next-bottle-name:hover { color: var(--amber-light); }
+.next-bottle-reason {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin: 0.3rem 0;
+  line-height: 1.4;
+}
+.next-bottle-meta {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  margin-top: 0.3rem;
+}
+.next-bottle-price {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--amber-light);
+}
+.next-bottle-match {
+  font-size: 0.82rem;
+  color: var(--amber);
+  background: var(--amber-dim, rgba(201, 168, 76, 0.12));
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+}
+.next-bottle-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+.next-bottle-buy {
+  display: inline-block;
+  padding: 0.6rem 1.25rem;
+  background: var(--amber);
+  color: #1a1a1a;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 0.88rem;
+  text-decoration: none;
+  text-align: center;
+  white-space: nowrap;
+  transition: background 0.15s;
+}
+.next-bottle-buy:hover { background: var(--amber-light); }
+.next-bottle-refresh {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  text-align: center;
+  font-family: inherit;
+}
+.next-bottle-refresh:hover { border-color: var(--amber); color: var(--amber); }
+.next-bottle-dismiss {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 0.2rem 0.4rem;
+  line-height: 1;
+}
+.next-bottle-dismiss:hover { color: var(--text); }
+
+@media (max-width: 600px) {
+  .next-bottle-content { flex-direction: column; text-align: center; }
+  .next-bottle-actions { flex-direction: row; justify-content: center; }
+  .next-bottle-img { width: 60px; height: 90px; }
 }
 
 /* ── Browse trending sections ──────────────────────────────────────── */
