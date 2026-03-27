@@ -56,6 +56,9 @@ function _setCache(path, data) {
   _cache.set(path, { data, ts: Date.now() })
 }
 
+/** Clear the GET response cache (exported for tests). */
+export function _resetCache() { _cache.clear() }
+
 // Deduplication: concurrent GET requests to the same path share a single in-flight promise
 const _inflight = new Map()
 
