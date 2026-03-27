@@ -438,6 +438,13 @@ export const api = {
     return request(`/videos/whiskey/${whiskeyId}${qs ? '?' + qs : ''}`)
   },
 
+  // ── Learn ──────────────────────────────────────────────────────────────
+  getCategories: () => request('/learn/categories'),
+  getCategory: (slug) => request(`/learn/categories/${slug}`),
+  getDistilleries: () => request('/learn/distilleries'),
+  getDistillery: (slug) => request(`/learn/distilleries/${slug}`),
+  getGlossary: () => request('/learn/glossary'),
+
   // ── Affiliate ──────────────────────────────────────────────────────────
   recordAffiliateClick: (body) =>
     request('/affiliate/click', { method: 'POST', body: JSON.stringify(body) }),

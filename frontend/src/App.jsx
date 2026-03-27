@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, NavLink, useNavigate, useLocation, Navigate } from 'react-router-dom'
+import { HelmetProvider } from 'react-helmet-async'
 import { useState, useEffect, Component, lazy, Suspense } from 'react'
 import { isLoggedIn, getUsername, clearAuth, api } from './api/client'
 import { trackPageView, trackEvent, startPageTimer, endPageTimer } from './api/analytics'
@@ -24,6 +25,10 @@ const Premium = lazy(() => import('./pages/Premium'))
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard'))
 const TopLists = lazy(() => import('./pages/TopLists'))
 const UserLists = lazy(() => import('./pages/UserLists'))
+const Learn = lazy(() => import('./pages/Learn'))
+const LearnCategory = lazy(() => import('./pages/LearnCategory'))
+const LearnDistillery = lazy(() => import('./pages/LearnDistillery'))
+const LearnGlossary = lazy(() => import('./pages/LearnGlossary'))
 
 function RequireAuth({ children }) {
   if (!isLoggedIn()) {
@@ -73,8 +78,12 @@ class ErrorBoundary extends Component {
   }
 }
 
-const PRIMARY_LINKS = [
+const PUBLIC_LINKS = [
   { to: '/',         label: 'Browse',   end: true },
+  { to: '/learn',    label: 'Learn' },
+]
+
+const AUTH_LINKS = [
   { to: '/discover', label: 'Discover' },
   { to: '/scan',     label: 'Scan' },
   { to: '/feed',     label: 'Feed' },
@@ -137,7 +146,12 @@ function Nav() {
 
       {/* Desktop: primary links */}
       <div className="nav-primary">
-        {PRIMARY_LINKS.map(link => (
+        {PUBLIC_LINKS.map(link => (
+          <NavLink key={link.to} to={link.to} end={link.end}>
+            {link.label}
+          </NavLink>
+        ))}
+        {isLoggedIn() && AUTH_LINKS.map(link => (
           <NavLink key={link.to} to={link.to} end={link.end}>
             {link.label}
           </NavLink>
@@ -147,33 +161,52 @@ function Nav() {
       {/* Mobile: full-screen menu */}
       <div className={`nav-mobile-menu ${menuOpen ? 'nav-mobile-menu--open' : ''}`}>
         <div className="nav-mobile-section">
-          {PRIMARY_LINKS.map(link => (
+          {PUBLIC_LINKS.map(link => (
             <NavLink key={link.to} to={link.to} end={link.end}>
               {link.label}
             </NavLink>
           ))}
-          <NavLink to="/alerts">
-            Notifications{unreadAlerts > 0 && ` (${unreadAlerts})`}
-          </NavLink>
+          {isLoggedIn() && AUTH_LINKS.map(link => (
+            <NavLink key={link.to} to={link.to} end={link.end}>
+              {link.label}
+            </NavLink>
+          ))}
+          {isLoggedIn() && (
+            <NavLink to="/alerts">
+              Notifications{unreadAlerts > 0 && ` (${unreadAlerts})`}
+            </NavLink>
+          )}
         </div>
         <div className="nav-mobile-section nav-mobile-account">
-          <span className="nav-mobile-label">Account</span>
-          <span className="nav-username">{username}</span>
-          <button className="nav-logout" onClick={handleLogout}>Log out</button>
+          {isLoggedIn() ? (
+            <>
+              <span className="nav-mobile-label">Account</span>
+              <span className="nav-username">{username}</span>
+              <button className="nav-logout" onClick={handleLogout}>Log out</button>
+            </>
+          ) : (
+            <NavLink to="/onboarding" className="nav-login-link">Sign In</NavLink>
+          )}
         </div>
       </div>
 
       {/* Desktop user info */}
       <div className="nav-user nav-user--desktop">
-        <button
-          className="nav-bell"
-          onClick={() => navigate('/alerts')}
-          title="Notifications"
-        >
-          🔔{unreadAlerts > 0 && <span className="nav-bell-badge">{unreadAlerts}</span>}
-        </button>
-        <span className="nav-username">{username}</span>
-        <button className="nav-logout" onClick={handleLogout}>Log out</button>
+        {isLoggedIn() ? (
+          <>
+            <button
+              className="nav-bell"
+              onClick={() => navigate('/alerts')}
+              title="Notifications"
+            >
+              🔔{unreadAlerts > 0 && <span className="nav-bell-badge">{unreadAlerts}</span>}
+            </button>
+            <span className="nav-username">{username}</span>
+            <button className="nav-logout" onClick={handleLogout}>Log out</button>
+          </>
+        ) : (
+          <NavLink to="/onboarding" className="nav-login-link">Sign In</NavLink>
+        )}
       </div>
     </nav>
   )
@@ -200,8 +233,16 @@ function AppShell() {
         <Routes>
           <Route path="/onboarding" element={<Onboarding />} />
           <Route path="/quiz" element={<TasteQuiz />} />
-          <Route path="/" element={<RequireAuth><ErrorBoundary key="browse"><Browse /></ErrorBoundary></RequireAuth>} />
-          <Route path="/whiskey/:id" element={<RequireAuth><ErrorBoundary key="detail"><WhiskeyDetail /></ErrorBoundary></RequireAuth>} />
+          {/* Public routes */}
+          <Route path="/" element={<ErrorBoundary key="browse"><Browse /></ErrorBoundary>} />
+          <Route path="/whiskey/:id" element={<ErrorBoundary key="detail"><WhiskeyDetail /></ErrorBoundary>} />
+          <Route path="/lists" element={<ErrorBoundary key="toplists"><TopLists /></ErrorBoundary>} />
+          <Route path="/lists/:slug" element={<ErrorBoundary key="toplist-detail"><TopLists /></ErrorBoundary>} />
+          <Route path="/learn" element={<ErrorBoundary key="learn"><Learn /></ErrorBoundary>} />
+          <Route path="/learn/categories/:slug" element={<ErrorBoundary key="learn-cat"><LearnCategory /></ErrorBoundary>} />
+          <Route path="/learn/distilleries/:slug" element={<ErrorBoundary key="learn-dist"><LearnDistillery /></ErrorBoundary>} />
+          <Route path="/learn/glossary" element={<ErrorBoundary key="learn-gloss"><LearnGlossary /></ErrorBoundary>} />
+          {/* Auth-required routes */}
           <Route path="/discover" element={<RequireAuth><ErrorBoundary key="discover"><Discover /></ErrorBoundary></RequireAuth>} />
           <Route path="/me" element={<RequireAuth><ErrorBoundary key="profile"><Profile /></ErrorBoundary></RequireAuth>} />
           <Route path="/feed" element={<RequireAuth><ErrorBoundary key="feed"><Feed /></ErrorBoundary></RequireAuth>} />
@@ -210,8 +251,6 @@ function AppShell() {
           <Route path="/videos" element={<RequireAuth><ErrorBoundary key="videos"><VideoFeed /></ErrorBoundary></RequireAuth>} />
           <Route path="/premium" element={<RequireAuth><ErrorBoundary key="premium"><Premium /></ErrorBoundary></RequireAuth>} />
           <Route path="/alerts" element={<RequireAuth><ErrorBoundary key="alerts"><Alerts /></ErrorBoundary></RequireAuth>} />
-          <Route path="/lists" element={<RequireAuth><ErrorBoundary key="toplists"><TopLists /></ErrorBoundary></RequireAuth>} />
-          <Route path="/lists/:slug" element={<RequireAuth><ErrorBoundary key="toplist-detail"><TopLists /></ErrorBoundary></RequireAuth>} />
           <Route path="/my-lists" element={<RequireAuth><ErrorBoundary key="userlists"><UserLists /></ErrorBoundary></RequireAuth>} />
           <Route path="/my-lists/:slug" element={<RequireAuth><ErrorBoundary key="userlist-detail"><UserLists /></ErrorBoundary></RequireAuth>} />
           <Route path="/user/:username" element={<RequireAuth><ErrorBoundary key="userprofile"><UserProfile /></ErrorBoundary></RequireAuth>} />
@@ -247,11 +286,13 @@ function AppShell() {
 
 export default function App() {
   return (
-    <BrowserRouter>
-      <ToastProvider>
-        <AppShell />
-        <InstallPrompt />
-      </ToastProvider>
-    </BrowserRouter>
+    <HelmetProvider>
+      <BrowserRouter>
+        <ToastProvider>
+          <AppShell />
+          <InstallPrompt />
+        </ToastProvider>
+      </BrowserRouter>
+    </HelmetProvider>
   )
 }
