@@ -225,10 +225,10 @@ function FavoritesTab() {
 
 // ── Collection Tab ──────────────────────────────────────────────────────────
 
-function CollectionTab() {
+function CollectionTab({ initialStats = null }) {
   const navigate = useNavigate()
   const [items, setItems] = useState([])
-  const [stats, setStats] = useState(null)
+  const [stats, setStats] = useState(initialStats)
   const [filter, setFilter] = useState('all')
   const [loading, setLoading] = useState(true)
   const [searchText, setSearchText] = useState('')
@@ -245,16 +245,22 @@ function CollectionTab() {
   const [addResults, setAddResults] = useState([])
   const [addSearchLoading, setAddSearchLoading] = useState(false)
 
-  const load = useCallback(() => {
+  const loadItems = useCallback(() => {
     setLoading(true)
     const statusParam = filter !== 'all' ? filter : null
-    Promise.all([api.getCollection(statusParam), api.getCollectionStats()])
-      .then(([col, st]) => { setItems(col); setStats(st) })
+    api.getCollection(statusParam)
+      .then(setItems)
       .catch(() => addToast('Failed to load collection', 'error'))
       .finally(() => setLoading(false))
   }, [filter, addToast])
 
-  useEffect(() => { load() }, [load])
+  const refreshStats = useCallback(() => {
+    api.getCollectionStats()
+      .then(setStats)
+      .catch(() => {})
+  }, [])
+
+  useEffect(() => { loadItems() }, [loadItems])
 
   // ── Debounced search for adding bottles ──
   useEffect(() => {
@@ -276,14 +282,14 @@ function CollectionTab() {
       setShowAdd(false)
       setAddSearch('')
       setAddResults([])
-      load()
+      loadItems(); refreshStats()
     } catch (err) {
       addToast(err.message || 'Failed to add bottle', 'error')
     }
   }
 
   async function handleUpdate(itemId, update) {
-    try { await api.updateCollectionItem(itemId, update); load() }
+    try { await api.updateCollectionItem(itemId, update); loadItems(); refreshStats() }
     catch { addToast('Failed to update item', 'error') }
   }
 
@@ -293,7 +299,7 @@ function CollectionTab() {
       setTimeout(() => setConfirmRemoveId(null), 3000)
       return
     }
-    try { await api.removeFromCollection(itemId); load(); setConfirmRemoveId(null) }
+    try { await api.removeFromCollection(itemId); loadItems(); refreshStats(); setConfirmRemoveId(null) }
     catch { addToast('Failed to remove item', 'error') }
   }
 
@@ -311,7 +317,7 @@ function CollectionTab() {
     try {
       await api.updateCollectionItem(itemId, update)
       setEditingId(null)
-      load()
+      loadItems()
     } catch { addToast('Failed to save changes', 'error') }
   }
 
@@ -542,9 +548,9 @@ const SCORE_FILTERS = [
   { key: 'low', label: '1-2\u2605' },
 ]
 
-function JournalTab() {
-  const [entries, setEntries] = useState([])
-  const [loading, setLoading] = useState(true)
+function JournalTab({ initialEntries = null }) {
+  const [entries, setEntries] = useState(initialEntries || [])
+  const [loading, setLoading] = useState(!initialEntries)
   const [error, setError] = useState(null)
   const addToast = useToast()
 
@@ -563,14 +569,14 @@ function JournalTab() {
   const [filterText, setFilterText] = useState('')
   const [scoreFilter, setScoreFilter] = useState('all')
 
-  function loadJournal() {
+  const loadJournal = useCallback(() => {
     setLoading(true)
     api.getJournal().then(data => setEntries(data.entries || []))
       .catch(e => { setError(e.message || 'Failed to load journal'); addToast('Failed to load journal', 'error') })
       .finally(() => setLoading(false))
-  }
+  }, [addToast])
 
-  useEffect(() => { loadJournal() }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (!initialEntries) loadJournal() }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Debounced whiskey search ───────────────────────
   useEffect(() => {
@@ -786,8 +792,9 @@ export default function Profile() {
   const navigate = useNavigate()
   const addToast = useToast()
   const [searchParams, setSearchParams] = useSearchParams()
-  let currentUser = null
-  try { currentUser = localStorage.getItem('sipsense_user') } catch { /* private browsing */ }
+  const [currentUser] = useState(() => {
+    try { return localStorage.getItem('sipsense_user') } catch { return null }
+  })
   const tabFromUrl = searchParams.get('tab')
   const [activeTab, setActiveTabRaw] = useState(
     TABS.some(t => t.id === tabFromUrl) ? tabFromUrl : 'palate'
@@ -800,6 +807,8 @@ export default function Profile() {
   const [palateData, setPalateData] = useState(null)
   const [tabCounts, setTabCounts] = useState({})
   const [loading, setLoading] = useState(true)
+  const [initialColStats, setInitialColStats] = useState(null)
+  const [initialJournal, setInitialJournal] = useState(null)
   const [followerCount, setFollowerCount] = useState(0)
   const [followingCount, setFollowingCount] = useState(0)
   const [listModal, setListModal] = useState(null)
@@ -819,23 +828,24 @@ export default function Profile() {
       api.getPalate().catch(() => null),
       api.getCollectionStats().catch(() => null),
       api.getJournal().catch(() => null),
-      api.getMe().catch(() => null),
-    ]).then(([pers, pal, colStats, journal, me]) => {
+      currentUser ? api.getUserProfile(currentUser).catch(() => null) : Promise.resolve(null),
+    ]).then(([pers, pal, colStats, journal, profile]) => {
       setPersonality(pers)
       setPalateData(pal)
+      setInitialColStats(colStats)
+      setInitialJournal(journal)
       setTabCounts({
         favorites: pal?.stats?.total_favorites ?? 0,
         collection: colStats?.total ?? 0,
         journal: Array.isArray(journal?.entries) ? journal.entries.length : (journal?.total ?? 0),
         badges: pal?.badges?.length ?? 0,
       })
-      if (me?.username) {
-        api.getUserProfile(me.username)
-          .then(p => { setFollowerCount(p.follower_count || 0); setFollowingCount(p.following_count || 0) })
-          .catch(() => {})
+      if (profile) {
+        setFollowerCount(profile.follower_count || 0)
+        setFollowingCount(profile.following_count || 0)
       }
     }).finally(() => setLoading(false))
-  }, [])
+  }, [currentUser])
 
   async function handleFollowSuggested(username) {
     try {
@@ -993,8 +1003,8 @@ export default function Profile() {
         {activeTab === 'palate' && <PalateTab palateData={palateData} />}
         {activeTab === 'foryou' && <ForYouTab />}
         {activeTab === 'favorites' && <FavoritesTab />}
-        {activeTab === 'collection' && <CollectionTab />}
-        {activeTab === 'journal' && <JournalTab />}
+        {activeTab === 'collection' && <CollectionTab initialStats={initialColStats} />}
+        {activeTab === 'journal' && <JournalTab initialEntries={initialJournal?.entries} />}
         {activeTab === 'badges' && (
           palateData?.badges?.length > 0
             ? <BadgeGrid badges={palateData.badges} showDate />
