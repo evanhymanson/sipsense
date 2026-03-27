@@ -449,6 +449,7 @@ export const api = {
   // ── Affiliate ──────────────────────────────────────────────────────────
   recordAffiliateClick: (body) =>
     request('/affiliate/click', { method: 'POST', body: JSON.stringify(body) }),
+  getPendingFollowups: () => request('/affiliate/pending-followups'),
 
   // ── Sponsored ────────────────────────────────────────────────────────
   trackSponsoredImpression: (placementId) =>
@@ -456,11 +457,25 @@ export const api = {
   trackSponsoredClick: (placementId) =>
     request(`/sponsored/${placementId}/click`, { method: 'POST' }),
 
+  // ── Price Alerts ─────────────────────────────────────────────────────
+  createPriceAlert: (body) =>
+    request('/price-alerts/', { method: 'POST', body: JSON.stringify(body) }),
+  getPriceAlerts: () => request('/price-alerts/'),
+  getPriceAlertStatus: (whiskeyId) => request(`/price-alerts/status/${whiskeyId}`),
+  removePriceAlert: (whiskeyId) =>
+    request(`/price-alerts/${whiskeyId}`, { method: 'DELETE' }),
+
   // ── Subscription ──────────────────────────────────────────────────────
   getSubscriptionStatus: () => request('/subscription/status'),
   getFeatureComparison: () => request('/subscription/features'),
   activatePremium: () => request('/subscription/activate', { method: 'POST' }),
   cancelSubscription: () => request('/subscription/cancel', { method: 'POST' }),
+
+  // ── Stripe Billing ────────────────────────────────────────────────────
+  createCheckoutSession: (plan = 'monthly') =>
+    request('/billing/create-checkout-session', { method: 'POST', body: JSON.stringify({ plan }) }),
+  createPortalSession: () =>
+    request('/billing/create-portal-session', { method: 'POST' }),
 
   // ── Analytics (Admin) ──────────────────────────────────────────────────
   getAnalyticsOverview: () => request('/analytics/overview'),

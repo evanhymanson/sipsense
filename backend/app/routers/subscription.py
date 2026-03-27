@@ -34,7 +34,10 @@ def get_status(
     """Check current user's subscription status."""
     # Check if premium has expired
     if current_user.is_premium and current_user.premium_until:
-        if current_user.premium_until < datetime.now(timezone.utc):
+        expiry = current_user.premium_until
+        if expiry.tzinfo is None:
+            expiry = expiry.replace(tzinfo=timezone.utc)
+        if expiry < datetime.now(timezone.utc):
             current_user.is_premium = False
             db.commit()
 
@@ -48,6 +51,7 @@ def get_status(
         is_premium=current_user.is_premium,
         tier=sub.tier if sub else None,
         expires_at=current_user.premium_until,
+        has_stripe=bool(sub and sub.payment_provider == "stripe"),
     )
 
 

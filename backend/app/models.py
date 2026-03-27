@@ -463,6 +463,34 @@ class SponsoredPlacement(Base):
     whiskey = relationship("Whiskey")
 
 
+class PriceAlert(Base):
+    """User subscribes to price drop notifications for a whiskey."""
+    __tablename__ = "price_alerts"
+    __table_args__ = (
+        UniqueConstraint("username", "whiskey_id", name="uq_price_alert"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String, nullable=False, index=True)
+    whiskey_id = Column(Integer, ForeignKey("whiskeys.id", ondelete="CASCADE"), nullable=False, index=True)
+    target_price = Column(Float)               # alert when price drops below this (nullable = any drop)
+    original_price = Column(Float)             # price when alert was created
+    triggered = Column(Boolean, default=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    whiskey = relationship("Whiskey")
+
+
+class StripeEvent(Base):
+    """Webhook event log for idempotency."""
+    __tablename__ = "stripe_events"
+
+    id = Column(Integer, primary_key=True, index=True)
+    event_id = Column(String, unique=True, nullable=False, index=True)
+    event_type = Column(String, nullable=False)
+    processed_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
 # ── Top Lists ────────────────────────────────────────────────────────────
 
 
