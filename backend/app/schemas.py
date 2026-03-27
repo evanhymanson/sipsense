@@ -472,12 +472,44 @@ class SubscriptionStatus(BaseModel):
     is_premium: bool
     tier: Optional[str] = None
     expires_at: Optional[datetime] = None
+    has_stripe: bool = False
 
 
 class FeatureComparison(BaseModel):
     feature: str
     free_tier: str
     premium_tier: str
+
+
+# ── Price Alerts ──────────────────────────────────────────────────────────
+
+
+class PriceAlertCreate(BaseModel):
+    whiskey_id: int
+    target_price: Optional[float] = None
+
+
+class PriceAlertRead(BaseModel):
+    id: int
+    whiskey_id: int
+    whiskey_name: str
+    target_price: Optional[float] = None
+    original_price: Optional[float] = None
+    triggered: bool
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+# ── Stripe ───────────────────────────────────────────────────────────────
+
+
+class StripeCheckoutCreate(BaseModel):
+    plan: Literal["monthly", "yearly"] = "monthly"
+
+
+class StripeCheckoutResponse(BaseModel):
+    checkout_url: str
 
 
 # ── Sponsored ────────────────────────────────────────────────────────────

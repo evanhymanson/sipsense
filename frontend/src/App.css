@@ -3285,3 +3285,70 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
   border-radius: 999px; font-size: 0.85rem; transition: all 0.15s;
 }
 .nav-login-link:hover { background: var(--amber); color: #1a1a1a; }
+
+/* ── Price Verdict Badge ─────────────────────────────────────────────── */
+.price-verdict {
+  padding: 0.5rem 0.75rem; border-radius: var(--radius); font-size: 0.8rem;
+  font-weight: 600; margin-bottom: 0.75rem; text-align: center;
+}
+.price-verdict-avg { font-weight: 400; opacity: 0.8; }
+.price-verdict--great_deal { background: rgba(76, 175, 80, 0.15); color: #66bb6a; border: 1px solid rgba(76, 175, 80, 0.3); }
+.price-verdict--fair_price { background: rgba(255, 193, 7, 0.12); color: var(--amber-light); border: 1px solid rgba(255, 193, 7, 0.25); }
+.price-verdict--premium { background: rgba(255, 152, 0, 0.12); color: #ffb74d; border: 1px solid rgba(255, 152, 0, 0.25); }
+.price-verdict--splurge { background: rgba(244, 67, 54, 0.12); color: #ef5350; border: 1px solid rgba(244, 67, 54, 0.25); }
+
+/* ── Price Alert Button ──────────────────────────────────────────────── */
+.price-alert-btn {
+  display: block; width: 100%; margin-top: 0.5rem; padding: 0.55rem;
+  background: var(--surface); color: var(--text-muted); border: 1px solid var(--border);
+  border-radius: var(--radius); font-size: 0.85rem; cursor: pointer; font-family: inherit;
+  transition: all 0.15s;
+}
+.price-alert-btn:hover { border-color: var(--amber); color: var(--amber-light); }
+.price-alert-btn--active {
+  background: var(--amber-dim); border-color: var(--amber); color: var(--amber-light); font-weight: 600;
+}
+
+/* ── Budget Alternatives ─────────────────────────────────────────────── */
+.budget-alts { margin-top: 1rem; }
+.budget-alts h4 { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.5rem; }
+.budget-alts-list { display: flex; flex-direction: column; gap: 0.35rem; }
+.budget-alt-item {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 0.4rem 0.6rem; background: var(--surface); border-radius: var(--radius);
+  text-decoration: none; color: var(--text-soft); font-size: 0.85rem;
+  border: 1px solid var(--border); transition: border-color 0.15s;
+}
+.budget-alt-item:hover { border-color: var(--amber); }
+.budget-alt-name { font-weight: 500; }
+.budget-alt-price { color: var(--green-light); font-weight: 600; }
+
+/* ── Post-Purchase Follow-Up Banner ──────────────────────────────────── */
+.followup-banner {
+  position: relative; background: var(--surface); border: 1px solid var(--amber);
+  border-radius: var(--radius); padding: 1rem; margin-bottom: 1.5rem;
+}
+.followup-content { display: flex; flex-direction: column; gap: 0.5rem; }
+.followup-label {
+  font-size: 0.85rem; font-weight: 700; color: var(--amber-light);
+}
+.followup-list {
+  display: flex; gap: 0.75rem; overflow-x: auto; padding-bottom: 0.25rem;
+}
+.followup-item {
+  display: flex; flex-direction: column; align-items: center; gap: 0.25rem;
+  text-decoration: none; min-width: 80px; text-align: center;
+}
+.followup-img {
+  width: 48px; height: 64px; object-fit: contain; border-radius: 4px;
+}
+.followup-emoji { font-size: 2rem; }
+.followup-name {
+  font-size: 0.75rem; color: var(--text-soft); line-height: 1.2;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.followup-dismiss {
+  position: absolute; top: 0.25rem; right: 0.5rem; background: none; border: none;
+  color: var(--text-muted); font-size: 1.2rem; cursor: pointer; padding: 0.25rem;
+}

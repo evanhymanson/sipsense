@@ -41,6 +41,7 @@ export default function WhiskeyDetail() {
   const [lastRatingId, setLastRatingId] = useState(null)
   const [whiskeyVideos, setWhiskeyVideos] = useState([])
   const [matchScore, setMatchScore] = useState(null)
+  const [priceAlertActive, setPriceAlertActive] = useState(false)
 
   // Rating form state
   const [score, setScore] = useState(0)
@@ -161,7 +162,7 @@ export default function WhiskeyDetail() {
     }
   }, [id])
 
-  // Check if favorited + watching
+  // Check if favorited + watching + price alert
   useEffect(() => {
     if (!isLoggedIn()) return
     api.getFavoriteIds()
@@ -169,6 +170,9 @@ export default function WhiskeyDetail() {
       .catch(() => {})
     api.getWatchStatus(id)
       .then((r) => setWatching(r.watching))
+      .catch(() => {})
+    api.getPriceAlertStatus(id)
+      .then((r) => setPriceAlertActive(r.has_alert))
       .catch(() => {})
   }, [id])
 
@@ -693,6 +697,15 @@ export default function WhiskeyDetail() {
       {buyLinks?.links?.length > 0 && (
         <div className="buy-links-section">
           <h3>Buy This Bottle</h3>
+          {/* Price context badge */}
+          {priceContext?.available && (
+            <div className={`price-verdict price-verdict--${priceContext.verdict}`}>
+              {priceContext.verdict_text} — {priceContext.price_percentile}th percentile for {priceContext.category}
+              {priceContext.category_avg_price && (
+                <span className="price-verdict-avg"> (avg ${priceContext.category_avg_price.toFixed(0)})</span>
+              )}
+            </div>
+          )}
           <div className="buy-links-grid">
             {buyLinks.links.map((link, i) => (
               <a
@@ -713,6 +726,43 @@ export default function WhiskeyDetail() {
               </a>
             ))}
           </div>
+          {/* Price alert toggle */}
+          {isLoggedIn() && whiskey.price_usd && (
+            <button
+              className={`price-alert-btn ${priceAlertActive ? 'price-alert-btn--active' : ''}`}
+              onClick={async () => {
+                try {
+                  if (priceAlertActive) {
+                    await api.removePriceAlert(id)
+                    setPriceAlertActive(false)
+                    addToast('Price alert removed', 'info')
+                  } else {
+                    await api.createPriceAlert({ whiskey_id: Number(id) })
+                    setPriceAlertActive(true)
+                    addToast('Price alert set! We\'ll notify you of drops.', 'success')
+                  }
+                } catch {
+                  addToast('Could not update price alert', 'error')
+                }
+              }}
+            >
+              {priceAlertActive ? 'Price Alert On' : 'Notify Me of Price Drops'}
+            </button>
+          )}
+          {/* Budget alternatives */}
+          {priceContext?.budget_alternatives?.length > 0 && (
+            <div className="budget-alts">
+              <h4>Similar for Less</h4>
+              <div className="budget-alts-list">
+                {priceContext.budget_alternatives.map(alt => (
+                  <Link key={alt.id} to={`/whiskey/${alt.id}`} className="budget-alt-item">
+                    <span className="budget-alt-name">{alt.name}</span>
+                    <span className="budget-alt-price">${Number(alt.price_usd).toFixed(0)}</span>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
           <p className="affiliate-disclosure">Links may earn SipSense a small commission at no cost to you.</p>
         </div>
       )}

@@ -151,6 +151,10 @@ export default function Browse() {
   const [nextBottleLinks, setNextBottleLinks] = useState(null)
   const [nextBottleDismissed, setNextBottleDismissed] = useState(false)
 
+  // Post-purchase follow-ups
+  const [followups, setFollowups] = useState([])
+  const [followupsDismissed, setFollowupsDismissed] = useState(false)
+
   const addToast = useToast()
 
   const [filters, setFilters] = useState(() => ({
@@ -193,7 +197,7 @@ export default function Browse() {
       .catch(() => {})
   }, [])
 
-  // Load personalized "Your Next Bottle" for logged-in users
+  // Load personalized "Your Next Bottle" + follow-ups for logged-in users
   useEffect(() => {
     if (!isLoggedIn()) return
     api.getExplainedRecommendations(1)
@@ -204,6 +208,9 @@ export default function Browse() {
         }
       })
       .then(links => { if (links) setNextBottleLinks(links) })
+      .catch(() => {})
+    api.getPendingFollowups()
+      .then(r => { if (r.followups?.length > 0) setFollowups(r.followups) })
       .catch(() => {})
   }, [])
 
@@ -436,6 +443,28 @@ export default function Browse() {
             </div>
           </div>
           <button className="next-bottle-dismiss" onClick={() => setNextBottleDismissed(true)} aria-label="Dismiss">&times;</button>
+        </div>
+      )}
+
+      {/* ── Post-Purchase Follow-Up ──────────────────────── */}
+      {isLoggedIn() && !followupsDismissed && followups.length > 0 && (
+        <div className="followup-banner">
+          <div className="followup-content">
+            <span className="followup-label">Did you buy it? Rate it!</span>
+            <div className="followup-list">
+              {followups.map(w => (
+                <Link key={w.id} to={`/whiskey/${w.id}#check-in`} className="followup-item">
+                  {w.image_url ? (
+                    <img src={w.image_url} alt={w.name} className="followup-img" loading="lazy" />
+                  ) : (
+                    <span className="followup-emoji">{getCategoryEmoji(w.category)}</span>
+                  )}
+                  <span className="followup-name">{w.name}</span>
+                </Link>
+              ))}
+            </div>
+          </div>
+          <button className="followup-dismiss" onClick={() => setFollowupsDismissed(true)} aria-label="Dismiss">&times;</button>
         </div>
       )}
 

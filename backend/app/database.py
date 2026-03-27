@@ -166,6 +166,11 @@ def _ensure_indexes():
         # Critic scores
         ("idx_critic_whiskey", "critic_scores", "whiskey_id"),
         ("idx_critic_source", "critic_scores", "source"),
+        # Price alerts
+        ("idx_pricealert_user", "price_alerts", "username"),
+        ("idx_pricealert_whiskey", "price_alerts", "whiskey_id"),
+        # Stripe events
+        ("idx_stripe_event_id", "stripe_events", "event_id"),
     ]
     # Composite indexes for common query patterns (e.g. feed: WHERE user_id=? ORDER BY created_at DESC)
     _composite_indexes = [

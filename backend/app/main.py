@@ -233,8 +233,10 @@ app.include_router(toplists.router)
 app.include_router(critics.router)
 app.include_router(userlists.router)
 
-from .routers import seo
+from .routers import seo, price_alerts, stripe_billing
 app.include_router(seo.router)
+app.include_router(price_alerts.router)
+app.include_router(stripe_billing.router)
 
 
 @app.get("/", tags=["health"])

@@ -83,6 +83,19 @@ const styles = {
     transition: 'background 0.15s',
     marginBottom: '0.75rem',
   },
+  ctaSecondary: {
+    display: 'block',
+    width: '100%',
+    padding: '0.65rem',
+    background: 'var(--surface)',
+    color: 'var(--text-muted)',
+    border: '1px solid var(--border)',
+    borderRadius: 'var(--radius)',
+    fontSize: '0.9rem',
+    cursor: 'pointer',
+    fontFamily: 'inherit',
+    marginBottom: '0.5rem',
+  },
   cancelBtn: {
     display: 'block',
     width: '100%',
@@ -101,6 +114,48 @@ const styles = {
     color: 'var(--text-muted)',
     marginBottom: '1rem',
   },
+  planToggle: {
+    display: 'flex',
+    gap: '0.5rem',
+    marginBottom: '1.5rem',
+    justifyContent: 'center',
+  },
+  planBtn: {
+    padding: '0.5rem 1.25rem',
+    border: '1px solid var(--border)',
+    borderRadius: 'var(--radius)',
+    background: 'var(--surface)',
+    color: 'var(--text-muted)',
+    cursor: 'pointer',
+    fontFamily: 'inherit',
+    fontSize: '0.85rem',
+    fontWeight: 600,
+    transition: 'all 0.15s',
+  },
+  planBtnActive: {
+    background: 'var(--amber-dim)',
+    borderColor: 'var(--amber)',
+    color: 'var(--amber-light)',
+  },
+  priceDisplay: {
+    textAlign: 'center',
+    marginBottom: '1rem',
+  },
+  priceMain: {
+    fontSize: '2rem',
+    fontWeight: 700,
+    color: 'var(--text)',
+  },
+  priceSub: {
+    fontSize: '0.85rem',
+    color: 'var(--text-muted)',
+  },
+  trialNote: {
+    textAlign: 'center',
+    fontSize: '0.8rem',
+    color: 'var(--text-muted)',
+    marginBottom: '1.5rem',
+  },
 }
 
 export default function Premium() {
@@ -108,6 +163,8 @@ export default function Premium() {
   const [status, setStatus] = useState(null)
   const [features, setFeatures] = useState([])
   const [loading, setLoading] = useState(true)
+  const [plan, setPlan] = useState('monthly')
+  const [checkoutLoading, setCheckoutLoading] = useState(false)
 
   useEffect(() => {
     Promise.all([
@@ -122,14 +179,27 @@ export default function Premium() {
       .finally(() => setLoading(false))
   }, [])
 
-  async function handleActivate() {
+  async function handleCheckout() {
+    setCheckoutLoading(true)
     try {
-      await api.activatePremium()
-      const s = await api.getSubscriptionStatus()
-      setStatus(s)
-      addToast('Premium activated!', 'success')
+      const { checkout_url } = await api.createCheckoutSession(plan)
+      window.location.href = checkout_url
     } catch (e) {
-      addToast(e.message || 'Activation failed', 'error')
+      if (e.message?.includes('503') || e.message?.includes('not configured')) {
+        addToast('Payments coming soon! Stay tuned.', 'info')
+      } else {
+        addToast(e.message || 'Checkout failed', 'error')
+      }
+      setCheckoutLoading(false)
+    }
+  }
+
+  async function handleManageSubscription() {
+    try {
+      const { url } = await api.createPortalSession()
+      window.location.href = url
+    } catch {
+      addToast('Could not open subscription management', 'error')
     }
   }
 
@@ -192,13 +262,55 @@ export default function Premium() {
       )}
 
       {status?.is_premium ? (
-        <button style={styles.cancelBtn} onClick={handleCancel}>
-          Cancel Subscription
-        </button>
+        <>
+          {status.has_stripe ? (
+            <button style={styles.ctaSecondary} onClick={handleManageSubscription}>
+              Manage Subscription
+            </button>
+          ) : (
+            <button style={styles.cancelBtn} onClick={handleCancel}>
+              Cancel Subscription
+            </button>
+          )}
+        </>
       ) : (
-        <button style={styles.cta} onClick={handleActivate}>
-          Upgrade to Premium
-        </button>
+        <>
+          {/* Plan toggle */}
+          <div style={styles.planToggle}>
+            <button
+              style={{ ...styles.planBtn, ...(plan === 'monthly' ? styles.planBtnActive : {}) }}
+              onClick={() => setPlan('monthly')}
+            >
+              Monthly
+            </button>
+            <button
+              style={{ ...styles.planBtn, ...(plan === 'yearly' ? styles.planBtnActive : {}) }}
+              onClick={() => setPlan('yearly')}
+            >
+              Yearly (Save 33%)
+            </button>
+          </div>
+
+          {/* Price display */}
+          <div style={styles.priceDisplay}>
+            <div style={styles.priceMain}>
+              {plan === 'monthly' ? '$4.99' : '$39.99'}
+              <span style={styles.priceSub}>{plan === 'monthly' ? '/month' : '/year'}</span>
+            </div>
+          </div>
+
+          <p style={styles.trialNote}>
+            Includes a 7-day free trial. Cancel anytime.
+          </p>
+
+          <button
+            style={{ ...styles.cta, opacity: checkoutLoading ? 0.6 : 1 }}
+            onClick={handleCheckout}
+            disabled={checkoutLoading}
+          >
+            {checkoutLoading ? 'Loading...' : 'Start Free Trial'}
+          </button>
+        </>
       )}
     </div>
   )
