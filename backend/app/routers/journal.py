@@ -11,6 +11,7 @@ from .. import models
 from ..database import get_db
 from ..auth import get_current_user
 from ..upload_utils import validate_magic_bytes, sanitize_extension
+from ..schemas import _prefer_nobg
 from ..storage import is_s3_enabled, upload_bytes, make_cdn_url
 
 router = APIRouter(tags=["journal"])
@@ -101,7 +102,7 @@ def get_my_journal(
                 "price_usd": r.whiskey.price_usd,
                 "rating_avg": r.whiskey.rating_avg,
                 "flavor_profile": r.whiskey.flavor_profile,
-                "image_url": r.whiskey.image_url,
+                "image_url": make_cdn_url(_prefer_nobg(r.whiskey.image_url)),
                 "abv": r.whiskey.abv,
                 "age": r.whiskey.age,
                 "region": r.whiskey.region,
