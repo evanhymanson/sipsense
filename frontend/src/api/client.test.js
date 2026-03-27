@@ -5,7 +5,7 @@
  * auth header injection, and 401 auto-logout.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { api, getToken, setAuth, clearAuth, isLoggedIn } from './client.js'
+import { api, getToken, setAuth, clearAuth, isLoggedIn, _resetCache } from './client.js'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -24,6 +24,7 @@ function mockFetch(body = {}, status = 200) {
 beforeEach(() => {
   vi.useFakeTimers()
   localStorage.clear()
+  _resetCache()
   vi.restoreAllMocks()
 })
 

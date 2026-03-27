@@ -41,11 +41,36 @@ export function isLoggedIn() {
 
 const REQUEST_TIMEOUT_MS = 30000
 
+// ── GET response cache (survives component remounts / tab switches) ─────
+const _cache = new Map()
+const CACHE_TTL_MS = 2 * 60 * 1000 // 2 minutes
+
+function _getCached(path) {
+  const entry = _cache.get(path)
+  if (!entry) return undefined
+  if (Date.now() - entry.ts > CACHE_TTL_MS) { _cache.delete(path); return undefined }
+  return entry.data
+}
+
+function _setCache(path, data) {
+  _cache.set(path, { data, ts: Date.now() })
+}
+
+/** Clear the GET response cache (exported for tests). */
+export function _resetCache() { _cache.clear() }
+
 // Deduplication: concurrent GET requests to the same path share a single in-flight promise
 const _inflight = new Map()
 
 async function request(path, options = {}, _retryCount = 0) {
   const method = (options.method || 'GET').toUpperCase()
+
+  // Serve cached GET responses instantly (tab-switch-back scenario)
+  if (method === 'GET' && !options.signal && !options.skipCache) {
+    const cached = _getCached(path)
+    if (cached !== undefined) return cached
+  }
+
   // Skip dedup when caller provides their own AbortSignal — the deduped
   // promise could be tied to a *different* caller's abort lifecycle,
   // causing "signal is aborted without reason" errors when the original
@@ -60,9 +85,12 @@ async function request(path, options = {}, _retryCount = 0) {
     // Use .then(fn, fn) instead of .finally() to avoid creating an unhandled
     // rejection on the cleanup chain when the original promise rejects.
     promise.then(
-      () => _inflight.delete(dedupeKey),
+      (data) => { _inflight.delete(dedupeKey); _setCache(path, data) },
       () => _inflight.delete(dedupeKey),
     )
+  } else if (method === 'GET') {
+    // Still cache non-deduped GETs (ones with custom signals)
+    promise.then((data) => _setCache(path, data), () => {})
   }
   return promise
 }
