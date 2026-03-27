@@ -1,11 +1,27 @@
 import { useState, useRef, useEffect, useCallback, memo, lazy, Suspense } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { api } from '../api/client'
+import { api, getToken } from '../api/client'
 import { getCategoryEmoji } from '../constants'
 import './ChatSidebar.css'
 
 const CHAT_STORAGE_KEY = 'sipsense_chat_messages'
+const CHAT_SESSION_KEY = 'sipsense_chat_session_id'
 const MAX_CHAT_MESSAGES = 200
+
+function getOrCreateSessionId() {
+  let sid = sessionStorage.getItem(CHAT_SESSION_KEY)
+  if (!sid) {
+    sid = crypto.randomUUID()
+    sessionStorage.setItem(CHAT_SESSION_KEY, sid)
+  }
+  return sid
+}
+
+function resetSessionId() {
+  const sid = crypto.randomUUID()
+  sessionStorage.setItem(CHAT_SESSION_KEY, sid)
+  return sid
+}
 
 const STARTER_PROMPTS = [
   "Good beginner bourbon under $40?",
@@ -276,6 +292,9 @@ export default function ChatSidebar({ isOpen, onClose }) {
   const [gpsStatus, setGpsStatus] = useState('pending') // pending | active | denied | unavailable
   const bottomRef = useRef(null)
   const textareaRef = useRef(null)
+  const sessionIdRef = useRef(getOrCreateSessionId())
+  const messagesRef = useRef(messages)
+  messagesRef.current = messages
 
   // ── Streaming text buffer: accumulate SSE text chunks in a ref, flush via RAF ──
   const streamBufferRef = useRef('')
@@ -401,6 +420,25 @@ export default function ChatSidebar({ isOpen, onClose }) {
     return () => clearTimeout(saveTimerRef.current)
   }, [messages])
 
+  // Summarize conversation on page close via sendBeacon (best-effort)
+  useEffect(() => {
+    function handleBeforeUnload() {
+      const msgs = messagesRef.current
+      if (!msgs || msgs.length < 4) return
+      const token = getToken()
+      if (!token) return
+      const history = msgs.map(m => ({ role: m.role, content: m.content }))
+      const payload = JSON.stringify({
+        messages: history,
+        session_id: sessionIdRef.current,
+        token,
+      })
+      navigator.sendBeacon('/api/chat/summarize', new Blob([payload], { type: 'application/json' }))
+    }
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+  }, [])
+
   useEffect(() => {
     if (isOpen) textareaRef.current?.focus()
   }, [isOpen])
@@ -436,7 +474,7 @@ export default function ChatSidebar({ isOpen, onClose }) {
     }
 
     try {
-      const response = await api.chatStream(history, null, userLocation, controller.signal)
+      const response = await api.chatStream(history, sessionIdRef.current, userLocation, controller.signal)
       if (!response.ok) throw new Error('Chat request failed')
 
       const reader = response.body.getReader()
@@ -684,8 +722,14 @@ export default function ChatSidebar({ isOpen, onClose }) {
           <div className="sb-header-actions">
             {messages.length > 0 && (
               <button className="sb-clear-btn" onClick={() => {
+                // Summarize conversation before clearing (fire-and-forget)
+                if (messages.length >= 4) {
+                  const history = messages.map(m => ({ role: m.role, content: m.content }))
+                  api.chatSummarize(history, sessionIdRef.current).catch(() => {})
+                }
                 setMessages([])
                 localStorage.removeItem(CHAT_STORAGE_KEY)
+                sessionIdRef.current = resetSessionId()
               }}>
                 Clear
               </button>

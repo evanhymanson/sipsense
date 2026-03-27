@@ -828,10 +828,10 @@ def remember_preference(
 
         prefs = _json.loads(mem.preferences or "{}")
         key = key.strip().lower()[:50]
-        value = value.replace("\n", " ").strip()[:200]
+        value = value.replace("\n", " ").strip()[:500]
 
         # Cap total preference keys to prevent unbounded growth
-        if key not in prefs and len(prefs) >= 20:
+        if key not in prefs and len(prefs) >= 50:
             return "Too many preferences stored — please ask me to forget something first."
 
         if key in ("likes", "dislikes"):
@@ -1875,6 +1875,7 @@ class AgentState(TypedDict):
 def _build_system_prompt(
     user_id: str = "chat_user",
     user_memory: str = "",
+    conversation_summaries: list[dict] | None = None,
     user_lat: float = 0.0,
     user_lng: float = 0.0,
 ) -> str:
@@ -1898,6 +1899,17 @@ def _build_system_prompt(
             "</user_preferences>\n"
             "Use these preferences to personalize recommendations without making the user repeat themselves."
         )
+    if conversation_summaries:
+        prompt += (
+            "\n\n<past_conversations>\n"
+            "Recent conversation history with this user (most recent last):\n"
+        )
+        for s in conversation_summaries:
+            prompt += f"- [{s['date']}] {s['summary']}\n"
+        prompt += (
+            "</past_conversations>\n"
+            "Reference these to avoid repeating recommendations and to build on past discussions."
+        )
     return prompt
 
 
@@ -1914,6 +1926,7 @@ def build_agent():
         system_prompt = _build_system_prompt(
             user_id=cfg.get("user_id", "chat_user"),
             user_memory=cfg.get("user_memory", ""),
+            conversation_summaries=cfg.get("conversation_summaries"),
             user_lat=cfg.get("user_lat", 0.0),
             user_lng=cfg.get("user_lng", 0.0),
         )

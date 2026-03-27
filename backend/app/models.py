@@ -101,6 +101,19 @@ class UserMemory(Base):
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
 
+class ConversationSummary(Base):
+    """Auto-generated summary of a chat session for cross-conversation memory."""
+    __tablename__ = "conversation_summaries"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(String, nullable=False, index=True)
+    session_id = Column(String, nullable=False, index=True)
+    summary = Column(Text, nullable=False)
+    topic_tags = Column(String)
+    whiskeys_discussed = Column(String)
+    message_count = Column(Integer, default=0)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
 class CollectionItem(Base):
     """A bottle in a user's personal shelf/collection."""
     __tablename__ = "collection_items"

@@ -462,4 +462,18 @@ export const api = {
     if (signal) opts.signal = signal
     return fetch(`${BASE}/chat/`, opts)
   },
+  // ── Chat summarize — fire-and-forget to save conversation memory ──────────
+  chatSummarize: (messages, session_id) => {
+    const headers = { 'Content-Type': 'application/json' }
+    const token = getToken()
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`
+    }
+    const body = { messages, session_id }
+    return fetch(`${BASE}/chat/summarize`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(body),
+    })
+  },
 }
