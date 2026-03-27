@@ -38,5 +38,5 @@
 - Chores: `chore/<name>` (e.g. `chore/cleanup-env-files`)
 
 ### Deploy flow:
-- Merging to `main` auto-deploys to **staging**
-- **Production** requires manual trigger via GitHub Actions workflow dispatch
+- Merging to `main` auto-deploys to **production** (CI tests must pass first)
+- Can also manually trigger production deploy via GitHub Actions workflow dispatch
