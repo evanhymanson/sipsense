@@ -233,6 +233,9 @@ app.include_router(toplists.router)
 app.include_router(critics.router)
 app.include_router(userlists.router)
 
+from .routers import seo
+app.include_router(seo.router)
+
 
 @app.get("/", tags=["health"])
 def root():

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
+import { Helmet } from 'react-helmet-async'
 import { api, isLoggedIn } from '../api/client'
 import { useToast } from '../components/Toast'
 import { StarDisplay } from '../utils/stars'
@@ -9,6 +10,7 @@ import WhiskeyCard from '../components/WhiskeyCard'
 import FlavorMap from '../components/FlavorMap'
 import StoreLocator from '../components/StoreLocator'
 import CriticScores from '../components/CriticScores'
+import WhiskeyJsonLd from '../components/WhiskeyJsonLd'
 
 const SERVING_STYLES = ['neat', 'rocks', 'cocktail', 'highball']
 const SERVING_EMOJI = { neat: '🥃', rocks: '🧊', cocktail: '🍸', highball: '🥂' }
@@ -161,6 +163,7 @@ export default function WhiskeyDetail() {
 
   // Check if favorited + watching
   useEffect(() => {
+    if (!isLoggedIn()) return
     api.getFavoriteIds()
       .then((r) => setFavorited(r.ids.includes(Number(id))))
       .catch(() => {})
@@ -295,6 +298,14 @@ export default function WhiskeyDetail() {
   )
   if (!whiskey) return null
 
+  const pageTitle = `${whiskey.name} — ${whiskey.distillery} | SipSense`
+  const pageDesc = whiskey.description
+    ? whiskey.description.slice(0, 160)
+    : `${whiskey.name} by ${whiskey.distillery}. ${whiskey.category}${whiskey.age ? `, ${whiskey.age} Year` : ''}, ${whiskey.abv}% ABV${whiskey.price_usd ? `. $${Number(whiskey.price_usd).toFixed(0)}` : ''}. Ratings and reviews on SipSense.`
+  const pageImage = whiskey.image_url
+    ? (whiskey.image_url.startsWith('http') ? whiskey.image_url : `https://sipsense.ai${whiskey.image_url}`)
+    : 'https://sipsense.ai/og-image.png'
+
   const flavors = whiskey.flavor_profile?.split(',').map((f) => f.trim()).filter(Boolean) ?? []
 
   const emoji = getCategoryEmoji(whiskey.category)
@@ -310,6 +321,17 @@ export default function WhiskeyDetail() {
 
   return (
     <div className="page detail-page">
+      <Helmet>
+        <title>{pageTitle}</title>
+        <meta name="description" content={pageDesc} />
+        <meta property="og:type" content="product" />
+        <meta property="og:title" content={pageTitle} />
+        <meta property="og:description" content={pageDesc} />
+        <meta property="og:image" content={pageImage} />
+        <meta property="og:url" content={`https://sipsense.ai/whiskey/${whiskey.id}`} />
+        <link rel="canonical" href={`https://sipsense.ai/whiskey/${whiskey.id}`} />
+      </Helmet>
+      <WhiskeyJsonLd whiskey={whiskey} />
 
       {/* ── Hero: bottle image + key info ─────────────────── */}
       <div className="detail-hero">
@@ -336,6 +358,7 @@ export default function WhiskeyDetail() {
         <div className="detail-hero-info">
           <div className="detail-title-row">
             <h1>{whiskey.name}</h1>
+            {isLoggedIn() && (
             <div className="detail-title-actions">
               <button
                 className={`watch-btn ${watching ? 'watch-btn--active' : ''}`}
@@ -379,6 +402,7 @@ export default function WhiskeyDetail() {
                 ↗
               </button>
             </div>
+            )}
           </div>
           <p className="detail-distillery">{whiskey.distillery}</p>
           <div className="detail-badges">
@@ -637,6 +661,7 @@ export default function WhiskeyDetail() {
       )}
 
       {/* Add to Shelf */}
+      {isLoggedIn() ? (
       <div className="shelf-action">
         <button
           className="shelf-add-btn"
@@ -660,6 +685,9 @@ export default function WhiskeyDetail() {
           </span>
         )}
       </div>
+      ) : (
+        <div className="shelf-action"><Link to="/onboarding" className="shelf-add-btn">Sign in to save this bottle</Link></div>
+      )}
 
       {/* Buy this bottle */}
       {buyLinks?.links?.length > 0 && (
@@ -798,6 +826,12 @@ export default function WhiskeyDetail() {
 
       <div id="check-in" className="rate-form">
         <h3>Check In This Whiskey</h3>
+        {!isLoggedIn() ? (
+          <div className="sign-in-cta">
+            <p>Sign in to rate and review this whiskey.</p>
+            <Link to="/onboarding" className="btn-primary">Sign In</Link>
+          </div>
+        ) : (
         <form onSubmit={submitRating}>
           <div className="star-picker half-star-picker" role="radiogroup" aria-label="Rating">
             {[1, 2, 3, 4, 5].map((n) => (
@@ -982,6 +1016,7 @@ export default function WhiskeyDetail() {
             </button>
           )}
         </form>
+        )}
       </div>
 
     </div>{/* detail-header */}

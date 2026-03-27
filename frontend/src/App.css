@@ -3186,3 +3186,102 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
 .prof-list-preview { display: flex; flex-wrap: wrap; gap: 0.25rem; margin-top: 0.35rem; }
 .prof-list-preview span { font-size: 0.75rem; color: var(--text-muted); }
 .prof-list-preview span:not(:last-child)::after { content: " \00B7 "; }
+
+/* ── Learn pages ──────────────────────────────────────────────────────── */
+.learn-page { max-width: 800px; }
+.learn-page h1 { margin-bottom: 0.25rem; }
+.learn-page .page-subtitle { color: var(--text-muted); margin-bottom: 1.5rem; }
+
+.learn-section { margin-bottom: 2rem; }
+.learn-section h2 { font-size: 1.15rem; margin-bottom: 0.75rem; color: var(--amber-light); }
+
+.learn-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 0.75rem; }
+.learn-card {
+  display: flex; align-items: center; gap: 0.75rem;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 0.85rem 1rem;
+  text-decoration: none; color: inherit; transition: border-color 0.15s;
+}
+.learn-card:hover { border-color: var(--amber); }
+.learn-card-emoji { font-size: 2rem; flex-shrink: 0; }
+.learn-card-text h3 { font-size: 0.95rem; margin-bottom: 0.15rem; }
+.learn-card-text p { font-size: 0.8rem; color: var(--text-muted); margin: 0; line-height: 1.4; }
+
+.learn-back {
+  display: inline-block; margin-bottom: 1rem;
+  color: var(--amber); text-decoration: none; font-size: 0.85rem;
+}
+.learn-back:hover { text-decoration: underline; }
+
+.learn-hero {
+  display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem;
+}
+.learn-hero-emoji { font-size: 3rem; }
+.learn-hero h1 { margin-bottom: 0.15rem; }
+.learn-tagline { color: var(--text-muted); font-size: 0.95rem; margin: 0; }
+
+.learn-facts { margin-bottom: 1.25rem; }
+.learn-facts h3 { font-size: 0.95rem; margin-bottom: 0.5rem; }
+.learn-facts ul { list-style: disc; padding-left: 1.25rem; }
+.learn-facts li { font-size: 0.88rem; color: var(--text-muted); margin-bottom: 0.3rem; line-height: 1.4; }
+
+.learn-tags { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 1.25rem; }
+
+.learn-body { margin-bottom: 1.5rem; }
+.learn-body p { font-size: 0.92rem; color: var(--text-muted); line-height: 1.65; margin-bottom: 1rem; }
+
+.learn-entry { margin-bottom: 1.5rem; }
+.learn-entry h3 { font-size: 0.95rem; margin-bottom: 0.5rem; }
+.learn-entry-list { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.learn-entry-item {
+  display: inline-block; padding: 0.4rem 0.75rem;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 999px; font-size: 0.82rem; color: var(--amber);
+  text-decoration: none; transition: border-color 0.15s;
+}
+.learn-entry-item:hover { border-color: var(--amber); }
+
+.learn-next { margin-top: 1.5rem; }
+
+/* ── Glossary ─────────────────────────────────────────────────────────── */
+.glossary-letters { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-bottom: 1.5rem; }
+.glossary-letter {
+  display: inline-block; width: 2rem; height: 2rem; line-height: 2rem;
+  text-align: center; border-radius: var(--radius);
+  background: var(--surface); border: 1px solid var(--border);
+  color: var(--amber); font-weight: 600; font-size: 0.85rem;
+  text-decoration: none; transition: border-color 0.15s;
+}
+.glossary-letter:hover { border-color: var(--amber); }
+
+.glossary-group { margin-bottom: 1.5rem; }
+.glossary-group-letter {
+  font-size: 1.1rem; color: var(--amber-light);
+  border-bottom: 1px solid var(--border); padding-bottom: 0.3rem; margin-bottom: 0.75rem;
+}
+.glossary-item { margin-bottom: 0.75rem; }
+.glossary-term { font-weight: 700; font-size: 0.92rem; margin-bottom: 0.15rem; }
+.glossary-def { font-size: 0.85rem; color: var(--text-muted); line-height: 1.5; margin: 0; }
+
+/* ── Sign-in CTA (for anonymous users on detail pages) ────────────────── */
+.sign-in-cta {
+  text-align: center; padding: 1.5rem;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.sign-in-cta p { color: var(--text-muted); margin-bottom: 0.75rem; }
+.btn-primary {
+  display: inline-block; padding: 0.6rem 1.5rem;
+  background: var(--amber); color: #1a1a1a;
+  border-radius: 999px; font-weight: 700; text-decoration: none;
+  transition: background 0.15s;
+}
+.btn-primary:hover { background: var(--amber-light); }
+
+/* ── Nav sign-in link ─────────────────────────────────────────────────── */
+.nav-login-link {
+  color: var(--amber); font-weight: 600; text-decoration: none;
+  padding: 0.35rem 0.75rem; border: 1px solid var(--amber);
+  border-radius: 999px; font-size: 0.85rem; transition: all 0.15s;
+}
+.nav-login-link:hover { background: var(--amber); color: #1a1a1a; }
