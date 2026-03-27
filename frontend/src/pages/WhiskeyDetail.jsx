@@ -50,6 +50,8 @@ export default function WhiskeyDetail() {
   const imagePreviewRef = useRef(null)
   const [ratingMsg, setRatingMsg] = useState('')
   const [newBadges, setNewBadges] = useState([])
+  const [postCheckinRec, setPostCheckinRec] = useState(null)
+  const [postCheckinBuyLink, setPostCheckinBuyLink] = useState(null)
   const [showAllReviews, setShowAllReviews] = useState(false)
   const [reviewSummary, setReviewSummary] = useState(null)
   const [reviewSort, setReviewSort] = useState('recent')
@@ -90,6 +92,8 @@ export default function WhiskeyDetail() {
     setServingStyle(null)
     setLocationNote('')
     setNewBadges([])
+    setPostCheckinRec(null)
+    setPostCheckinBuyLink(null)
     setShowAllReviews(false)
     setReviewSummary(null)
     setReviewSort('recent')
@@ -247,6 +251,16 @@ export default function WhiskeyDetail() {
         setNewBadges(result.new_badges)
         setTimeout(() => setNewBadges([]), 5000)
       }
+      // Fetch "what to try next" recommendation
+      api.getSimilar(id, 3)
+        .then(sims => {
+          if (sims.length > 0) {
+            setPostCheckinRec(sims[0])
+            return api.getBuyLinks(sims[0].id)
+          }
+        })
+        .then(links => { if (links) setPostCheckinBuyLink(links) })
+        .catch(() => {})
     } catch (err) {
       const msg = err.message || ''
       if (msg.includes('already rated') || msg.includes('duplicate')) {
@@ -897,6 +911,46 @@ export default function WhiskeyDetail() {
 
           <button type="submit" disabled={score === 0}>Check In</button>
           {ratingMsg && <p className="status">{ratingMsg}</p>}
+          {ratingMsg === 'Check-in saved!' && postCheckinRec && (
+            <div className="post-checkin-rec">
+              <h4 className="post-checkin-label">What to Try Next</h4>
+              <div className="post-checkin-card">
+                <Link to={`/whiskey/${postCheckinRec.id}`} className="post-checkin-link">
+                  <div className="post-checkin-bottle">
+                    {postCheckinRec.image_url ? (
+                      <img src={postCheckinRec.image_url} alt={postCheckinRec.name} loading="lazy" />
+                    ) : (
+                      <span>{getCategoryEmoji(postCheckinRec.category)}</span>
+                    )}
+                  </div>
+                  <div className="post-checkin-info">
+                    <span className="post-checkin-name">{postCheckinRec.name}</span>
+                    <span className="post-checkin-detail">
+                      {postCheckinRec.category}
+                      {postCheckinRec.price_usd && ` · $${Number(postCheckinRec.price_usd).toFixed(0)}`}
+                    </span>
+                  </div>
+                </Link>
+                {postCheckinBuyLink?.links?.[0] && (
+                  <a
+                    href={postCheckinBuyLink.links[0].url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="post-checkin-buy"
+                    onClick={() => {
+                      api.recordAffiliateClick({
+                        whiskey_id: postCheckinRec.id,
+                        retailer: postCheckinBuyLink.links[0].retailer,
+                        source: 'post_checkin',
+                      }).catch(() => {})
+                    }}
+                  >
+                    Buy &rarr;
+                  </a>
+                )}
+              </div>
+            </div>
+          )}
           {lastRatingId && (
             <button
               type="button"

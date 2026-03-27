@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useNavigate, useSearchParams, Link } from 'react-router-dom'
-import { api } from '../api/client'
+import { api, getUsername } from '../api/client'
 import { useToast } from '../components/Toast'
 import BadgeGrid from '../components/BadgeGrid'
 import WhiskeyCard from '../components/WhiskeyCard'
@@ -87,6 +87,28 @@ function PalateTab({ palateData }) {
           <button className="prof-ai-btn" onClick={loadAiSummary}>Generate AI Portrait</button>
         )}
         {aiLoading && <p className="prof-ai-loading">Writing your taste portrait...</p>}
+        <button
+          className="prof-share-dna-btn"
+          onClick={async () => {
+            try {
+              const url = api.getPalateDnaCardUrl(getUsername())
+              const res = await fetch(url)
+              const blob = await res.blob()
+              const file = new File([blob], 'sipsense-whiskey-dna.png', { type: 'image/png' })
+              if (navigator.share && navigator.canShare?.({ files: [file] })) {
+                await navigator.share({ title: 'My Whiskey DNA on SipSense', files: [file] })
+              } else {
+                const a = document.createElement('a')
+                a.href = URL.createObjectURL(blob)
+                a.download = 'sipsense-whiskey-dna.png'
+                a.click()
+                URL.revokeObjectURL(a.href)
+              }
+            } catch { /* silently fail */ }
+          }}
+        >
+          Share My Whiskey DNA
+        </button>
       </div>
 
       {top_categories.length > 0 && (

@@ -41,6 +41,7 @@ const SidebarWhiskeyCard = memo(function SidebarWhiskeyCard({ whiskey }) {
   const navigate = useNavigate()
   const stars = Math.round(whiskey.rating_avg || 0)
   const emoji = getCategoryEmoji(whiskey.category)
+  const topBuyLink = whiskey.buy_links?.[0]
 
   return (
     <div
@@ -66,6 +67,24 @@ const SidebarWhiskeyCard = memo(function SidebarWhiskeyCard({ whiskey }) {
           </span>
         )}
       </div>
+      {topBuyLink && (
+        <a
+          className="sb-card-buy"
+          href={topBuyLink.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={(e) => {
+            e.stopPropagation()
+            api.recordAffiliateClick({
+              whiskey_id: whiskey.id,
+              retailer: topBuyLink.retailer,
+              source: 'chat',
+            }).catch(() => {})
+          }}
+        >
+          Buy at {topBuyLink.retailer} &rarr;
+        </a>
+      )}
     </div>
   )
 })

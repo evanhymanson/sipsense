@@ -5,7 +5,7 @@ import { useToast } from '../components/Toast'
 import WhiskeyCard from '../components/WhiskeyCard'
 import SkeletonCard from '../components/SkeletonCard'
 import CompareDrawer from '../components/CompareDrawer'
-import { WHISKEY_CATEGORIES } from '../constants'
+import { WHISKEY_CATEGORIES, getCategoryEmoji } from '../constants'
 
 function Marquee({ children, reverse }) {
   const outerRef = useRef(null)
@@ -146,6 +146,11 @@ export default function Browse() {
   // Match scores
   const [matchScores, setMatchScores] = useState({})
 
+  // Next Bottle recommendation
+  const [nextBottle, setNextBottle] = useState(null)
+  const [nextBottleLinks, setNextBottleLinks] = useState(null)
+  const [nextBottleDismissed, setNextBottleDismissed] = useState(false)
+
   const addToast = useToast()
 
   const [filters, setFilters] = useState(() => ({
@@ -187,6 +192,34 @@ export default function Browse() {
     ]).then(([t, n]) => { setTrending(t); setNewArrivals(n) })
       .catch(() => {})
   }, [])
+
+  // Load personalized "Your Next Bottle" for logged-in users
+  useEffect(() => {
+    if (!isLoggedIn()) return
+    api.getExplainedRecommendations(1)
+      .then(data => {
+        if (data.length > 0) {
+          setNextBottle(data[0])
+          return api.getBuyLinks(data[0].whiskey.id)
+        }
+      })
+      .then(links => { if (links) setNextBottleLinks(links) })
+      .catch(() => {})
+  }, [])
+
+  function refreshNextBottle() {
+    setNextBottle(null)
+    setNextBottleLinks(null)
+    api.getExplainedRecommendations(3)
+      .then(data => {
+        const alt = data.find(d => d.whiskey.id !== nextBottle?.whiskey?.id) || data[0]
+        if (alt) {
+          setNextBottle(alt)
+          return api.getBuyLinks(alt.whiskey.id).then(links => setNextBottleLinks(links))
+        }
+      })
+      .catch(() => setNextBottleDismissed(true))
+  }
 
   // Load main whiskey list (abort stale requests on rapid filter changes)
   useEffect(() => {
@@ -354,6 +387,57 @@ export default function Browse() {
           </button>
         </div>
       </div>
+
+      {/* ── Your Next Bottle ────────────────────────────── */}
+      {isLoggedIn() && !nextBottleDismissed && nextBottle && (
+        <div className="next-bottle-hero">
+          <div className="next-bottle-content">
+            <div className="next-bottle-img">
+              {nextBottle.whiskey.image_url ? (
+                <img src={nextBottle.whiskey.image_url} alt={nextBottle.whiskey.name} loading="lazy" />
+              ) : (
+                <span className="next-bottle-emoji">{getCategoryEmoji(nextBottle.whiskey.category)}</span>
+              )}
+            </div>
+            <div className="next-bottle-info">
+              <span className="next-bottle-label">Your Next Bottle</span>
+              <Link to={`/whiskey/${nextBottle.whiskey.id}`} className="next-bottle-name">
+                {nextBottle.whiskey.name}
+              </Link>
+              <p className="next-bottle-reason">{nextBottle.reason}</p>
+              <div className="next-bottle-meta">
+                {nextBottle.whiskey.price_usd && (
+                  <span className="next-bottle-price">${Number(nextBottle.whiskey.price_usd).toFixed(0)}</span>
+                )}
+                {nextBottle.score > 0 && (
+                  <span className="next-bottle-match">{Math.round(nextBottle.score * 100)}% Match</span>
+                )}
+              </div>
+            </div>
+            <div className="next-bottle-actions">
+              {nextBottleLinks?.links?.[0] && (
+                <a
+                  href={nextBottleLinks.links[0].url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="next-bottle-buy"
+                  onClick={() => {
+                    api.recordAffiliateClick({
+                      whiskey_id: nextBottle.whiskey.id,
+                      retailer: nextBottleLinks.links[0].retailer,
+                      source: 'next_bottle',
+                    }).catch(() => {})
+                  }}
+                >
+                  Buy at {nextBottleLinks.links[0].retailer}
+                </a>
+              )}
+              <button className="next-bottle-refresh" onClick={refreshNextBottle}>Show another</button>
+            </div>
+          </div>
+          <button className="next-bottle-dismiss" onClick={() => setNextBottleDismissed(true)} aria-label="Dismiss">&times;</button>
+        </div>
+      )}
 
       {/* ── Search ────────────────────────────────────────── */}
       <div className="search-bar">

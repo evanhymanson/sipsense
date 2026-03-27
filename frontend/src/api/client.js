@@ -365,6 +365,7 @@ export const api = {
   // ── Share Card ─────────────────────────────────────────────────────────
   getShareCardUrl: (ratingId) => `${BASE}/share/rating/${ratingId}`,
   getWhiskeyShareCardUrl: (whiskeyId) => `${BASE}/share/whiskey/${whiskeyId}`,
+  getPalateDnaCardUrl: (username) => `${BASE}/share/palate/${username}`,
 
   // ── Label scan ─────────────────────────────────────────────────────────
   scanLabel: (imageFile) => {
@@ -437,6 +438,13 @@ export const api = {
     ).toString()
     return request(`/videos/whiskey/${whiskeyId}${qs ? '?' + qs : ''}`)
   },
+
+  // ── Learn ──────────────────────────────────────────────────────────────
+  getCategories: () => request('/learn/categories'),
+  getCategory: (slug) => request(`/learn/categories/${slug}`),
+  getDistilleries: () => request('/learn/distilleries'),
+  getDistillery: (slug) => request(`/learn/distilleries/${slug}`),
+  getGlossary: () => request('/learn/glossary'),
 
   // ── Affiliate ──────────────────────────────────────────────────────────
   recordAffiliateClick: (body) =>

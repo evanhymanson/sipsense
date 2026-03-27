@@ -75,6 +75,23 @@ WHISKEY_GLOSSARY = {
 
 def _whiskey_to_dict(w: models.Whiskey) -> dict:
     """Convert a Whiskey ORM object to a JSON-serializable dict matching WhiskeyRead."""
+    from urllib.parse import quote_plus
+
+    # Include buy links so chat whiskey cards can show purchase CTAs
+    buy_links: list[dict] = []
+    if w.buy_links:
+        try:
+            buy_links = json.loads(w.buy_links)
+        except (ValueError, TypeError):
+            pass
+    if not buy_links:
+        name_enc = quote_plus(w.name)
+        utm = "utm_source=sipsense&utm_medium=referral&utm_campaign=chat"
+        buy_links = [
+            {"retailer": "ReserveBar", "url": f"https://www.reservebar.com/search?q={name_enc}&{utm}"},
+            {"retailer": "Total Wine", "url": f"https://www.totalwine.com/search/all?text={name_enc}&{utm}"},
+        ]
+
     return {
         "id": w.id,
         "name": w.name,
@@ -88,6 +105,7 @@ def _whiskey_to_dict(w: models.Whiskey) -> dict:
         "flavor_profile": w.flavor_profile,
         "rating_avg": w.rating_avg or 0.0,
         "rating_count": w.rating_count or 0,
+        "buy_links": buy_links[:2],
     }
 
 
