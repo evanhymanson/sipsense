@@ -62,7 +62,7 @@ function PalateTab({ palateData }) {
 
   async function loadAiSummary() {
     setAiLoading(true)
-    try { setAiSummary((await api.getAiPalateSummary()).narrative) }
+    try { setAiSummary((await api.getAiPalateSummary()).narrative?.replace(/\*+/g, '')) }
     catch { setAiSummary(null) }
     finally { setAiLoading(false) }
   }
