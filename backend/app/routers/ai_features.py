@@ -17,6 +17,8 @@ from sqlalchemy import func
 from .. import models, schemas
 from ..database import get_db
 from ..auth import get_current_user
+from ..schemas import _prefer_nobg
+from ..storage import make_cdn_url
 
 router = APIRouter(tags=["ai"])
 
@@ -765,7 +767,7 @@ async def scan_label(
             "rating_avg": matched.rating_avg,
             "rating_count": matched.rating_count,
             "flavor_profile": matched.flavor_profile,
-            "image_url": matched.image_url,
+            "image_url": make_cdn_url(_prefer_nobg(matched.image_url)),
         } if matched else None,
         "ai_identified": {
             "name": identified_name,

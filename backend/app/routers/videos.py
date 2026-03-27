@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session, joinedload
 from .. import models, schemas
 from ..database import get_db, SessionLocal
 from ..auth import get_current_user, get_optional_user
+from ..schemas import _prefer_nobg
 from ..storage import is_s3_enabled, upload_file, make_cdn_url
 
 logger = logging.getLogger(__name__)
@@ -87,7 +88,7 @@ def _build_video_read(
         duration_seconds=video.duration_seconds,
         whiskey_id=video.whiskey_id,
         whiskey_name=video.whiskey.name if video.whiskey else None,
-        whiskey_image_url=video.whiskey.image_url if video.whiskey else None,
+        whiskey_image_url=make_cdn_url(_prefer_nobg(video.whiskey.image_url)) if video.whiskey else None,
         location_name=video.location_name,
         price_tag=video.price_tag,
         view_count=video.view_count,
