@@ -8,6 +8,7 @@ import { mediaUrl } from '../utils/media'
 import WhiskeyCard from '../components/WhiskeyCard'
 import FlavorMap from '../components/FlavorMap'
 import StoreLocator from '../components/StoreLocator'
+import CriticScores from '../components/CriticScores'
 
 const SERVING_STYLES = ['neat', 'rocks', 'cocktail', 'highball']
 const SERVING_EMOJI = { neat: '🥃', rocks: '🧊', cocktail: '🍸', highball: '🥂' }
@@ -55,6 +56,7 @@ export default function WhiskeyDetail() {
   const [selectedTags, setSelectedTags] = useState([])
   const [availableTags, setAvailableTags] = useState([])
   const addToast = useToast()
+  const initialMount = useRef(true)
   const REVIEW_PAGE_SIZE = 10
   const visibleReviews = useMemo(
     () => showAllReviews ? reviews : reviews.slice(0, REVIEW_PAGE_SIZE),
@@ -174,8 +176,9 @@ export default function WhiskeyDetail() {
       .catch(() => {})
   }, [id])
 
-  // Re-fetch reviews when sort order changes
+  // Re-fetch reviews when sort order changes (skip initial mount — already fetched above)
   useEffect(() => {
+    if (initialMount.current) { initialMount.current = false; return }
     if (!id) return
     api.getRatings(id, { sort_by: reviewSort }).then(setReviews).catch(() => {})
   }, [id, reviewSort])
@@ -593,6 +596,9 @@ export default function WhiskeyDetail() {
           </button>
         )}
       </div>
+
+      {/* Expert / Critic Scores */}
+      <CriticScores whiskeyId={whiskey.id} />
 
       {/* Community Videos */}
       {whiskeyVideos.length > 0 && (
