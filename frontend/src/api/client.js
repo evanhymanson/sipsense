@@ -447,6 +447,42 @@ export const api = {
   getTopLists: () => request('/toplists/'),
   getTopList: (slug, limit = 20) => request(`/toplists/${slug}?limit=${limit}`),
 
+
+  // ── Critic Scores ───────────────────────────────────────────────────────
+  getCriticScores: (whiskeyId) => request(`/critics/whiskey/${whiskeyId}`),
+
+  // ── User-Created Lists ──────────────────────────────────────────────────
+  getUserLists: () => request('/userlists/'),
+  getUserListsByUser: (username) => request(`/userlists/user/${username}`),
+  getUserList: (slug) => request(`/userlists/${slug}`),
+  createUserList: (data) =>
+    request('/userlists/', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  updateUserList: (slug, data) =>
+    request(`/userlists/${slug}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
+  deleteUserList: (slug) =>
+    request(`/userlists/${slug}`, { method: 'DELETE' }),
+  addToUserList: (slug, data) =>
+    request(`/userlists/${slug}/items`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  removeFromUserList: (slug, whiskeyId) =>
+    request(`/userlists/${slug}/items/${whiskeyId}`, { method: 'DELETE' }),
+  reorderUserList: (slug, whiskeyIds) =>
+    request(`/userlists/${slug}/reorder`, {
+      method: 'PUT',
+      body: JSON.stringify({ whiskey_ids: whiskeyIds }),
+    }),
+
+  // ── User Level ──────────────────────────────────────────────────────────
+  getUserLevel: (username) => request(`/users/${username}/level`),
+
   // ── Chat — returns raw Response for SSE stream ───────────────────────────
   chatStream: (messages, session_id = null, user_location = null, signal = null) => {
     const headers = { 'Content-Type': 'application/json' }

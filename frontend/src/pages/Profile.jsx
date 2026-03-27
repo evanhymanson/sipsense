@@ -5,6 +5,7 @@ import { useToast } from '../components/Toast'
 import BadgeGrid from '../components/BadgeGrid'
 import WhiskeyCard from '../components/WhiskeyCard'
 import UserSearch from '../components/UserSearch'
+import UserLevel from '../components/UserLevel'
 import './Profile.css'
 import './UserProfile.css'
 
@@ -15,6 +16,7 @@ const TABS = [
   { id: 'collection', label: 'Collection', emoji: '\u{1F37E}' },
   { id: 'journal',    label: 'Journal',    emoji: '\u{1F4DD}' },
   { id: 'badges',     label: 'Badges',     emoji: '\u{1F3C6}' },
+  { id: 'lists',      label: 'Lists',      emoji: '\u{1F4CB}' },
 ]
 
 const SERVING_EMOJI = { neat: '🥃', rocks: '🧊', cocktail: '🍸', highball: '🥛' }
@@ -786,6 +788,52 @@ function JournalTab({ initialEntries = null }) {
   )
 }
 
+// ── Lists Tab ─────────────────────────────────────────────────────────────
+function ListsTab() {
+  const [lists, setLists] = useState([])
+  const [loading, setLoading] = useState(true)
+  const username = localStorage.getItem('sipsense_user')
+
+  useEffect(() => {
+    if (!username) return
+    api.getUserListsByUser(username)
+      .then(setLists)
+      .catch(() => setLists([]))
+      .finally(() => setLoading(false))
+  }, [username])
+
+  if (loading) return <div className="prof-tab-loading">Loading lists...</div>
+
+  return (
+    <div className="prof-lists-tab">
+      <div className="prof-lists-header">
+        <Link to="/my-lists" className="btn-primary">Manage My Lists</Link>
+      </div>
+      {lists.length === 0 ? (
+        <p className="prof-lists-empty">
+          No lists yet. <Link to="/my-lists">Create your first list!</Link>
+        </p>
+      ) : (
+        <div className="prof-lists-grid">
+          {lists.map(list => (
+            <Link key={list.id} to={`/my-lists/${list.slug}`} className="prof-list-card">
+              <h4>{list.title}</h4>
+              <span className="prof-list-meta">{list.item_count} whiskeys</span>
+              {list.preview_whiskeys?.length > 0 && (
+                <div className="prof-list-preview">
+                  {list.preview_whiskeys.map(w => (
+                    <span key={w.id}>{w.name}</span>
+                  ))}
+                </div>
+              )}
+            </Link>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Main Profile Page ───────────────────────────────────────────────────────
 
 export default function Profile() {
@@ -815,6 +863,7 @@ export default function Profile() {
   const [listUsers, setListUsers] = useState([])
   const [listLoading, setListLoading] = useState(false)
   const [suggested, setSuggested] = useState([])
+  const [profileData, setProfileData] = useState(null)
 
   useEffect(() => {
     api.getSuggestedUsers(5)
@@ -841,6 +890,7 @@ export default function Profile() {
         badges: pal?.badges?.length ?? 0,
       })
       if (profile) {
+        setProfileData(profile)
         setFollowerCount(profile.follower_count || 0)
         setFollowingCount(profile.following_count || 0)
       }
@@ -913,6 +963,10 @@ export default function Profile() {
               )}
             </div>
           </div>
+        )}
+
+        {profileData?.level && (
+          <UserLevel level={profileData.level} showProgress />
         )}
 
         {!isNewcomer && personality?.top_flavors?.length > 0 && (
@@ -1015,6 +1069,7 @@ export default function Profile() {
                 <button className="prof-cta-btn" onClick={() => navigate('/')}>Browse Whiskeys</button>
               </div>
         )}
+        {activeTab === 'lists' && <ListsTab />}
       </div>
 
       {/* ── Followers / Following Modal ──────────────────────── */}

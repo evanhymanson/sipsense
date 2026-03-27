@@ -8,6 +8,7 @@ import { mediaUrl } from '../utils/media'
 import WhiskeyCard from '../components/WhiskeyCard'
 import FlavorMap from '../components/FlavorMap'
 import StoreLocator from '../components/StoreLocator'
+import CriticScores from '../components/CriticScores'
 
 const SERVING_STYLES = ['neat', 'rocks', 'cocktail', 'highball']
 const SERVING_EMOJI = { neat: '🥃', rocks: '🧊', cocktail: '🍸', highball: '🥂' }
@@ -593,6 +594,9 @@ export default function WhiskeyDetail() {
           </button>
         )}
       </div>
+
+      {/* Expert / Critic Scores */}
+      <CriticScores whiskeyId={whiskey.id} />
 
       {/* Community Videos */}
       {whiskeyVideos.length > 0 && (

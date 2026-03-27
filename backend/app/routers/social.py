@@ -10,6 +10,7 @@ from ..database import get_db
 from ..auth import get_current_user, get_optional_user
 from ..track import track_action
 from ..analytics_constants import ACTION_FOLLOW, ACTION_COMMENT
+from ..levels import compute_user_level
 
 router = APIRouter(tags=["social"])
 
@@ -542,6 +543,22 @@ def get_user_profile(
         for r in ratings if r.whiskey
     ]
 
+    # User level
+    user_level = compute_user_level(username, db)
+
+    # User's public lists (up to 5 for preview)
+    user_lists_raw = (
+        db.query(models.UserList)
+        .filter(models.UserList.user_id == username, models.UserList.is_public == True)
+        .order_by(models.UserList.updated_at.desc())
+        .limit(5)
+        .all()
+    )
+    user_lists = [
+        {"id": ul.id, "slug": ul.slug, "title": ul.title, "item_count": len(ul.items)}
+        for ul in user_lists_raw
+    ]
+
     return schemas.PublicProfile(
         username=username,
         member_since=user.created_at,
@@ -560,7 +577,22 @@ def get_user_profile(
         follower_count=follower_count,
         following_count=following_count,
         is_following=is_following,
+        level=user_level,
+        user_lists=user_lists,
     )
+
+
+# ── User Level ─────────────────────────────────────────────────────────
+
+@router.get("/users/{username}/level")
+def get_user_level(
+    username: str,
+    db: Session = Depends(get_db),
+):
+    user = db.query(models.User).filter(models.User.username == username).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return compute_user_level(username, db)
 
 
 # ── User Ratings (paginated) ────────────────────────────────────────────

@@ -5,6 +5,7 @@ import { useToast } from '../components/Toast'
 import CheckInCard from '../components/CheckInCard'
 import BadgeGrid from '../components/BadgeGrid'
 import { mediaUrl } from '../utils/media'
+import UserLevel from '../components/UserLevel'
 import './UserProfile.css'
 
 export default function UserProfile() {
@@ -182,6 +183,7 @@ export default function UserProfile() {
         <div className="profile-hero-row">
           <div>
             <h1>{profile.username}</h1>
+            {profile.level && <UserLevel level={profile.level} />}
             {memberSince && <p className="profile-since">Member since {memberSince}</p>}
           </div>
           {!isSelf && currentUser && (
@@ -348,6 +350,20 @@ export default function UserProfile() {
                 </div>
                 <span className="profile-cat-count">{tc.count}</span>
               </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {profile.user_lists?.length > 0 && (
+        <section className="profile-section">
+          <h2>Lists</h2>
+          <div className="prof-lists-grid">
+            {profile.user_lists.map(list => (
+              <Link key={list.id} to={`/my-lists/${list.slug}`} className="prof-list-card">
+                <h4>{list.title}</h4>
+                <span className="prof-list-meta">{list.item_count} whiskeys</span>
+              </Link>
             ))}
           </div>
         </section>
