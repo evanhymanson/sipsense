@@ -35,19 +35,12 @@ def compute_user_level(username: str, db: Session) -> dict:
         .filter(models.UserBadge.user_id == username)
         .scalar() or 0
     )
-    helpful_received = 0
-    rating_ids = [
-        r[0] for r in
-        db.query(models.UserRating.id)
+    helpful_received = (
+        db.query(sqlfunc.count(models.ReviewHelpful.id))
+        .join(models.UserRating, models.ReviewHelpful.rating_id == models.UserRating.id)
         .filter(models.UserRating.user_id == username)
-        .all()
-    ]
-    if rating_ids:
-        helpful_received = (
-            db.query(sqlfunc.count(models.ReviewHelpful.id))
-            .filter(models.ReviewHelpful.rating_id.in_(rating_ids))
-            .scalar() or 0
-        )
+        .scalar() or 0
+    )
 
     points = (
         total_checkins * PTS_CHECKIN

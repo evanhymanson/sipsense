@@ -546,17 +546,26 @@ def get_user_profile(
     # User level
     user_level = compute_user_level(username, db)
 
-    # User's public lists (up to 5 for preview)
-    user_lists_raw = (
-        db.query(models.UserList)
+    # User's public lists (up to 5 for preview) — use count subquery to avoid N+1
+    item_count_sub = (
+        db.query(
+            models.UserListItem.list_id,
+            sqlfunc.count(models.UserListItem.id).label("cnt"),
+        )
+        .group_by(models.UserListItem.list_id)
+        .subquery()
+    )
+    user_lists_rows = (
+        db.query(models.UserList, item_count_sub.c.cnt)
+        .outerjoin(item_count_sub, models.UserList.id == item_count_sub.c.list_id)
         .filter(models.UserList.user_id == username, models.UserList.is_public == True)
         .order_by(models.UserList.updated_at.desc())
         .limit(5)
         .all()
     )
     user_lists = [
-        {"id": ul.id, "slug": ul.slug, "title": ul.title, "item_count": len(ul.items)}
-        for ul in user_lists_raw
+        {"id": ul.id, "slug": ul.slug, "title": ul.title, "item_count": cnt or 0}
+        for ul, cnt in user_lists_rows
     ]
 
     return schemas.PublicProfile(
