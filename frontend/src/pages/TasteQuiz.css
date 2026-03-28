@@ -160,11 +160,33 @@
   border-radius: var(--radius);
   padding: 1rem;
   transition: border-color 0.2s;
-  cursor: pointer;
+  display: flex;
+  flex-direction: column;
 }
 .tq-result-item:hover {
   border-color: var(--amber);
 }
+.tq-result-link {
+  text-decoration: none;
+  color: inherit;
+  display: block;
+  cursor: pointer;
+}
+.tq-result-buy {
+  display: inline-block;
+  margin-top: 0.5rem;
+  padding: 0.35rem 0.75rem;
+  background: var(--amber);
+  color: #1a1a1a;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 0.78rem;
+  text-decoration: none;
+  white-space: nowrap;
+  align-self: flex-start;
+  transition: background 0.15s;
+}
+.tq-result-buy:hover { background: var(--amber-light); }
 .tq-result-name {
   font-weight: 600;
   color: var(--amber-light);

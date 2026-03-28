@@ -107,6 +107,17 @@ export default function TasteQuiz() {
   const [results, setResults] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
+  const [buyLinksMap, setBuyLinksMap] = useState({})
+
+  // Fetch buy links for all quiz results
+  useEffect(() => {
+    if (!results || results.length === 0) return
+    results.forEach((rec) => {
+      api.getBuyLinks(rec.whiskey.id)
+        .then(links => setBuyLinksMap(prev => ({ ...prev, [rec.whiskey.id]: links })))
+        .catch(() => {})
+    })
+  }, [results])
 
   const totalQuestions = QUESTIONS.length
   const isResults = step >= totalQuestions
@@ -169,20 +180,38 @@ export default function TasteQuiz() {
 
           {results && results.length > 0 && (
             <div className="tq-results-list">
-              {results.map((rec) => (
-                <Link
-                  key={rec.whiskey.id}
-                  to={`/whiskey/${rec.whiskey.id}`}
-                  className="tq-result-item"
-                >
-                  <div className="tq-result-name">{rec.whiskey.name}</div>
-                  <div className="tq-result-meta">
-                    {rec.whiskey.distillery} · {rec.whiskey.category}
-                    {rec.whiskey.price_usd && ` · $${Number(rec.whiskey.price_usd).toFixed(2)}`}
+              {results.map((rec) => {
+                const topLink = buyLinksMap[rec.whiskey.id]?.links?.[0]
+                return (
+                  <div key={rec.whiskey.id} className="tq-result-item">
+                    <Link to={`/whiskey/${rec.whiskey.id}`} className="tq-result-link">
+                      <div className="tq-result-name">{rec.whiskey.name}</div>
+                      <div className="tq-result-meta">
+                        {rec.whiskey.distillery} · {rec.whiskey.category}
+                        {rec.whiskey.price_usd && ` · $${Number(rec.whiskey.price_usd).toFixed(2)}`}
+                      </div>
+                      <div className="tq-result-reason">{rec.reason}</div>
+                    </Link>
+                    {topLink && (
+                      <a
+                        href={topLink.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="tq-result-buy"
+                        onClick={() => {
+                          api.recordAffiliateClick({
+                            whiskey_id: rec.whiskey.id,
+                            retailer: topLink.retailer,
+                            source: 'quiz',
+                          }).catch(() => {})
+                        }}
+                      >
+                        Buy at {topLink.retailer} &rarr;
+                      </a>
+                    )}
                   </div>
-                  <div className="tq-result-reason">{rec.reason}</div>
-                </Link>
-              ))}
+                )
+              })}
             </div>
           )}
 

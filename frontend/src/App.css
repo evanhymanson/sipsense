@@ -256,6 +256,19 @@ a { color: inherit; text-decoration: none; }
   color: var(--amber);
   font-weight: bold;
 }
+.rec-buy {
+  display: block;
+  background: var(--amber);
+  color: #1a1a1a;
+  text-align: center;
+  padding: 0.4rem 0.75rem;
+  border-radius: 0 0 var(--radius) var(--radius);
+  font-weight: 600;
+  font-size: 0.78rem;
+  text-decoration: none;
+  transition: background 0.15s;
+}
+.rec-buy:hover { background: var(--amber-light); }
 
 /* ── Whiskey card — vertical, bottle floating above card ─────────────── */
 .card {
