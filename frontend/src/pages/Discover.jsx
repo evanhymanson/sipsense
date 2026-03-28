@@ -20,6 +20,7 @@ export default function Discover() {
   const [daily, setDaily] = useState(null)
   const [dailyCollapsed, setDailyCollapsed] = useState(false)
   const [dailyError, setDailyError] = useState(false)
+  const [dailyBuyLinks, setDailyBuyLinks] = useState(null)
 
   // Streak
   const [streak, setStreak] = useState(null)
@@ -34,10 +35,17 @@ export default function Discover() {
   const [challenges, setChallenges] = useState([])
   const [joiningSlug, setJoiningSlug] = useState(null)
 
-  // Load daily discovery
+  // Load daily discovery + buy links
   useEffect(() => {
     api.getDailyDiscovery()
-      .then(setDaily)
+      .then(data => {
+        setDaily(data)
+        if (data?.whiskey?.id) {
+          api.getBuyLinks(data.whiskey.id)
+            .then(setDailyBuyLinks)
+            .catch(() => {})
+        }
+      })
       .catch(() => setDailyError(true))
   }, [])
 
@@ -91,6 +99,24 @@ export default function Discover() {
               {dailyWhiskey.price_usd && ` · ${dailyWhiskey.price_is_estimated ? '~' : ''}$${Number(dailyWhiskey.price_usd).toFixed(2)}${dailyWhiskey.price_is_estimated ? ' Est.' : ''}`}
             </span>
           </div>
+          {!dailyCollapsed && dailyBuyLinks?.links?.[0] && (
+            <a
+              href={dailyBuyLinks.links[0].url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="discover-daily-buy"
+              onClick={(e) => {
+                e.stopPropagation()
+                api.recordAffiliateClick({
+                  whiskey_id: dailyWhiskey.id,
+                  retailer: dailyBuyLinks.links[0].retailer,
+                  source: 'daily_discovery',
+                }).catch(() => {})
+              }}
+            >
+              Buy at {dailyBuyLinks.links[0].retailer} &rarr;
+            </a>
+          )}
           {!dailyCollapsed && daily.tasting_tip && (
             <div className="discover-daily-tip">
               <span>Tasting Tip:</span> {daily.tasting_tip}

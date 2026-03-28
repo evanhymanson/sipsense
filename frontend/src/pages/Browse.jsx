@@ -155,6 +155,9 @@ export default function Browse() {
   const [followups, setFollowups] = useState([])
   const [followupsDismissed, setFollowupsDismissed] = useState(false)
 
+  // Buy links for "For You" recommendations
+  const [forYouBuyLinks, setForYouBuyLinks] = useState({})
+
   const addToast = useToast()
 
   const [filters, setFilters] = useState(() => ({
@@ -287,6 +290,16 @@ export default function Browse() {
     }
     return () => controller.abort()
   }, [specialMode])
+
+  // Fetch buy links for "For You" recommendations
+  useEffect(() => {
+    if (specialMode !== 'foryou' || forYouData.length === 0) return
+    forYouData.forEach(({ whiskey }) => {
+      api.getBuyLinks(whiskey.id)
+        .then(links => setForYouBuyLinks(prev => ({ ...prev, [whiskey.id]: links })))
+        .catch(() => {})
+    })
+  }, [specialMode, forYouData])
 
   function loadMore() {
     if (loadingMore) return
@@ -574,12 +587,33 @@ export default function Browse() {
         <div className="card-grid">{Array.from({ length: 8 }, (_, i) => <SkeletonCard key={i} />)}</div>
       ) : isSpecial ? (
         <div className="card-grid">
-          {specialMode === 'foryou' && forYouData.map(({ whiskey, score, reason }) => (
-            <div key={whiskey.id} className="rec-card-wrap">
-              <WhiskeyCard whiskey={whiskey} score={score} compareMode={compareMode} isCompared={compareIds.has(whiskey.id)} onCompareToggle={toggleCompare} />
-              {reason && <div className="rec-reason"><span className="rec-reason-icon">*</span> {reason}</div>}
-            </div>
-          ))}
+          {specialMode === 'foryou' && forYouData.map(({ whiskey, score, reason }) => {
+            const topLink = forYouBuyLinks[whiskey.id]?.links?.[0]
+            return (
+              <div key={whiskey.id} className="rec-card-wrap">
+                <WhiskeyCard whiskey={whiskey} score={score} compareMode={compareMode} isCompared={compareIds.has(whiskey.id)} onCompareToggle={toggleCompare} />
+                {reason && <div className="rec-reason"><span className="rec-reason-icon">*</span> {reason}</div>}
+                {topLink && (
+                  <a
+                    href={topLink.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="rec-buy"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      api.recordAffiliateClick({
+                        whiskey_id: whiskey.id,
+                        retailer: topLink.retailer,
+                        source: 'for_you',
+                      }).catch(() => {})
+                    }}
+                  >
+                    Buy at {topLink.retailer} &rarr;
+                  </a>
+                )}
+              </div>
+            )
+          })}
           {specialMode === 'favorites' && favoritesData.map(w => (
             <WhiskeyCard key={w.id} whiskey={w} compareMode={compareMode} isCompared={compareIds.has(w.id)} onCompareToggle={toggleCompare} />
           ))}

@@ -28,6 +28,21 @@
 .discover-daily-name { font-weight: 600; color: var(--amber-light); font-size: 1rem; }
 .discover-daily-meta { font-size: 0.82rem; color: var(--text-muted); }
 
+.discover-daily-buy {
+  display: inline-block;
+  margin-top: 0.5rem;
+  padding: 0.35rem 0.85rem;
+  background: var(--amber);
+  color: #1a1a1a;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 0.78rem;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background 0.15s;
+}
+.discover-daily-buy:hover { background: var(--amber-light); }
+
 .discover-daily-tip {
   margin-top: 0.6rem; padding-top: 0.6rem; border-top: 1px solid var(--border);
   font-size: 0.82rem; color: var(--text-soft);
