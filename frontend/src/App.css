@@ -3174,18 +3174,6 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
 .userlists-item-note { font-size: 0.82rem; color: var(--text-muted); font-style: italic; margin: 0.2rem 0 0; }
 .userlists-item-remove { background: none; border: none; color: var(--text-muted); font-size: 1.2rem; cursor: pointer; padding: 0.25rem; }
 .userlists-item-remove:hover { color: #ef4444; }
-.prof-lists-tab { padding: 0.5rem 0; }
-.prof-lists-header { display: flex; justify-content: flex-end; margin-bottom: 0.75rem; }
-.prof-lists-empty { color: var(--text-muted); text-align: center; padding: 1.5rem 0; }
-.prof-lists-empty a { color: var(--amber); }
-.prof-lists-grid { display: flex; flex-direction: column; gap: 0.5rem; }
-.prof-list-card { display: block; background: var(--surface-elevated, #1a1a2e); border-radius: 10px; padding: 0.75rem 1rem; text-decoration: none; color: inherit; }
-.prof-list-card:hover { background: rgba(255,255,255,0.06); }
-.prof-list-card h4 { margin: 0 0 0.15rem; font-size: 0.95rem; color: var(--amber-light); }
-.prof-list-meta { font-size: 0.8rem; color: var(--text-muted); }
-.prof-list-preview { display: flex; flex-wrap: wrap; gap: 0.25rem; margin-top: 0.35rem; }
-.prof-list-preview span { font-size: 0.75rem; color: var(--text-muted); }
-.prof-list-preview span:not(:last-child)::after { content: " \00B7 "; }
 
 /* ── Learn pages ──────────────────────────────────────────────────────── */
 .learn-page { max-width: 800px; }

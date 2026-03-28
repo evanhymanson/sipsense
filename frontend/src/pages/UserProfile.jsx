@@ -370,19 +370,6 @@ export default function UserProfile() {
         </section>
       )}
 
-      {profile.user_lists?.length > 0 && (
-        <section className="profile-section">
-          <h2>Lists</h2>
-          <div className="prof-lists-grid">
-            {profile.user_lists.map(list => (
-              <Link key={list.id} to={`/my-lists/${list.slug}`} className="prof-list-card">
-                <h4>{list.title}</h4>
-                <span className="prof-list-meta">{list.item_count} whiskeys</span>
-              </Link>
-            ))}
-          </div>
-        </section>
-      )}
 
       {videosError && (
         <section className="profile-section">
