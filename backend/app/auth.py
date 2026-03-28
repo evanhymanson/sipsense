@@ -38,6 +38,7 @@ SECRET_KEY = _raw_secret
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60  # 1 hour
 REFRESH_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # 7 days
+REFRESH_TOKEN_REMEMBER_MINUTES = 60 * 24 * 30  # 30 days ("remember me")
 
 # ── Password hashing ─────────────────────────────────────────────────────
 
@@ -65,13 +66,15 @@ def create_access_token(username: str) -> str:
     return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
 
 
-def create_refresh_token(username: str) -> str:
+def create_refresh_token(username: str, remember_me: bool = False) -> str:
     now = datetime.now(timezone.utc)
+    expire_minutes = REFRESH_TOKEN_REMEMBER_MINUTES if remember_me else REFRESH_TOKEN_EXPIRE_MINUTES
     payload = {
         "sub": username,
-        "exp": now + timedelta(minutes=REFRESH_TOKEN_EXPIRE_MINUTES),
+        "exp": now + timedelta(minutes=expire_minutes),
         "iat": now,
         "type": "refresh",
+        "remember": remember_me,
     }
     return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
 
@@ -89,13 +92,16 @@ def decode_access_token(token: str) -> str | None:
         return None
 
 
-def decode_refresh_token(token: str) -> str | None:
-    """Returns the username from a valid refresh token, or None."""
+def decode_refresh_token(token: str) -> tuple[str, bool] | None:
+    """Returns (username, remember_me) from a valid refresh token, or None."""
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         if payload.get("type") != "refresh":
             return None
-        return payload.get("sub")
+        username = payload.get("sub")
+        if not username:
+            return None
+        return username, payload.get("remember", False)
     except JWTError:
         return None
 

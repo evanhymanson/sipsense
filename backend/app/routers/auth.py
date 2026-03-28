@@ -89,7 +89,7 @@ def login(body: schemas.UserLogin, db: Session = Depends(get_db), _: None = Depe
     track_action(db, user.username, ACTION_LOGIN)
     db.commit()
     token = create_access_token(user.username)
-    refresh = create_refresh_token(user.username)
+    refresh = create_refresh_token(user.username, remember_me=body.remember_me)
     return schemas.TokenResponse(access_token=token, refresh_token=refresh, username=user.username)
 
 
@@ -99,12 +99,13 @@ class _RefreshRequest(BaseModel):
 
 @router.post("/refresh", response_model=schemas.TokenResponse)
 def refresh_token(body: _RefreshRequest, db: Session = Depends(get_db)):
-    username = decode_refresh_token(body.refresh_token)
-    if username is None:
+    result = decode_refresh_token(body.refresh_token)
+    if result is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired refresh token",
         )
+    username, remember_me = result
     user = db.query(models.User).filter(models.User.username == username).first()
     if not user or not user.is_active:
         raise HTTPException(
@@ -112,7 +113,7 @@ def refresh_token(body: _RefreshRequest, db: Session = Depends(get_db)):
             detail="Invalid or expired refresh token",
         )
     new_access = create_access_token(user.username)
-    new_refresh = create_refresh_token(user.username)
+    new_refresh = create_refresh_token(user.username, remember_me=remember_me)
     return schemas.TokenResponse(access_token=new_access, refresh_token=new_refresh, username=user.username)
 
 

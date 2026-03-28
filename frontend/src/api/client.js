@@ -191,10 +191,10 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ username, email, password }),
     }),
-  login: (username, password) =>
+  login: (username, password, rememberMe = true) =>
     request('/auth/login', {
       method: 'POST',
-      body: JSON.stringify({ username, password }),
+      body: JSON.stringify({ username, password, remember_me: rememberMe }),
     }),
   getMe: () => request('/auth/me'),
 

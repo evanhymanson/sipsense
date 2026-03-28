@@ -47,6 +47,7 @@ class UserRegister(BaseModel):
 class UserLogin(BaseModel):
     username: str = Field(..., min_length=1, max_length=30)
     password: str = Field(..., min_length=1, max_length=128)
+    remember_me: bool = False
 
 
 class TokenResponse(BaseModel):
