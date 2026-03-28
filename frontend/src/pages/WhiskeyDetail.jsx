@@ -55,6 +55,9 @@ export default function WhiskeyDetail() {
   const [newBadges, setNewBadges] = useState([])
   const [postCheckinRec, setPostCheckinRec] = useState(null)
   const [postCheckinBuyLink, setPostCheckinBuyLink] = useState(null)
+  const [checkinInsights, setCheckinInsights] = useState([])
+  const [checkinStreak, setCheckinStreak] = useState(null)
+  const [checkinChallenges, setCheckinChallenges] = useState([])
   const [showAllReviews, setShowAllReviews] = useState(false)
   const [reviewSummary, setReviewSummary] = useState(null)
   const [reviewSort, setReviewSort] = useState('recent')
@@ -253,6 +256,10 @@ export default function WhiskeyDetail() {
       setImageFile(null)
       if (imagePreview) URL.revokeObjectURL(imagePreview)
       setImagePreview(null)
+      // Show post-check-in insights, streak, challenges
+      setCheckinInsights(result.insights || [])
+      setCheckinStreak(result.streak || null)
+      setCheckinChallenges(result.challenge_updates || [])
       // Show badge celebration
       if (result.new_badges?.length > 0) {
         setNewBadges(result.new_badges)
@@ -871,6 +878,39 @@ export default function WhiskeyDetail() {
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* Post-check-in insights */}
+      {checkinInsights.length > 0 && (
+        <div className="checkin-insights">
+          {checkinInsights.map((insight, i) => (
+            <div key={i} className="checkin-insight-card">{insight}</div>
+          ))}
+        </div>
+      )}
+
+      {/* Streak update after check-in */}
+      {checkinStreak && checkinStreak.is_new_day && (
+        <div className="checkin-streak-banner">
+          Day {checkinStreak.current_streak} streak! Keep it going!
+        </div>
+      )}
+
+      {/* Challenge progress after check-in */}
+      {checkinChallenges.length > 0 && (
+        <div className="checkin-challenges">
+          {checkinChallenges.map((cu, i) => (
+            <div key={i} className="checkin-challenge-card">
+              <strong>{cu.challenge_title}</strong>
+              <div className="checkin-challenge-progress">
+                <div className="checkin-challenge-bar">
+                  <div className="checkin-challenge-fill" style={{ width: `${Math.min(100, (cu.progress / cu.goal) * 100)}%` }} />
+                </div>
+                <span>{cu.progress}/{cu.goal}{cu.completed ? ' — Complete!' : ''}</span>
+              </div>
+            </div>
+          ))}
         </div>
       )}
 

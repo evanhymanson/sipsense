@@ -41,6 +41,21 @@ services:
     expose:
       - "80"
 
+  scheduler:
+    build: ./backend
+    command: python -m app.scheduler
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://sipsense:${POSTGRES_PASSWORD:-sipsense_dev}@db:5432/sipsense
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
 volumes:
   pgdata:
   uploads:

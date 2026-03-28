@@ -195,6 +195,23 @@
   margin: 0;
 }
 
+.onboarding-success {
+  color: #4ade80;
+  font-size: 0.85rem;
+  margin: 0;
+}
+
+.onboarding-forgot-link {
+  display: block; width: 100%; text-align: center;
+  background: none; border: none; color: var(--amber);
+  font-size: 0.82rem; cursor: pointer; padding: 0.5rem 0; margin-top: 0.25rem;
+}
+.onboarding-forgot-link:hover { text-decoration: underline; }
+
+.onboarding-mode-title {
+  font-size: 1.1rem; color: var(--text); margin-bottom: 0.75rem; text-align: center;
+}
+
 .onboarding-fine {
   font-size: 0.78rem;
   color: var(--text-muted);

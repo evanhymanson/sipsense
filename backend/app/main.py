@@ -67,7 +67,7 @@ if _ENV in ("staging", "production"):
     logging.root.setLevel(logging.INFO)
 
 from .database import engine, Base
-from .routers import whiskeys, recommendations, quiz, favorites, chat, learn, flights, gift, palate, compare, stores, auth, trending, pairings, collection, personality, blindtasting, daily, feed, social, ai_features, journal, sharecard, journeys, watchlist, discover, videos, affiliate, subscription, sponsored, analytics, matchscores, toplists, critics, userlists
+from .routers import whiskeys, recommendations, quiz, favorites, chat, learn, flights, gift, palate, compare, stores, auth, trending, pairings, collection, personality, blindtasting, daily, feed, social, ai_features, journal, sharecard, journeys, watchlist, discover, videos, affiliate, subscription, sponsored, analytics, matchscores, toplists, critics, userlists, taste_identity, streaks, challenges, email_prefs
 
 logger = logging.getLogger(__name__)
 
@@ -87,6 +87,8 @@ try:
     seed_toplists(_startup_db)
     from .seed_critics import seed_critics
     seed_critics(_startup_db)
+    from .seed_challenges import seed_challenges
+    seed_challenges(_startup_db)
 finally:
     _startup_db.close()
 from .analytics_middleware import cleanup_old_events
@@ -237,6 +239,10 @@ from .routers import seo, price_alerts, stripe_billing
 app.include_router(seo.router)
 app.include_router(price_alerts.router)
 app.include_router(stripe_billing.router)
+app.include_router(taste_identity.router)
+app.include_router(streaks.router)
+app.include_router(challenges.router)
+app.include_router(email_prefs.router)
 
 
 @app.get("/", tags=["health"])

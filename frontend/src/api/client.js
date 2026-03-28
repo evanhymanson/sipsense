@@ -568,4 +568,50 @@ export const api = {
       body: JSON.stringify(body),
     })
   },
+
+  // ── Taste Identity (GAP 3) ────────────────────────────────────────────────
+  getPalateEvolution: () => request('/taste-identity/evolution'),
+  getPalatePercentiles: () => request('/taste-identity/percentiles'),
+  getDailyQuizQuestion: () => request('/taste-identity/quiz-question'),
+  submitDailyQuizAnswer: (correct_id, answer_id) =>
+    request('/taste-identity/quiz-answer', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ correct_id, answer_id }),
+    }),
+
+  // ── Streaks (GAP 4) ──────────────────────────────────────────────────────
+  getStreak: () => request('/streaks/me'),
+  recordStreakHeartbeat: () =>
+    request('/streaks/heartbeat', { method: 'POST' }),
+
+  // ── Challenges (GAP 4) ───────────────────────────────────────────────────
+  getChallenges: () => request('/challenges/'),
+  getChallenge: (slug) => request(`/challenges/${slug}`),
+  joinChallenge: (slug) =>
+    request(`/challenges/${slug}/join`, { method: 'POST' }),
+  getMyChallenges: () => request('/challenges/me'),
+
+  // ── Password Reset (GAP 5) ───────────────────────────────────────────────
+  forgotPassword: (email) =>
+    request('/auth/forgot-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    }),
+  resetPassword: (token, new_password) =>
+    request('/auth/reset-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, new_password }),
+    }),
+
+  // ── Email Preferences (GAP 5) ────────────────────────────────────────────
+  getEmailPreferences: () => request('/email-preferences/'),
+  updateEmailPreferences: (prefs) =>
+    request('/email-preferences/', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(prefs),
+    }),
 }

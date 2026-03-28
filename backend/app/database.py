@@ -171,6 +171,20 @@ def _ensure_indexes():
         ("idx_pricealert_whiskey", "price_alerts", "whiskey_id"),
         # Stripe events
         ("idx_stripe_event_id", "stripe_events", "event_id"),
+        # Streaks
+        ("idx_streak_user", "user_streaks", "user_id"),
+        # Challenges
+        ("idx_challenge_slug", "challenges", "slug"),
+        ("idx_challenge_active", "challenges", "is_active"),
+        ("idx_uchallenge_user", "user_challenge_progress", "user_id"),
+        ("idx_uchallenge_challenge", "user_challenge_progress", "challenge_id"),
+        # Password reset
+        ("idx_resettoken_hash", "password_reset_tokens", "token_hash"),
+        ("idx_resettoken_user", "password_reset_tokens", "user_id"),
+        # Email
+        ("idx_emailpref_user", "email_preferences", "user_id"),
+        ("idx_emaillog_user", "email_log", "user_id"),
+        ("idx_emaillog_type", "email_log", "email_type"),
     ]
     # Composite indexes for common query patterns (e.g. feed: WHERE user_id=? ORDER BY created_at DESC)
     _composite_indexes = [

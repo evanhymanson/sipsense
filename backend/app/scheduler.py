@@ -1,0 +1,68 @@
+"""Background scheduler for periodic email jobs.
+
+Run as a standalone service: python -m app.scheduler
+Uses APScheduler with BlockingScheduler (no Redis needed).
+"""
+
+import logging
+import os
+import signal
+import sys
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(name)s] %(levelname)s: %(message)s")
+logger = logging.getLogger("scheduler")
+
+
+def main():
+    env = os.getenv("SIPSENSE_ENV", "development").lower()
+
+    from apscheduler.schedulers.blocking import BlockingScheduler
+    from apscheduler.triggers.cron import CronTrigger
+
+    scheduler = BlockingScheduler()
+
+    from .scheduled_jobs import (
+        send_weekly_digests,
+        send_re_engagement_emails,
+        send_drip_emails,
+    )
+
+    # Weekly digest: Sunday 10am UTC
+    scheduler.add_job(
+        send_weekly_digests,
+        CronTrigger(day_of_week="sun", hour=10),
+        id="weekly_digest",
+    )
+
+    # Re-engagement: Daily 2pm UTC
+    scheduler.add_job(
+        send_re_engagement_emails,
+        CronTrigger(hour=14),
+        id="re_engagement",
+    )
+
+    # Onboarding drip: Daily 11am UTC
+    scheduler.add_job(
+        send_drip_emails,
+        CronTrigger(hour=11),
+        id="drip_emails",
+    )
+
+    # Graceful shutdown
+    def shutdown(signum, frame):
+        logger.info("Shutting down scheduler...")
+        scheduler.shutdown(wait=False)
+        sys.exit(0)
+
+    signal.signal(signal.SIGTERM, shutdown)
+    signal.signal(signal.SIGINT, shutdown)
+
+    logger.info("Scheduler started with %d jobs (env=%s)", len(scheduler.get_jobs()), env)
+    for job in scheduler.get_jobs():
+        logger.info("  Job: %s — next run: %s", job.id, job.next_run_time)
+
+    scheduler.start()
+
+
+if __name__ == "__main__":
+    main()

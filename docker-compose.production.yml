@@ -21,3 +21,8 @@ services:
   frontend:
     ports:
       - "127.0.0.1:8080:80"
+
+  scheduler:
+    env_file: .env.production
+    environment:
+      SIPSENSE_ENV: production

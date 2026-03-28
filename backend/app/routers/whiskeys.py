@@ -607,7 +607,19 @@ def rate_whiskey(
     from .recommendations import invalidate_user_recs
     invalidate_user_recs(current_user.username)
 
-    # Evaluate badges after check-in
+    # Post-check-in insights
+    from ..checkin_insights import generate_checkin_insights
+    insights = generate_checkin_insights(current_user.username, whiskey_id, rating.score, db)
+
+    # Record daily activity for streak
+    from ..streaks import record_daily_activity
+    streak_data = record_daily_activity(current_user.username, db)
+
+    # Update challenge progress
+    from ..challenge_tracker import update_challenge_progress
+    challenge_updates = update_challenge_progress(current_user.username, whiskey_id, db)
+
+    # Evaluate badges after check-in (streaks already updated above)
     from ..badges import evaluate_badges
     new_badges = evaluate_badges(current_user.username, db)
 
@@ -631,6 +643,11 @@ def rate_whiskey(
             flavor_tags=rating.flavor_tags,
         ),
         new_badges=[schemas.BadgeRead.model_validate(b) for b in new_badges],
+        insights=insights,
+        streak=schemas.StreakInfo(**streak_data) if streak_data else None,
+        challenge_updates=[
+            schemas.ChallengeUpdate(**cu) for cu in challenge_updates
+        ],
     )
 
 

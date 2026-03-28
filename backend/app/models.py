@@ -491,6 +491,94 @@ class StripeEvent(Base):
     processed_at = Column(DateTime(timezone=True), server_default=func.now())
 
 
+# ── Streaks & Challenges ──────────────────────────────────────────────────
+
+
+class UserStreak(Base):
+    """Tracks daily engagement streaks per user."""
+    __tablename__ = "user_streaks"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(String, ForeignKey("users.username"), unique=True, nullable=False)
+    current_streak = Column(Integer, default=0)
+    longest_streak = Column(Integer, default=0)
+    last_active_date = Column(String, nullable=True)  # ISO date string (YYYY-MM-DD)
+
+
+class Challenge(Base):
+    """Monthly community challenges for engagement."""
+    __tablename__ = "challenges"
+
+    id = Column(Integer, primary_key=True, index=True)
+    slug = Column(String, unique=True, nullable=False, index=True)
+    title = Column(String, nullable=False)
+    description = Column(Text, nullable=True)
+    challenge_type = Column(String, nullable=False)  # rate_category, rate_count, explore_region
+    goal_count = Column(Integer, nullable=False, default=4)
+    filters_json = Column(Text, nullable=True)  # JSON string e.g. {"category":"bourbon"}
+    image_emoji = Column(String, default="🏆")
+    starts_at = Column(DateTime(timezone=True), nullable=True)
+    ends_at = Column(DateTime(timezone=True), nullable=True)
+    is_active = Column(Boolean, default=True)
+
+
+class UserChallengeProgress(Base):
+    """Per-user progress on a challenge."""
+    __tablename__ = "user_challenge_progress"
+    __table_args__ = (UniqueConstraint("user_id", "challenge_id", name="uq_user_challenge"),)
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(String, ForeignKey("users.username"), nullable=False)
+    challenge_id = Column(Integer, ForeignKey("challenges.id"), nullable=False)
+    progress_count = Column(Integer, default=0)
+    completed = Column(Boolean, default=False)
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+    joined_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    challenge = relationship("Challenge", lazy="joined")
+
+
+# ── Password Reset & Email ────────────────────────────────────────────────
+
+
+class PasswordResetToken(Base):
+    """Secure password reset tokens (SHA-256 hashed)."""
+    __tablename__ = "password_reset_tokens"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(String, ForeignKey("users.username"), nullable=False)
+    token_hash = Column(String, nullable=False, index=True)
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+    used = Column(Boolean, default=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class EmailPreference(Base):
+    """Per-user email opt-in/out preferences."""
+    __tablename__ = "email_preferences"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(String, ForeignKey("users.username"), unique=True, nullable=False)
+    weekly_digest = Column(Boolean, default=True)
+    re_engagement = Column(Boolean, default=True)
+    onboarding_drip = Column(Boolean, default=True)
+    marketing = Column(Boolean, default=True)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class EmailLog(Base):
+    """Audit trail for all emails sent."""
+    __tablename__ = "email_log"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(String, ForeignKey("users.username"), nullable=True)
+    email_type = Column(String, nullable=False)  # welcome, reset, digest, re_engagement, drip
+    subject = Column(String, nullable=True)
+    ses_message_id = Column(String, nullable=True)
+    status = Column(String, default="sent")  # sent, failed
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
 # ── Top Lists ────────────────────────────────────────────────────────────
 
 
