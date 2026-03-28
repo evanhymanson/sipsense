@@ -934,10 +934,9 @@ export default function Profile() {
     setListModal(type)
     setListLoading(true)
     try {
-      const me = await api.getMe()
       const users = type === 'followers'
-        ? await api.getFollowers(me.username)
-        : await api.getFollowing(me.username)
+        ? await api.getFollowers(currentUser)
+        : await api.getFollowing(currentUser)
       setListUsers(users)
     } catch { setListUsers([]) }
     finally { setListLoading(false) }
