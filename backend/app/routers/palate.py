@@ -68,31 +68,31 @@ def get_my_palate(
 ):
     user_id = current_user.username
 
-    # ── Ratings ──────────────────────────────────────────────────────────────
-    ratings = (
-        db.query(UserRating)
+    # ── Ratings: load lightweight tuples for aggregation (avoids hydrating notes) ─
+    rating_rows = (
+        db.query(UserRating.whiskey_id, UserRating.score)
         .filter(UserRating.user_id == user_id)
-        .order_by(UserRating.created_at.desc())
         .all()
     )
+    total_rated = len(rating_rows)
 
     # ── Favorites ─────────────────────────────────────────────────────────────
-    favorites_rows = (
-        db.query(UserFavorite)
+    fav_whiskey_ids = [
+        row[0] for row in
+        db.query(UserFavorite.whiskey_id)
         .filter(UserFavorite.user_id == user_id)
         .order_by(UserFavorite.created_at.desc())
         .all()
-    )
-    fav_whiskey_ids = [f.whiskey_id for f in favorites_rows]
+    ]
     fav_whiskeys = (
         db.query(Whiskey).filter(Whiskey.id.in_(fav_whiskey_ids)).all()
         if fav_whiskey_ids else []
     )
 
     # ── Aggregations ──────────────────────────────────────────────────────────
-    rated_whiskey_ids = [r.whiskey_id for r in ratings]
+    rated_whiskey_ids = [r.whiskey_id for r in rating_rows]
     rated_whiskeys = (
-        db.query(Whiskey).filter(Whiskey.id.in_(rated_whiskey_ids)).all()
+        db.query(Whiskey).filter(Whiskey.id.in_(set(rated_whiskey_ids))).all()
         if rated_whiskey_ids else []
     )
     whiskey_by_id = {w.id: w for w in rated_whiskeys}
@@ -101,8 +101,8 @@ def get_my_palate(
     flavor_counter: Counter = Counter()
     prices = []
 
-    for r in ratings:
-        w = whiskey_by_id.get(r.whiskey_id)
+    for wid, _score in rating_rows:
+        w = whiskey_by_id.get(wid)
         if not w:
             continue
         category_counter[w.category] += 1
@@ -122,26 +122,33 @@ def get_my_palate(
         for flavor, cnt in flavor_counter.most_common(10)
     ]
 
-    scores = [r.score for r in ratings]
+    scores = [r.score for r in rating_rows]
     avg_score = round(sum(scores) / len(scores), 2) if scores else 0.0
     avg_price = round(sum(prices) / len(prices), 2) if prices else 0.0
 
-    # ── Recent ratings with whiskey data ─────────────────────────────────────
-    recent = []
-    for r in ratings[:15]:
-        w = whiskey_by_id.get(r.whiskey_id)
-        if w:
-            recent.append({
-                "score": r.score,
-                "notes": r.notes,
-                "created_at": r.created_at.isoformat() if r.created_at else None,
-                "whiskey": _whiskey_dict(w),
-            })
+    # ── Recent ratings with whiskey data (full objects only for display) ──────
+    from sqlalchemy.orm import joinedload
+    recent_ratings = (
+        db.query(UserRating)
+        .filter(UserRating.user_id == user_id)
+        .options(joinedload(UserRating.whiskey))
+        .order_by(UserRating.created_at.desc())
+        .limit(15)
+        .all()
+    )
+    recent = [
+        {
+            "score": r.score,
+            "notes": r.notes,
+            "created_at": r.created_at.isoformat() if r.created_at else None,
+            "whiskey": _whiskey_dict(r.whiskey),
+        }
+        for r in recent_ratings if r.whiskey
+    ]
 
-    narrative = _build_narrative(top_categories, top_flavors, len(ratings), avg_score)
+    narrative = _build_narrative(top_categories, top_flavors, total_rated, avg_score)
 
     # ── Badges ─────────────────────────────────────────────────────────────
-    from sqlalchemy.orm import joinedload
     user_badges = (
         db.query(UserBadge)
         .filter(UserBadge.user_id == user_id)
@@ -164,8 +171,8 @@ def get_my_palate(
     return {
         "narrative": narrative,
         "stats": {
-            "total_rated": len(ratings),
-            "total_favorites": len(favorites_rows),
+            "total_rated": total_rated,
+            "total_favorites": len(fav_whiskey_ids),
             "avg_score": avg_score,
             "avg_price": avg_price,
         },

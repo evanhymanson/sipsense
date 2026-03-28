@@ -202,16 +202,23 @@ def get_my_personality(
 ):
     user_id = current_user.username
 
-    # Gather ratings
-    ratings = db.query(UserRating).filter(UserRating.user_id == user_id).all()
-    favorites = db.query(UserFavorite).filter(UserFavorite.user_id == user_id).all()
+    # Load only whiskey IDs (not full ORM objects) to reduce memory/hydration overhead
+    rated_wids = [
+        row[0] for row in
+        db.query(UserRating.whiskey_id).filter(UserRating.user_id == user_id).all()
+    ]
+    fav_wids = [
+        row[0] for row in
+        db.query(UserFavorite.whiskey_id).filter(UserFavorite.user_id == user_id).all()
+    ]
 
-    total_interactions = len(ratings) + len(favorites)
-    if total_interactions < 2:
-        return {**DEFAULT_ARCHETYPE, "stats": {"total_rated": len(ratings), "total_favorites": len(favorites)}}
+    total_rated = len(rated_wids)
+    total_favorites = len(fav_wids)
+    if total_rated + total_favorites < 2:
+        return {**DEFAULT_ARCHETYPE, "stats": {"total_rated": total_rated, "total_favorites": total_favorites}}
 
     # Get whiskey data for all interactions
-    whiskey_ids = list(set([r.whiskey_id for r in ratings] + [f.whiskey_id for f in favorites]))
+    whiskey_ids = list(set(rated_wids + fav_wids))
     whiskeys = db.query(Whiskey).filter(Whiskey.id.in_(whiskey_ids)).all()
     whiskey_map = {w.id: w for w in whiskeys}
 
@@ -221,8 +228,8 @@ def get_my_personality(
     prices = []
     abvs = []
 
-    for r in ratings:
-        w = whiskey_map.get(r.whiskey_id)
+    for wid in rated_wids:
+        w = whiskey_map.get(wid)
         if not w:
             continue
         category_counts[w.category] += 1
@@ -234,8 +241,8 @@ def get_my_personality(
             for tag in [t.strip().lower() for t in w.flavor_profile.split(",") if t.strip()]:
                 flavor_counts[tag] += 1
 
-    for f in favorites:
-        w = whiskey_map.get(f.whiskey_id)
+    for wid in fav_wids:
+        w = whiskey_map.get(wid)
         if not w:
             continue
         category_counts[w.category] += 1
@@ -244,7 +251,7 @@ def get_my_personality(
                 flavor_counts[tag] += 0.5  # favorites count less than ratings
 
     dominant = _classify_dominant_trait(flavor_counts)
-    secondary = _classify_secondary_trait(category_counts, len(ratings))
+    secondary = _classify_secondary_trait(category_counts, total_rated)
 
     archetype = ARCHETYPES.get((dominant, secondary))
     if not archetype:
@@ -264,8 +271,8 @@ def get_my_personality(
         "dominant_trait": dominant,
         "secondary_trait": secondary,
         "stats": {
-            "total_rated": len(ratings),
-            "total_favorites": len(favorites),
+            "total_rated": total_rated,
+            "total_favorites": total_favorites,
             "categories_explored": len(category_counts),
             "avg_price": round(sum(prices) / len(prices), 2) if prices else None,
             "avg_abv": round(sum(abvs) / len(abvs), 1) if abvs else None,
