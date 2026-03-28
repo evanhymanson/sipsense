@@ -16,6 +16,7 @@ export default function Onboarding() {
   const [error, setError] = useState(null)
   const [loading, setLoading] = useState(false)
   const [successMsg, setSuccessMsg] = useState(null)
+  const [rememberMe, setRememberMe] = useState(true)
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -41,7 +42,7 @@ export default function Onboarding() {
         setAuth(data.access_token, data.username, data.refresh_token)
         navigate('/quiz')
       } else if (mode === 'login') {
-        const data = await api.login(username.trim(), password)
+        const data = await api.login(username.trim(), password, rememberMe)
         setAuth(data.access_token, data.username, data.refresh_token)
         navigate('/')
       } else if (mode === 'forgot') {
@@ -170,6 +171,13 @@ export default function Onboarding() {
                   <p className="onboarding-error">Password must be at least 8 characters</p>
                 )}
               </>
+            )}
+
+            {mode === 'login' && (
+              <label className="remember-me-row">
+                <input type="checkbox" checked={rememberMe} onChange={e => setRememberMe(e.target.checked)} />
+                <span>Remember me for 30 days</span>
+              </label>
             )}
 
             {error && <p className="onboarding-error">{error}</p>}
