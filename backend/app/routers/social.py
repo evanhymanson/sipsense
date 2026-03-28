@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import func as sqlfunc
+from sqlalchemy import case, func as sqlfunc
 from typing import Optional
 
 from .. import models, schemas
@@ -444,17 +444,19 @@ def get_user_profile(
         .all()
     )
 
-    # Follower / following counts
-    follower_count = (
-        db.query(sqlfunc.count(models.Follow.id))
-        .filter(models.Follow.following_id == username)
-        .scalar() or 0
+    # Follower / following counts (single query instead of two)
+    follow_stats = (
+        db.query(
+            sqlfunc.sum(case((models.Follow.following_id == username, 1), else_=0)),
+            sqlfunc.sum(case((models.Follow.follower_id == username, 1), else_=0)),
+        )
+        .filter(
+            (models.Follow.following_id == username) | (models.Follow.follower_id == username)
+        )
+        .first()
     )
-    following_count = (
-        db.query(sqlfunc.count(models.Follow.id))
-        .filter(models.Follow.follower_id == username)
-        .scalar() or 0
-    )
+    follower_count = int(follow_stats[0] or 0) if follow_stats else 0
+    following_count = int(follow_stats[1] or 0) if follow_stats else 0
     is_following = False
     if current_user and current_user.username != username:
         is_following = (
@@ -543,8 +545,13 @@ def get_user_profile(
         for r in ratings if r.whiskey
     ]
 
-    # User level
-    user_level = compute_user_level(username, db)
+    # User level — pass pre-computed stats to avoid redundant queries
+    user_level = compute_user_level(
+        username, db,
+        total_checkins=total_checkins,
+        unique_whiskeys=unique_whiskeys,
+        badge_count=len(user_badges),
+    )
 
     # User's public lists (up to 5 for preview) — use count subquery to avoid N+1
     item_count_sub = (

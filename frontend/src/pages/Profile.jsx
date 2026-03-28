@@ -944,7 +944,7 @@ export default function Profile() {
   const [personality, setPersonality] = useState(null)
   const [palateData, setPalateData] = useState(null)
   const [tabCounts, setTabCounts] = useState({})
-  const [loading, setLoading] = useState(true)
+  const [heroLoading, setHeroLoading] = useState(true)
   const [initialColStats, setInitialColStats] = useState(null)
   const [initialJournal, setInitialJournal] = useState(null)
   const [followerCount, setFollowerCount] = useState(0)
@@ -969,15 +969,30 @@ export default function Profile() {
   useEffect(() => {
     const controller = new AbortController()
     const opts = { signal: controller.signal }
+
+    // Tier 1: hero data — unblocks first paint
     Promise.all([
       api.getPersonality(opts).catch(() => null),
+      currentUser ? api.getUserProfile(currentUser, opts).catch(() => null) : Promise.resolve(null),
+    ]).then(([pers, profile]) => {
+      if (controller.signal.aborted) return
+      setPersonality(pers)
+      if (profile) {
+        setProfileData(profile)
+        setFollowerCount(profile.follower_count || 0)
+        setFollowingCount(profile.following_count || 0)
+      }
+    }).finally(() => {
+      if (!controller.signal.aborted) setHeroLoading(false)
+    })
+
+    // Tier 2: tab data — populates tabs after hero is visible
+    Promise.all([
       api.getPalate(opts).catch(() => null),
       api.getCollectionStats(opts).catch(() => null),
       api.getJournal(opts).catch(() => null),
-      currentUser ? api.getUserProfile(currentUser, opts).catch(() => null) : Promise.resolve(null),
-    ]).then(([pers, pal, colStats, journal, profile]) => {
+    ]).then(([pal, colStats, journal]) => {
       if (controller.signal.aborted) return
-      setPersonality(pers)
       setPalateData(pal)
       setInitialColStats(colStats)
       setInitialJournal(journal)
@@ -987,14 +1002,8 @@ export default function Profile() {
         journal: Array.isArray(journal?.entries) ? journal.entries.length : (journal?.total ?? 0),
         badges: pal?.badges?.length ?? 0,
       })
-      if (profile) {
-        setProfileData(profile)
-        setFollowerCount(profile.follower_count || 0)
-        setFollowingCount(profile.following_count || 0)
-      }
-    }).finally(() => {
-      if (!controller.signal.aborted) setLoading(false)
     })
+
     return () => controller.abort()
   }, [currentUser])
 
@@ -1034,7 +1043,7 @@ export default function Profile() {
     }
   }
 
-  if (loading) {
+  if (heroLoading) {
     return (
       <div className="profile-page">
         <div className="prof-loading-state">
@@ -1088,19 +1097,17 @@ export default function Profile() {
           </div>
         )}
 
-        {/* Stats row */}
-        {stats && (
-          <div className="prof-stats">
-            <div className="prof-stat"><span className="prof-stat-val">{stats.total_rated}</span><span>Rated</span></div>
-            <div className="prof-stat"><span className="prof-stat-val">{stats.total_favorites}</span><span>Favorites</span></div>
-            <div className="prof-stat prof-stat--clickable" onClick={() => openList('followers')}>
-              <span className="prof-stat-val">{followerCount}</span><span>Followers</span>
-            </div>
-            <div className="prof-stat prof-stat--clickable" onClick={() => openList('following')}>
-              <span className="prof-stat-val">{followingCount}</span><span>Following</span>
-            </div>
+        {/* Stats row — shows immediately with follower counts, Rated/Favorites fill in from palate */}
+        <div className="prof-stats">
+          <div className="prof-stat"><span className="prof-stat-val">{stats ? stats.total_rated : profileData?.total_checkins ?? '–'}</span><span>Rated</span></div>
+          <div className="prof-stat"><span className="prof-stat-val">{stats?.total_favorites ?? '–'}</span><span>Favorites</span></div>
+          <div className="prof-stat prof-stat--clickable" onClick={() => openList('followers')}>
+            <span className="prof-stat-val">{followerCount}</span><span>Followers</span>
           </div>
-        )}
+          <div className="prof-stat prof-stat--clickable" onClick={() => openList('following')}>
+            <span className="prof-stat-val">{followingCount}</span><span>Following</span>
+          </div>
+        </div>
 
         <div className="prof-find-people">
           <UserSearch />

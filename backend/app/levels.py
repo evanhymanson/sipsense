@@ -18,23 +18,37 @@ PTS_BADGE = 15
 PTS_HELPFUL = 2
 
 
-def compute_user_level(username: str, db: Session) -> dict:
-    """Compute a user's level from their activity."""
-    total_checkins = (
-        db.query(sqlfunc.count(models.UserRating.id))
-        .filter(models.UserRating.user_id == username)
-        .scalar() or 0
-    )
-    unique_whiskeys = (
-        db.query(sqlfunc.count(sqlfunc.distinct(models.UserRating.whiskey_id)))
-        .filter(models.UserRating.user_id == username)
-        .scalar() or 0
-    )
-    badge_count = (
-        db.query(sqlfunc.count(models.UserBadge.id))
-        .filter(models.UserBadge.user_id == username)
-        .scalar() or 0
-    )
+def compute_user_level(
+    username: str,
+    db: Session,
+    *,
+    total_checkins: int | None = None,
+    unique_whiskeys: int | None = None,
+    badge_count: int | None = None,
+) -> dict:
+    """Compute a user's level from their activity.
+
+    Pass pre-computed stats to skip redundant queries when the caller
+    already has them (e.g. the profile endpoint).
+    """
+    if total_checkins is None:
+        total_checkins = (
+            db.query(sqlfunc.count(models.UserRating.id))
+            .filter(models.UserRating.user_id == username)
+            .scalar() or 0
+        )
+    if unique_whiskeys is None:
+        unique_whiskeys = (
+            db.query(sqlfunc.count(sqlfunc.distinct(models.UserRating.whiskey_id)))
+            .filter(models.UserRating.user_id == username)
+            .scalar() or 0
+        )
+    if badge_count is None:
+        badge_count = (
+            db.query(sqlfunc.count(models.UserBadge.id))
+            .filter(models.UserBadge.user_id == username)
+            .scalar() or 0
+        )
     helpful_received = (
         db.query(sqlfunc.count(models.ReviewHelpful.id))
         .join(models.UserRating, models.ReviewHelpful.rating_id == models.UserRating.id)
