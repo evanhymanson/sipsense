@@ -30,12 +30,12 @@ export default function Feed() {
       .catch(() => { /* non-critical: suggested follows */ })
   }, [currentUser])
 
-  const loadFeed = useCallback(async (skip = 0, append = false) => {
+  const loadFeed = useCallback(async (skip = 0, append = false, opts = {}) => {
     try {
       const params = { skip, limit: 20 }
       if (category !== 'all') params.category = category
       if (friendsOnly && currentUser) params.following_only = true
-      const data = await api.getFeed(params)
+      const data = await api.getFeed(params, opts)
       const MAX_FEED_ITEMS = 200
       setItems(prev => {
         const merged = append ? [...prev, ...data.items] : data.items
@@ -43,14 +43,19 @@ export default function Feed() {
       })
       setHasMore(data.has_more)
     } catch (e) {
+      if (e.name === 'AbortError') return
       setError(e.message)
     }
   }, [category, friendsOnly, currentUser])
 
   useEffect(() => {
+    const controller = new AbortController()
     setLoading(true)
     setError(null)
-    loadFeed(0).finally(() => setLoading(false))
+    loadFeed(0, false, { signal: controller.signal }).finally(() => {
+      if (!controller.signal.aborted) setLoading(false)
+    })
+    return () => controller.abort()
   }, [loadFeed])
 
   async function handleLoadMore() {

@@ -898,13 +898,16 @@ export default function Profile() {
   }, [])
 
   useEffect(() => {
+    const controller = new AbortController()
+    const opts = { signal: controller.signal }
     Promise.all([
-      api.getPersonality().catch(() => null),
-      api.getPalate().catch(() => null),
-      api.getCollectionStats().catch(() => null),
-      api.getJournal().catch(() => null),
-      currentUser ? api.getUserProfile(currentUser).catch(() => null) : Promise.resolve(null),
+      api.getPersonality(opts).catch(() => null),
+      api.getPalate(opts).catch(() => null),
+      api.getCollectionStats(opts).catch(() => null),
+      api.getJournal(opts).catch(() => null),
+      currentUser ? api.getUserProfile(currentUser, opts).catch(() => null) : Promise.resolve(null),
     ]).then(([pers, pal, colStats, journal, profile]) => {
+      if (controller.signal.aborted) return
       setPersonality(pers)
       setPalateData(pal)
       setInitialColStats(colStats)
@@ -920,7 +923,10 @@ export default function Profile() {
         setFollowerCount(profile.follower_count || 0)
         setFollowingCount(profile.following_count || 0)
       }
-    }).finally(() => setLoading(false))
+    }).finally(() => {
+      if (!controller.signal.aborted) setLoading(false)
+    })
+    return () => controller.abort()
   }, [currentUser])
 
   async function handleFollowSuggested(username) {
