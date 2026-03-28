@@ -55,6 +55,13 @@ function FavCard({ whiskey }) {
 function PalateTab({ palateData }) {
   const [aiSummary, setAiSummary] = useState(null)
   const [aiLoading, setAiLoading] = useState(false)
+  const [evolution, setEvolution] = useState(null)
+  const [percentiles, setPercentiles] = useState(null)
+
+  useEffect(() => {
+    api.getPalateEvolution().then(setEvolution).catch(() => {})
+    api.getPalatePercentiles().then(setPercentiles).catch(() => {})
+  }, [])
 
   if (!palateData) return <p className="prof-empty">Rate some whiskeys to start building your taste portrait.</p>
 
@@ -129,6 +136,63 @@ function PalateTab({ palateData }) {
             ))}
           </div>
           <div className="prof-bars">{top_flavors.slice(0, 6).map(f => <BarRow key={f.name} label={f.name} count={f.count} max={maxFlavor} />)}</div>
+        </div>
+      )}
+
+      {/* ── Palate Evolution ─────────────────────────────────────── */}
+      {evolution?.evolution_narrative && (
+        <div className="prof-section">
+          <h3>Your Palate Evolution</h3>
+          <div className="prof-evolution-card">
+            <p className="prof-evolution-narrative">{evolution.evolution_narrative}</p>
+            {evolution.comparison && (
+              <div className="prof-evolution-stats">
+                {evolution.comparison.score_trend !== 0 && (
+                  <span className="prof-evo-stat">
+                    {evolution.comparison.score_trend > 0 ? '↑' : '↓'} Avg score {evolution.comparison.score_trend > 0 ? 'up' : 'down'} {Math.abs(evolution.comparison.score_trend).toFixed(1)}
+                  </span>
+                )}
+                {evolution.comparison.new_categories?.length > 0 && (
+                  <span className="prof-evo-stat">
+                    + {evolution.comparison.new_categories.join(', ')}
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Percentile Badges ────────────────────────────────────── */}
+      {percentiles && (
+        <div className="prof-section">
+          <h3>How You Compare</h3>
+          <div className="prof-percentile-grid">
+            {percentiles.total_rated_percentile != null && (
+              <div className="prof-percentile-badge">
+                <div className="prof-pct-bar-track">
+                  <div className="prof-pct-bar-fill" style={{ width: `${percentiles.total_rated_percentile}%` }} />
+                </div>
+                <span className="prof-pct-label">More bottles rated than {percentiles.total_rated_percentile}% of users</span>
+              </div>
+            )}
+            {percentiles.top_category_percentile != null && percentiles.top_category && (
+              <div className="prof-percentile-badge">
+                <div className="prof-pct-bar-track">
+                  <div className="prof-pct-bar-fill" style={{ width: `${percentiles.top_category_percentile}%` }} />
+                </div>
+                <span className="prof-pct-label">Top {100 - percentiles.top_category_percentile}% {percentiles.top_category} enthusiast</span>
+              </div>
+            )}
+            {percentiles.diversity_score != null && (
+              <div className="prof-percentile-badge">
+                <div className="prof-pct-bar-track">
+                  <div className="prof-pct-bar-fill" style={{ width: `${percentiles.diversity_score * 10}%` }} />
+                </div>
+                <span className="prof-pct-label">Diversity: {percentiles.diversity_score.toFixed(1)} / 10</span>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
@@ -890,10 +954,15 @@ export default function Profile() {
   const [listLoading, setListLoading] = useState(false)
   const [suggested, setSuggested] = useState([])
   const [profileData, setProfileData] = useState(null)
+  const [emailPrefs, setEmailPrefs] = useState(null)
+  const [emailPrefsSaving, setEmailPrefsSaving] = useState(false)
 
   useEffect(() => {
     api.getSuggestedUsers(5)
       .then(data => setSuggested(data || []))
+      .catch(() => {})
+    api.getEmailPreferences()
+      .then(setEmailPrefs)
       .catch(() => {})
   }, [])
 
@@ -1105,6 +1174,38 @@ export default function Profile() {
         )}
         {activeTab === 'lists' && <ListsTab />}
       </div>
+
+      {/* ── Email Preferences ─────────────────────────────────── */}
+      {emailPrefs && (
+        <div className="prof-section" style={{ marginTop: '1.5rem' }}>
+          <h3>Email Preferences</h3>
+          <div className="prof-email-prefs">
+            {[
+              { key: 'weekly_digest', label: 'Weekly Digest' },
+              { key: 're_engagement', label: 'Re-engagement Tips' },
+              { key: 'onboarding_drip', label: 'Onboarding Emails' },
+              { key: 'marketing', label: 'Marketing & News' },
+            ].map(({ key, label }) => (
+              <div key={key} className="prof-email-toggle">
+                <span className="prof-email-label">{label}</span>
+                <input
+                  type="checkbox"
+                  checked={emailPrefs[key] ?? true}
+                  disabled={emailPrefsSaving}
+                  onChange={async (e) => {
+                    const updated = { ...emailPrefs, [key]: e.target.checked }
+                    setEmailPrefs(updated)
+                    setEmailPrefsSaving(true)
+                    try { await api.updateEmailPreferences(updated) }
+                    catch { setEmailPrefs(emailPrefs) }
+                    finally { setEmailPrefsSaving(false) }
+                  }}
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* ── Followers / Following Modal ──────────────────────── */}
       {listModal && (

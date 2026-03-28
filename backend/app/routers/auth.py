@@ -1,12 +1,19 @@
 """
-Auth Router — register, login, and current user info.
+Auth Router — register, login, password reset, and current user info.
 
-POST /auth/register  — create a new account
-POST /auth/login     — authenticate and receive a JWT
-GET  /auth/me        — get current user info (requires token)
+POST /auth/register         — create a new account
+POST /auth/login            — authenticate and receive a JWT
+POST /auth/forgot-password  — request password reset email
+POST /auth/reset-password   — reset password with token
+GET  /auth/me               — get current user info (requires token)
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status
+import hashlib
+import logging
+import secrets
+from datetime import datetime, timedelta, timezone
+
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -20,11 +27,13 @@ from ..rate_limit import auth_rate_limit
 from ..track import track_action
 from ..analytics_constants import ACTION_REGISTER, ACTION_LOGIN
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 @router.post("/register", response_model=schemas.TokenResponse, status_code=201)
-def register(body: schemas.UserRegister, db: Session = Depends(get_db), _: None = Depends(auth_rate_limit)):
+def register(body: schemas.UserRegister, background_tasks: BackgroundTasks, db: Session = Depends(get_db), _: None = Depends(auth_rate_limit)):
     # Check for existing username or email (generic message to prevent enumeration)
     if db.query(models.User).filter(models.User.username == body.username).first() or \
        db.query(models.User).filter(models.User.email == body.email).first():
@@ -42,8 +51,22 @@ def register(body: schemas.UserRegister, db: Session = Depends(get_db), _: None 
     db.commit()
     db.refresh(user)
 
+    # Create default email preferences (all opted in)
+    db.add(models.EmailPreference(user_id=user.username))
+    db.commit()
+
     track_action(db, user.username, ACTION_REGISTER)
     db.commit()
+
+    # Send welcome email in background
+    try:
+        from ..email_service import send_email
+        from ..email_templates import welcome_email
+        subject, html, text = welcome_email(user.username)
+        background_tasks.add_task(send_email, user.email, subject, html, text, user.username, "welcome")
+    except Exception:
+        logger.debug("Welcome email skipped (SES not configured)")
+
     token = create_access_token(user.username)
     refresh = create_refresh_token(user.username)
     return schemas.TokenResponse(access_token=token, refresh_token=refresh, username=user.username)
@@ -96,3 +119,69 @@ def refresh_token(body: _RefreshRequest, db: Session = Depends(get_db)):
 @router.get("/me", response_model=schemas.UserRead)
 def get_me(current_user: models.User = Depends(get_current_user)):
     return current_user
+
+
+@router.post("/forgot-password")
+def forgot_password(
+    body: schemas.ForgotPasswordRequest,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+    _: None = Depends(auth_rate_limit),
+):
+    """Request a password reset email. Always returns 200 to prevent enumeration."""
+    import os
+    user = db.query(models.User).filter(models.User.email == body.email).first()
+    if user:
+        # Generate token and store hash
+        token = secrets.token_urlsafe(32)
+        token_hash = hashlib.sha256(token.encode()).hexdigest()
+        reset = models.PasswordResetToken(
+            user_id=user.username,
+            token_hash=token_hash,
+            expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
+        )
+        db.add(reset)
+        db.commit()
+
+        # Send reset email
+        frontend_url = os.getenv("FRONTEND_URL", "https://sipsense.ai")
+        reset_url = f"{frontend_url}/onboarding?reset_token={token}"
+        try:
+            from ..email_service import send_email
+            from ..email_templates import password_reset_email
+            subject, html, text = password_reset_email(user.username, reset_url)
+            background_tasks.add_task(send_email, user.email, subject, html, text, user.username, "reset")
+        except Exception:
+            logger.debug("Reset email skipped (SES not configured)")
+
+    return {"status": "If an account with that email exists, we've sent a reset link."}
+
+
+@router.post("/reset-password")
+def reset_password(body: schemas.ResetPasswordRequest, db: Session = Depends(get_db)):
+    """Reset password using a token from the forgot-password email."""
+    token_hash = hashlib.sha256(body.token.encode()).hexdigest()
+    reset = (
+        db.query(models.PasswordResetToken)
+        .filter(
+            models.PasswordResetToken.token_hash == token_hash,
+            models.PasswordResetToken.used == False,
+        )
+        .first()
+    )
+    if not reset:
+        raise HTTPException(status_code=400, detail="Invalid or expired reset token")
+
+    if reset.expires_at.replace(tzinfo=timezone.utc) < datetime.now(timezone.utc):
+        raise HTTPException(status_code=400, detail="Reset token has expired")
+
+    # Update password
+    user = db.query(models.User).filter(models.User.username == reset.user_id).first()
+    if not user:
+        raise HTTPException(status_code=400, detail="Invalid reset token")
+
+    user.hashed_password = hash_password(body.new_password)
+    reset.used = True
+    db.commit()
+
+    return {"status": "Password reset successfully"}

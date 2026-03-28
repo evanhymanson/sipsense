@@ -584,3 +584,50 @@
   background: var(--amber); color: #1a1a1a; border: none;
   border-radius: 999px; font-weight: 600; font-size: 0.85rem; cursor: pointer;
 }
+
+/* ── Palate Evolution ────────────────────────────── */
+.prof-evolution-card {
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: 12px; padding: 1rem 1.25rem;
+}
+.prof-evolution-narrative {
+  color: var(--text); font-size: 0.9rem; line-height: 1.5; margin: 0;
+}
+.prof-evolution-stats {
+  display: flex; gap: 1rem; margin-top: 0.75rem; flex-wrap: wrap;
+}
+.prof-evo-stat {
+  font-size: 0.82rem; color: var(--amber); font-weight: 600;
+  background: rgba(201, 168, 76, 0.1); border-radius: 999px;
+  padding: 0.25rem 0.75rem;
+}
+
+/* ── Percentile Badges ───────────────────────────── */
+.prof-percentile-grid { display: flex; flex-direction: column; gap: 0.75rem; }
+.prof-percentile-badge {
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: 10px; padding: 0.75rem 1rem;
+}
+.prof-pct-bar-track {
+  height: 6px; background: var(--border); border-radius: 3px; overflow: hidden;
+  margin-bottom: 0.5rem;
+}
+.prof-pct-bar-fill {
+  height: 100%; background: var(--amber); border-radius: 3px;
+  transition: width 0.6s ease;
+}
+.prof-pct-label {
+  font-size: 0.82rem; color: var(--text-muted);
+}
+
+/* ── Email Preferences ───────────────────────────── */
+.prof-email-prefs { display: flex; flex-direction: column; gap: 0.75rem; }
+.prof-email-toggle {
+  display: flex; align-items: center; justify-content: space-between;
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: 10px; padding: 0.75rem 1rem;
+}
+.prof-email-label { font-size: 0.88rem; color: var(--text); }
+.prof-email-toggle input[type="checkbox"] {
+  width: 18px; height: 18px; accent-color: var(--amber); cursor: pointer;
+}

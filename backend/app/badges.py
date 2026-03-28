@@ -86,6 +86,21 @@ BADGE_DEFINITIONS = [
         "emoji": "⭐",
         "category": "taste",
     },
+    # ── Streak badges ──────────────────────────────────────────────────────
+    {
+        "slug": "streak_7",
+        "name": "Whiskey Scholar",
+        "description": "7-day check-in streak",
+        "emoji": "📚",
+        "category": "streak",
+    },
+    {
+        "slug": "streak_30",
+        "name": "Dedicated Student",
+        "description": "30-day check-in streak",
+        "emoji": "🎓",
+        "category": "streak",
+    },
 ]
 
 # Map region → country for world_traveler badge
@@ -212,6 +227,14 @@ def evaluate_badges(user_id: str, db: Session) -> list[models.Badge]:
     if "top_shelf" not in already:
         if any(r.score >= 5.0 for r in ratings):
             new_slugs.append("top_shelf")
+
+    # ── Streak badges ──────────────────────────────────────────────────────
+    streak = db.query(models.UserStreak).filter(models.UserStreak.user_id == user_id).first()
+    if streak:
+        if "streak_7" not in already and streak.current_streak >= 7:
+            new_slugs.append("streak_7")
+        if "streak_30" not in already and streak.current_streak >= 30:
+            new_slugs.append("streak_30")
 
     # ── Award new badges ─────────────────────────────────────────────────
     awarded: list[models.Badge] = []

@@ -295,10 +295,26 @@ class UserRatingsResponse(BaseModel):
     has_more: bool
 
 
+class StreakInfo(BaseModel):
+    current_streak: int
+    longest_streak: int
+    is_new_day: bool
+
+
+class ChallengeUpdate(BaseModel):
+    challenge_title: str
+    progress: int
+    goal: int
+    completed: bool
+
+
 class CheckInResponse(BaseModel):
     """Returned after a successful check-in (rate_whiskey)."""
     rating: RatingRead
     new_badges: list[BadgeRead] = []
+    insights: list[str] = []
+    streak: Optional[StreakInfo] = None
+    challenge_updates: list[ChallengeUpdate] = []
 
 
 class ReviewSortOption(str, Enum):
@@ -654,3 +670,34 @@ class WhiskeyCriticScores(BaseModel):
     whiskey_id: int
     scores: list[CriticScoreRead] = []
     avg_critic_score: float | None = None
+
+
+# ── Password Reset ──────────────────────────────────────────────────────
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str = Field(..., min_length=8, max_length=128)
+
+
+# ── Email Preferences ──────────────────────────────────────────────────
+
+
+class EmailPreferenceRead(BaseModel):
+    weekly_digest: bool = True
+    re_engagement: bool = True
+    onboarding_drip: bool = True
+    marketing: bool = True
+
+    model_config = {"from_attributes": True}
+
+
+class EmailPreferenceUpdate(BaseModel):
+    weekly_digest: bool | None = None
+    re_engagement: bool | None = None
+    onboarding_drip: bool | None = None
+    marketing: bool | None = None
