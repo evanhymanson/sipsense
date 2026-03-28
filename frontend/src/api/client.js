@@ -117,8 +117,11 @@ async function _doRequest(path, options = {}, _retryCount = 0) {
     res = await fetch(`${BASE}${path}`, fetchOpts)
   } catch (err) {
     if (timeoutId) clearTimeout(timeoutId)
-    // Retry once on network error (not on user-initiated abort)
+    // Retry once on network error (not on user-initiated abort).
+    // Clear the inflight entry first so the retry creates a fresh request
+    // instead of returning this same (failing) promise via dedup.
     if (_retryCount === 0 && err.name !== 'AbortError') {
+      _inflight.delete(path)
       return request(path, options, 1)
     }
     if (err.name === 'AbortError') {
@@ -148,6 +151,7 @@ async function _doRequest(path, options = {}, _retryCount = 0) {
           const data = await refreshRes.json()
           setAuth(data.access_token, data.username, data.refresh_token)
           // Retry the original request with the new token
+          _inflight.delete(path)
           return request(path, options, 1)
         }
       } catch { /* refresh failed, fall through to logout */ }
@@ -159,6 +163,7 @@ async function _doRequest(path, options = {}, _retryCount = 0) {
 
   // Retry once on server errors (5xx)
   if (res.status >= 500 && _retryCount === 0) {
+    _inflight.delete(path)
     return request(path, options, 1)
   }
 
@@ -237,7 +242,7 @@ export const api = {
   getFavoriteIds: () => request('/favorites/me/ids'),
 
   // ── My Palate (now uses token) ───────────────────────────────────────────
-  getPalate: () => request('/palate/me'),
+  getPalate: (opts = {}) => request('/palate/me', opts),
 
   // ── Compare ──────────────────────────────────────────────────────────────
   compareBottles: (id_a, id_b) => request(`/compare/?id_a=${id_a}&id_b=${id_b}`),
@@ -271,7 +276,7 @@ export const api = {
     const qs = status ? `?status=${status}` : ''
     return request(`/collection/${qs}`)
   },
-  getCollectionStats: () => request('/collection/stats'),
+  getCollectionStats: (opts = {}) => request('/collection/stats', opts),
   addToCollection: (body) =>
     request('/collection/', { method: 'POST', body: JSON.stringify(body) }),
   updateCollectionItem: (itemId, body) =>
@@ -280,7 +285,7 @@ export const api = {
     request(`/collection/${itemId}`, { method: 'DELETE' }),
 
   // ── Personality ───────────────────────────────────────────────────────────
-  getPersonality: () => request('/personality/me'),
+  getPersonality: (opts = {}) => request('/personality/me', opts),
 
   // ── Daily Discovery ──────────────────────────────────────────────────────
   getDailyDiscovery: () => request('/daily/'),
@@ -302,8 +307,8 @@ export const api = {
     request(`/ratings/${ratingId}/helpful`, { method: 'POST' }),
   unmarkHelpful: (ratingId) =>
     request(`/ratings/${ratingId}/helpful`, { method: 'DELETE' }),
-  getUserProfile: (username) =>
-    request(`/users/${username}/profile`),
+  getUserProfile: (username, opts = {}) =>
+    request(`/users/${username}/profile`, opts),
   getUserRatings: (username, { sort_by = 'recent', skip = 0, limit = 10 } = {}) =>
     request(`/users/${username}/ratings?sort_by=${sort_by}&skip=${skip}&limit=${limit}`),
   followUser: (username) =>
@@ -360,7 +365,7 @@ export const api = {
       return res.json()
     })
   },
-  getJournal: () => request('/journal/me'),
+  getJournal: (opts = {}) => request('/journal/me', opts),
 
   // ── Share Card ─────────────────────────────────────────────────────────
   getShareCardUrl: (ratingId) => `${BASE}/share/rating/${ratingId}`,
