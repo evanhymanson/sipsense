@@ -759,6 +759,7 @@ async def scan_label(
         whiskey_id=matched.id if matched else None,
         ai_identified_name=identified_name,
         scan_type="label",
+        found_in_db=matched is not None,
     )
     db.add(scan_record)
     db.commit()
@@ -916,6 +917,7 @@ async def scan_menu(
             whiskey_id=matched.id if matched else None,
             ai_identified_name=name,
             scan_type="menu",
+            found_in_db=matched is not None,
         ))
 
     db.commit()

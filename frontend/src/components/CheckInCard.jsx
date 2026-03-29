@@ -182,7 +182,7 @@ export default memo(function CheckInCard({ item, onToastToggle }) {
           className="toast-btn share-btn"
           onClick={() => {
             const url = `${window.location.origin}/whiskey/${rating.whiskey_id}`
-            const text = `Check out this ${rating.whiskey_name || 'whiskey'} check-in on SipSense!`
+            const text = `Check out this ${whiskey?.name || 'whiskey'} check-in on SipSense!`
             if (navigator.share) {
               navigator.share({ title: 'SipSense Check-in', text, url }).catch(() => {})
             } else {

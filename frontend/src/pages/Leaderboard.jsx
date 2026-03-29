@@ -42,9 +42,9 @@ export default function Leaderboard() {
         <p className="status">Loading leaderboard...</p>
       ) : data ? (
         <>
-          {data.your_rank && (
+          {data.user_rank && (
             <div className="leaderboard-your-rank">
-              Your rank: <strong>#{data.your_rank}</strong>
+              Your rank: <strong>#{data.user_rank}</strong>
             </div>
           )}
           <table className="leaderboard-table">
@@ -60,7 +60,7 @@ export default function Leaderboard() {
             </thead>
             <tbody>
               {data.entries?.map((entry) => (
-                <tr key={entry.username} className={entry.username === data.entries?.find?.(e => e.rank === data.your_rank)?.username ? 'highlight' : ''}>
+                <tr key={entry.username} className={entry.username === data.entries?.find?.(e => e.rank === data.user_rank)?.username ? 'highlight' : ''}>
                   <td className="rank-cell">
                     {entry.rank <= 3 ? ['', '\u{1F947}', '\u{1F948}', '\u{1F949}'][entry.rank] : entry.rank}
                   </td>
@@ -69,10 +69,10 @@ export default function Leaderboard() {
                       <Link to={`/user/${entry.username}`}>{entry.username}</Link>
                     ) : entry.username}
                   </td>
-                  <td>{entry.checkins}</td>
-                  <td>{entry.helpful_votes}</td>
-                  <td>{entry.comments}</td>
-                  <td className="score-cell">{entry.score}</td>
+                  <td>{entry.total_checkins}</td>
+                  <td>{entry.helpful_votes_received}</td>
+                  <td>{entry.comments_given}</td>
+                  <td className="score-cell">{entry.engagement_score}</td>
                 </tr>
               ))}
             </tbody>
