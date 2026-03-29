@@ -753,6 +753,16 @@ async def scan_label(
     # Try to match against the database
     matched = _fuzzy_find(identified_name, db)
 
+    # Gap 4: Persist scan to history
+    scan_record = models.ScanHistory(
+        user_id=current_user.username,
+        whiskey_id=matched.id if matched else None,
+        scanned_name=identified_name,
+        scan_type="label",
+    )
+    db.add(scan_record)
+    db.commit()
+
     return {
         "found_in_db": matched is not None,
         "whiskey": {
@@ -777,4 +787,140 @@ async def scan_label(
             "category": ai_data.get("category"),
             "region": ai_data.get("region"),
         },
+    }
+
+
+# ── Gap 4: Scan History ──────────────────────────────────────────────────────
+
+
+@router.get("/scan/history", response_model=list[schemas.ScanHistoryRead])
+def get_scan_history(
+    skip: int = 0,
+    limit: int = 50,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Return the user's scan history, most recent first."""
+    return (
+        db.query(models.ScanHistory)
+        .filter(models.ScanHistory.user_id == current_user.username)
+        .order_by(models.ScanHistory.scanned_at.desc())
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
+
+
+@router.delete("/scan/history/{scan_id}", status_code=204)
+def delete_scan_history_item(
+    scan_id: int,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Delete a single scan history entry."""
+    scan = (
+        db.query(models.ScanHistory)
+        .filter(models.ScanHistory.id == scan_id, models.ScanHistory.user_id == current_user.username)
+        .first()
+    )
+    if not scan:
+        raise HTTPException(status_code=404, detail="Scan record not found")
+    db.delete(scan)
+    db.commit()
+
+
+# ── Gap 9: Menu Scanner ──────────────────────────────────────────────────────
+
+
+@router.post("/scan/menu")
+async def scan_menu(
+    file: UploadFile = File(...),
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Scan a bar/restaurant menu photo and identify whiskeys listed on it.
+    Returns matched DB whiskeys plus any unrecognized names.
+    """
+    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+    if not api_key:
+        raise HTTPException(status_code=503, detail="AI scanning not configured")
+
+    content_type = file.content_type or "image/jpeg"
+    if not content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="File must be an image")
+
+    image_bytes = await file.read()
+    if len(image_bytes) > 5 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="Image too large — maximum 5 MB")
+
+    image_b64 = base64.standard_b64encode(image_bytes).decode()
+
+    prompt = (
+        "This is a photo of a bar or restaurant menu (or drink list). "
+        "Extract ALL whiskey/whisky products listed. "
+        "Respond with ONLY valid JSON — no markdown, no explanation.\n\n"
+        "Required format:\n"
+        '{"whiskeys": [{"name": "full product name", "price": null or float}]}\n\n'
+        "If no whiskeys are found, return: "
+        '{"whiskeys": []}'
+    )
+
+    try:
+        client = _get_client()
+        response = client.messages.create(
+            model=os.environ.get("CLAUDE_MODEL_SMALL", "claude-haiku-4-5-20251001"),
+            max_tokens=1000,
+            messages=[{
+                "role": "user",
+                "content": [
+                    {
+                        "type": "image",
+                        "source": {"type": "base64", "media_type": content_type, "data": image_b64},
+                    },
+                    {"type": "text", "text": prompt},
+                ],
+            }],
+        )
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"AI service error: {str(e)}")
+
+    raw = response.content[0].text.strip()
+    json_match = re.search(r'\{.*\}', raw, re.DOTALL)
+    if not json_match:
+        raise HTTPException(status_code=422, detail="Could not parse menu — try a clearer photo")
+
+    try:
+        ai_data = json.loads(json_match.group())
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=422, detail="Could not parse menu — try a clearer photo")
+
+    menu_items = ai_data.get("whiskeys", [])
+    results = []
+
+    for item in menu_items:
+        name = item.get("name", "")
+        if not name:
+            continue
+        matched = _fuzzy_find(name, db)
+        results.append({
+            "menu_name": name,
+            "menu_price": item.get("price"),
+            "found_in_db": matched is not None,
+            "whiskey": schemas.WhiskeyRead.model_validate(matched) if matched else None,
+        })
+
+        # Save each identified whiskey to scan history
+        db.add(models.ScanHistory(
+            user_id=current_user.username,
+            whiskey_id=matched.id if matched else None,
+            scanned_name=name,
+            scan_type="menu",
+        ))
+
+    db.commit()
+
+    return {
+        "items_found": len(results),
+        "results": results,
     }

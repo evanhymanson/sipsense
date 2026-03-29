@@ -114,6 +114,18 @@ def weekly_digest_email(username: str, data: dict) -> tuple[str, str, str]:
     checkins = data.get("checkins_this_week", 0)
     streak = data.get("current_streak", 0)
     trending = data.get("trending_name", "")
+    personal_rec = data.get("personal_recommendation")
+
+    rec_html = ""
+    rec_text = ""
+    if personal_rec:
+        rec_html = f"""
+    <div style="margin:0 0 24px;padding:16px;background:#2a2a2a;border-radius:8px;border-left:3px solid #c9a84c;">
+      <div style="font-size:12px;color:#999;margin-bottom:4px;">Picked for you</div>
+      <div style="font-size:16px;font-weight:700;color:#c9a84c;">{personal_rec['name']}</div>
+      <div style="font-size:13px;color:#d0c9c0;margin-top:4px;">{personal_rec['reason']}</div>
+    </div>"""
+        rec_text = f"\nPicked for you: {personal_rec['name']} — {personal_rec['reason']}"
 
     content = f"""
     <h2 style="color:#c9a84c;margin:0 0 16px;">This Week in Whiskey</h2>
@@ -131,6 +143,7 @@ def weekly_digest_email(username: str, data: dict) -> tuple[str, str, str]:
       </tr>
     </table>
     {"<p style='margin:0 0 16px;'><strong style=\"color:#c9a84c;\">Trending:</strong> " + trending + " is popular this week.</p>" if trending else ""}
+    {rec_html}
     <a href="{FRONTEND_URL}/discover" style="display:inline-block;padding:12px 32px;background:#c9a84c;color:#1a1a1a;text-decoration:none;border-radius:8px;font-weight:700;">Discover More</a>
     """
 
@@ -138,7 +151,7 @@ def weekly_digest_email(username: str, data: dict) -> tuple[str, str, str]:
 
 Check-ins: {checkins}
 Streak: {streak} days
-{"Trending: " + trending if trending else ""}
+{"Trending: " + trending if trending else ""}{rec_text}
 
 Visit {FRONTEND_URL}/discover"""
 

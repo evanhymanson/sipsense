@@ -3445,3 +3445,203 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
   height: 100%; background: var(--amber); border-radius: 3px;
   transition: width 0.4s ease;
 }
+
+/* ── Gap Features: Regions ─────────────────────────────────────────────── */
+.regions-page .page-subtitle { color: var(--text-secondary); margin-bottom: 24px; }
+.regions-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+.region-card {
+  display: flex; align-items: flex-start; gap: 16px; padding: 20px;
+  background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px;
+  text-decoration: none; color: inherit; transition: border-color 0.2s, transform 0.2s;
+}
+.region-card:hover { border-color: var(--amber); transform: translateY(-2px); }
+.region-emoji, .region-hero-emoji { font-size: 2rem; }
+.region-hero-emoji { font-size: 3rem; }
+.region-card-info h3 { margin: 0; font-size: 1.1rem; }
+.region-country { font-size: 0.85rem; color: var(--text-secondary); }
+.region-tagline { font-size: 0.9rem; color: var(--text-secondary); margin-top: 4px; }
+.region-hero { display: flex; align-items: center; gap: 20px; margin-bottom: 24px; }
+.region-hero h1 { margin: 0; }
+.region-body-paragraph { line-height: 1.7; color: var(--text-primary); margin-bottom: 16px; }
+.region-chars, .region-distilleries, .region-climate { margin-bottom: 24px; }
+.region-chars h3, .region-distilleries h3, .region-climate h3 { color: var(--amber); margin-bottom: 8px; }
+.region-whiskeys-section { margin-top: 32px; }
+.region-whiskeys-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; flex-wrap: wrap; gap: 12px; }
+.sort-select { background: var(--card-bg); color: var(--text-primary); border: 1px solid var(--border); border-radius: 8px; padding: 6px 12px; }
+
+/* ── Gap Features: Leaderboard ─────────────────────────────────────────── */
+.leaderboard-page .page-subtitle { color: var(--text-secondary); margin-bottom: 24px; }
+.leaderboard-controls { display: flex; gap: 8px; margin-bottom: 24px; }
+.btn-pill {
+  padding: 8px 16px; border-radius: 20px; border: 1px solid var(--border);
+  background: transparent; color: var(--text-primary); cursor: pointer; font-size: 0.9rem;
+  transition: all 0.2s;
+}
+.btn-pill.active, .btn-pill:hover { background: var(--amber); color: var(--bg-primary); border-color: var(--amber); }
+.leaderboard-your-rank {
+  background: var(--card-bg); border: 1px solid var(--amber); border-radius: 8px;
+  padding: 12px 16px; margin-bottom: 16px; font-size: 1rem;
+}
+.leaderboard-table { width: 100%; border-collapse: collapse; }
+.leaderboard-table th {
+  text-align: left; padding: 10px 12px; border-bottom: 2px solid var(--border);
+  color: var(--text-secondary); font-size: 0.85rem; text-transform: uppercase;
+}
+.leaderboard-table td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
+.leaderboard-table tr:hover { background: var(--card-bg); }
+.leaderboard-table tr.highlight { background: rgba(201,168,76,0.1); }
+.rank-cell { font-weight: 700; font-size: 1.1rem; }
+.score-cell { font-weight: 700; color: var(--amber); }
+
+/* ── Gap Features: Awards ──────────────────────────────────────────────── */
+.awards-page .page-subtitle { color: var(--text-secondary); margin-bottom: 24px; }
+.awards-categories { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 24px; }
+.award-cat-btn {
+  display: flex; align-items: center; gap: 6px; padding: 8px 14px;
+  border: 1px solid var(--border); border-radius: 20px; background: transparent;
+  color: var(--text-primary); cursor: pointer; transition: all 0.2s;
+}
+.award-cat-btn.active { background: var(--amber); color: var(--bg-primary); border-color: var(--amber); }
+.award-cat-emoji { font-size: 1.1rem; }
+.awards-desc { color: var(--text-secondary); margin-bottom: 16px; }
+.nominees-list { display: flex; flex-direction: column; gap: 12px; }
+.nominee-card {
+  display: flex; align-items: center; gap: 12px; padding: 12px;
+  background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px;
+}
+.nominee-card.voted { border-color: var(--amber); }
+.nominee-actions { display: flex; align-items: center; gap: 12px; margin-left: auto; }
+.vote-count { font-size: 0.85rem; color: var(--text-secondary); }
+.btn-vote {
+  padding: 6px 16px; border-radius: 20px; border: 1px solid var(--amber);
+  background: transparent; color: var(--amber); cursor: pointer; font-weight: 600;
+  transition: all 0.2s;
+}
+.btn-vote:hover, .btn-vote.voted { background: var(--amber); color: var(--bg-primary); }
+.awards-results { margin-top: 32px; }
+.award-result-category { margin-bottom: 20px; }
+.award-result-category h3 { margin-bottom: 8px; }
+.award-winner { display: flex; gap: 12px; align-items: center; padding: 6px 0; }
+.winner-rank { font-weight: 700; color: var(--amber); min-width: 24px; }
+.winner-votes { color: var(--text-secondary); font-size: 0.85rem; margin-left: auto; }
+
+/* ── Gap Features: Marketplace ─────────────────────────────────────────── */
+.coming-soon-banner {
+  background: linear-gradient(135deg, rgba(201,168,76,0.15), rgba(201,168,76,0.05));
+  border: 1px solid var(--amber); border-radius: 12px; padding: 24px;
+  margin-bottom: 24px; text-align: center;
+}
+.coming-soon-banner h2 { color: var(--amber); margin: 0 0 8px; }
+.cart-items { display: flex; flex-direction: column; gap: 8px; }
+.cart-item {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px; background: var(--card-bg); border-radius: 8px;
+}
+.cart-qty { color: var(--text-secondary); font-size: 0.85rem; margin-left: 8px; }
+.btn-sm { padding: 4px 12px; border-radius: 6px; font-size: 0.85rem; cursor: pointer; }
+.btn-danger { background: transparent; border: 1px solid #e74c3c; color: #e74c3c; }
+.order-card {
+  padding: 12px; background: var(--card-bg); border-radius: 8px; margin-bottom: 8px;
+}
+.order-header { display: flex; justify-content: space-between; align-items: center; }
+.order-status { font-size: 0.85rem; padding: 2px 8px; border-radius: 10px; }
+.status-pending { background: rgba(241,196,15,0.2); color: #f1c40f; }
+
+/* ── Gap Features: Subscription Box ────────────────────────────────────── */
+.subscription-box-page .pref-form { max-width: 500px; }
+.subscription-box-page label { display: block; margin-bottom: 16px; font-size: 0.9rem; color: var(--text-secondary); }
+.subscription-box-page label select,
+.subscription-box-page label input { display: block; width: 100%; margin-top: 6px; }
+.tiers-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; margin-bottom: 24px; }
+.tier-card {
+  padding: 20px; background: var(--card-bg); border: 2px solid var(--border);
+  border-radius: 12px; cursor: pointer; transition: border-color 0.2s;
+}
+.tier-card.selected { border-color: var(--amber); }
+.tier-card h3 { margin: 0 0 8px; }
+.tier-bottles { font-size: 1.4rem; font-weight: 700; color: var(--amber); }
+.tier-price { color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 8px; }
+.pref-row { display: flex; gap: 12px; }
+.pref-row label { flex: 1; }
+.pref-message { margin-top: 12px; color: var(--amber); }
+.box-preview { margin-top: 32px; }
+.preview-note { color: var(--text-secondary); font-style: italic; margin-bottom: 16px; }
+
+/* ── Gap Features: Grain taxonomy ──────────────────────────────────────── */
+.grain-subcategories { margin-top: 24px; }
+.grain-sub-card {
+  padding: 16px; background: var(--card-bg); border: 1px solid var(--border);
+  border-radius: 10px; margin-bottom: 12px;
+}
+.grain-sub-card h3 { margin: 0 0 6px; color: var(--amber); }
+.grain-examples { font-size: 0.9rem; color: var(--text-secondary); margin-top: 8px; }
+
+/* ── Gap Features: Distillery enrichment ───────────────────────────────── */
+.distillery-founded { color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 12px; }
+.distillery-fun-facts { margin-bottom: 20px; }
+.distillery-fun-facts h3, .distillery-production h3 { color: var(--amber); margin-bottom: 8px; }
+.production-dl { display: grid; grid-template-columns: auto 1fr; gap: 8px 16px; }
+.production-dl dt { color: var(--amber); font-weight: 600; }
+.production-dl dd { margin: 0; }
+.distillery-bottles { margin-top: 24px; }
+
+/* ── Gap Features: Vintage/batch in check-in form ──────────────────────── */
+.vintage-batch-row { display: flex; gap: 8px; }
+.batch-input, .vintage-input {
+  flex: 1; padding: 10px 12px; border-radius: 8px;
+  border: 1px solid var(--border); background: var(--card-bg); color: var(--text-primary);
+}
+
+/* ── Gap Features: OAuth buttons ───────────────────────────────────────── */
+.oauth-divider {
+  text-align: center; margin: 16px 0; position: relative;
+  color: var(--text-secondary); font-size: 0.85rem;
+}
+.oauth-divider::before, .oauth-divider::after {
+  content: ''; position: absolute; top: 50%; width: 35%; height: 1px;
+  background: var(--border);
+}
+.oauth-divider::before { left: 0; }
+.oauth-divider::after { right: 0; }
+.oauth-buttons { display: flex; gap: 12px; justify-content: center; margin-bottom: 16px; }
+.oauth-btn {
+  display: flex; align-items: center; gap: 8px; padding: 10px 20px;
+  border-radius: 8px; border: 1px solid var(--border); background: var(--card-bg);
+  color: var(--text-primary); cursor: pointer; font-size: 0.95rem;
+  transition: border-color 0.2s;
+}
+.oauth-btn:hover { border-color: var(--amber); }
+.oauth-btn svg { flex-shrink: 0; }
+
+/* ── Gap Features: Scan mode toggle & menu scan ────────────────────────── */
+.scan-mode-toggle { display: flex; gap: 8px; margin-bottom: 16px; justify-content: center; }
+.menu-scan-section { text-align: center; }
+.menu-scan-section p { color: var(--text-secondary); margin-bottom: 16px; }
+.menu-results { margin-top: 16px; }
+.menu-results-list { display: flex; flex-direction: column; gap: 8px; }
+.menu-result-item {
+  display: flex; align-items: center; gap: 12px; padding: 10px 12px;
+  background: var(--card-bg); border-radius: 8px;
+}
+.menu-result-name { font-weight: 600; flex: 1; }
+.menu-result-price { color: var(--amber); }
+.menu-result-link { color: var(--amber); text-decoration: none; font-size: 0.9rem; }
+.menu-result-notfound { color: var(--text-secondary); font-size: 0.85rem; }
+.recent-item-row { display: flex; align-items: center; gap: 8px; }
+.recent-item-row .recent-item { flex: 1; }
+.recent-delete {
+  background: transparent; border: none; color: var(--text-secondary);
+  cursor: pointer; font-size: 1.2rem; padding: 4px 8px;
+}
+.recent-delete:hover { color: #e74c3c; }
+
+/* ── Gap Features: Share button on check-in card ───────────────────────── */
+.share-btn { opacity: 0.7; }
+.share-btn:hover { opacity: 1; }
+
+/* ── Gap Features: Learn "See All" card ────────────────────────────────── */
+.learn-card-see-all {
+  display: flex; align-items: center; justify-content: center;
+  border-style: dashed;
+}
+.learn-card-see-all h3 { color: var(--amber); }

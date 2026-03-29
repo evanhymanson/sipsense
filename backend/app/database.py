@@ -116,6 +116,22 @@ def _run_migrations():
                         f"ALTER TABLE email_preferences ADD COLUMN {col_name} BOOLEAN DEFAULT TRUE"
                     ))
             conn.commit()
+        # Gap 6: OAuth columns on users table
+        if "users" in inspector.get_table_names():
+            existing = {c["name"] for c in inspector.get_columns("users")}
+            if "oauth_provider" not in existing:
+                conn.execute(sa.text("ALTER TABLE users ADD COLUMN oauth_provider VARCHAR"))
+            if "oauth_id" not in existing:
+                conn.execute(sa.text("ALTER TABLE users ADD COLUMN oauth_id VARCHAR"))
+            conn.commit()
+        # Gap 12: Batch/vintage columns on user_ratings table
+        if "user_ratings" in inspector.get_table_names():
+            existing = {c["name"] for c in inspector.get_columns("user_ratings")}
+            if "batch_number" not in existing:
+                conn.execute(sa.text("ALTER TABLE user_ratings ADD COLUMN batch_number VARCHAR"))
+            if "vintage_year" not in existing:
+                conn.execute(sa.text("ALTER TABLE user_ratings ADD COLUMN vintage_year INTEGER"))
+            conn.commit()
 
 _run_migrations()
 
@@ -196,6 +212,23 @@ def _ensure_indexes():
         ("idx_emaillog_type", "email_log", "email_type"),
         # Push subscriptions
         ("idx_pushsub_user", "push_subscriptions", "user_id"),
+        # Gap 3: Comment mentions
+        ("idx_commentmention_comment", "comment_mentions", "comment_id"),
+        ("idx_commentmention_user", "comment_mentions", "mentioned_username"),
+        # Gap 4: Scan history
+        ("idx_scanhistory_user", "scan_history", "user_id"),
+        ("idx_scanhistory_whiskey", "scan_history", "whiskey_id"),
+        # Gap 6: OAuth
+        ("idx_user_oauth_id", "users", "oauth_id"),
+        # Gap 11: Community awards
+        ("idx_award_year", "community_awards", "year"),
+        ("idx_vote_user", "community_votes", "user_id"),
+        # Gap 13: Cart / Orders
+        ("idx_cart_user", "cart_items", "user_id"),
+        ("idx_order_user", "orders", "user_id"),
+        ("idx_orderitem_order", "order_items", "order_id"),
+        # Gap 14: Subscription box
+        ("idx_subbox_user", "subscription_boxes", "user_id"),
     ]
     # Composite indexes for common query patterns (e.g. feed: WHERE user_id=? ORDER BY created_at DESC)
     _composite_indexes = [

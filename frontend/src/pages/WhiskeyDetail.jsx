@@ -48,6 +48,8 @@ export default function WhiskeyDetail() {
   const [notes, setNotes] = useState('')
   const [servingStyle, setServingStyle] = useState(null)
   const [locationNote, setLocationNote] = useState('')
+  const [batchNumber, setBatchNumber] = useState('')
+  const [vintageYear, setVintageYear] = useState('')
   const [imageFile, setImageFile] = useState(null)
   const [imagePreview, setImagePreview] = useState(null)
   const imagePreviewRef = useRef(null)
@@ -232,6 +234,8 @@ export default function WhiskeyDetail() {
       const body = { score, notes: notes || undefined }
       if (servingStyle) body.serving_style = servingStyle
       if (locationNote.trim()) body.location_note = locationNote.trim()
+      if (batchNumber.trim()) body.batch_number = batchNumber.trim()
+      if (vintageYear) body.vintage_year = parseInt(vintageYear, 10) || undefined
       if (selectedTags.length > 0) body.flavor_tags = selectedTags
       const result = await api.rateWhiskey(id, body)
       const [updated, updatedReviews, updatedSummary] = await Promise.all([
@@ -252,6 +256,8 @@ export default function WhiskeyDetail() {
       setNotes('')
       setServingStyle(null)
       setLocationNote('')
+      setBatchNumber('')
+      setVintageYear('')
       setSelectedTags([])
       setImageFile(null)
       if (imagePreview) URL.revokeObjectURL(imagePreview)
@@ -970,6 +976,25 @@ export default function WhiskeyDetail() {
             onChange={(e) => setLocationNote(e.target.value)}
             className="location-input"
           />
+
+          <div className="vintage-batch-row">
+            <input
+              type="text"
+              placeholder="Batch # (optional)"
+              value={batchNumber}
+              onChange={(e) => setBatchNumber(e.target.value)}
+              className="batch-input"
+            />
+            <input
+              type="number"
+              placeholder="Vintage year"
+              value={vintageYear}
+              onChange={(e) => setVintageYear(e.target.value)}
+              min={1900}
+              max={new Date().getFullYear()}
+              className="vintage-input"
+            />
+          </div>
 
           <textarea
             placeholder="Tasting notes (optional)"

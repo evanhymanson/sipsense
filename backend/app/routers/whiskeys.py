@@ -552,6 +552,11 @@ def rate_whiskey(
             existing.serving_style = rating.serving_style
         if rating.location_note is not None:
             existing.location_note = rating.location_note
+        # Gap 12: vintage/batch tracking
+        if rating.batch_number is not None:
+            existing.batch_number = rating.batch_number
+        if rating.vintage_year is not None:
+            existing.vintage_year = rating.vintage_year
         db_rating = existing
     else:
         rating_data = rating.model_dump(exclude={"flavor_tags"})

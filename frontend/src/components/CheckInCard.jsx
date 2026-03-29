@@ -178,6 +178,23 @@ export default memo(function CheckInCard({ item, onToastToggle }) {
         >
           💬 {commentCount > 0 && <span className="toast-count">{commentCount}</span>}
         </button>
+        <button
+          className="toast-btn share-btn"
+          onClick={() => {
+            const url = `${window.location.origin}/whiskey/${rating.whiskey_id}`
+            const text = `Check out this ${rating.whiskey_name || 'whiskey'} check-in on SipSense!`
+            if (navigator.share) {
+              navigator.share({ title: 'SipSense Check-in', text, url }).catch(() => {})
+            } else {
+              navigator.clipboard?.writeText(url).then(() => {
+                addToast('Link copied!', 'success')
+              }).catch(() => {})
+            }
+          }}
+          aria-label="Share check-in"
+        >
+          📤
+        </button>
       </div>
 
       {showComments && (

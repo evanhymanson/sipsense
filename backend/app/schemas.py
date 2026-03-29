@@ -118,6 +118,9 @@ class RatingCreate(BaseModel):
     serving_style: Optional[Literal["neat", "rocks", "cocktail", "highball"]] = None
     location_note: Optional[str] = Field(None, max_length=200)
     flavor_tags: list[str] = Field(default_factory=list)
+    # Gap 12: Vintage/Batch tracking
+    batch_number: Optional[str] = Field(None, max_length=100)
+    vintage_year: Optional[int] = Field(None, ge=1700, le=2100)
 
     @model_validator(mode="after")
     def validate_flavor_tags(self):
@@ -144,6 +147,8 @@ class RatingRead(BaseModel):
     serving_style: Optional[str] = None
     location_note: Optional[str] = None
     image_url: Optional[str] = None
+    batch_number: Optional[str] = None
+    vintage_year: Optional[int] = None
     created_at: datetime
     toast_count: int = 0
     helpful_count: int = 0
@@ -756,3 +761,118 @@ class WhiskeyAdminUpdate(BaseModel):
 
 class WhiskeyBatchClearImages(BaseModel):
     whiskey_ids: list[int]
+
+
+# ── Scan History (Gap 4) ─────────────────────────────────────────────────
+
+
+class ScanHistoryRead(BaseModel):
+    id: int
+    whiskey_id: int | None = None
+    scan_type: str
+    ai_identified_name: str | None = None
+    found_in_db: bool
+    whiskey: WhiskeyRead | None = None
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+# ── Leaderboard (Gap 7) ──────────────────────────────────────────────────
+
+
+class LeaderboardEntry(BaseModel):
+    rank: int
+    username: str
+    total_checkins: int
+    helpful_votes_received: int
+    comments_given: int
+    engagement_score: int
+
+
+class LeaderboardResponse(BaseModel):
+    entries: list[LeaderboardEntry]
+    user_rank: int | None = None
+
+
+# ── Community Awards (Gap 11) ────────────────────────────────────────────
+
+
+class AwardCategoryRead(BaseModel):
+    slug: str
+    title: str
+    description: str
+    emoji: str
+
+
+class AwardWinnerRead(BaseModel):
+    rank: int
+    whiskey: WhiskeyRead
+    vote_count: int
+
+    model_config = {"from_attributes": True}
+
+
+class AwardCategoryDetail(AwardCategoryRead):
+    winners: list[AwardWinnerRead] = []
+
+
+class VoteCreate(BaseModel):
+    whiskey_id: int
+
+
+# ── OAuth (Gap 6) ────────────────────────────────────────────────────────
+
+
+class OAuthLoginRequest(BaseModel):
+    provider: str  # google, apple
+    id_token: str
+
+
+# ── E-Commerce Marketplace (Gap 13) ──────────────────────────────────────
+
+
+class CartItemCreate(BaseModel):
+    whiskey_id: int
+    quantity: int = Field(default=1, ge=1, le=24)
+
+
+class CartItemRead(BaseModel):
+    id: int
+    whiskey: WhiskeyRead
+    quantity: int
+    added_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class OrderRead(BaseModel):
+    id: int
+    status: str
+    total_usd: float | None = None
+    items: list[dict] = []
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+# ── Subscription Box (Gap 14) ────────────────────────────────────────────
+
+
+class BoxPreferenceUpdate(BaseModel):
+    tier: str | None = None
+    frequency: str | None = None
+    categories: list[str] = []
+    price_min: float | None = None
+    price_max: float | None = None
+    avoid_flavors: list[str] = []
+
+
+class BoxPreferenceRead(BaseModel):
+    tier: str
+    frequency: str
+    preferences: dict = {}
+    status: str
+    next_shipment_date: datetime | None = None
+
+    model_config = {"from_attributes": True}

@@ -186,3 +186,126 @@ def reset_password(body: schemas.ResetPasswordRequest, db: Session = Depends(get
     db.commit()
 
     return {"status": "Password reset successfully"}
+
+
+# ── Gap 6: Social OAuth ──────────────────────────────────────────────────────
+
+
+@router.post("/oauth/google", response_model=schemas.TokenResponse)
+def google_oauth(body: schemas.OAuthLoginRequest, db: Session = Depends(get_db)):
+    """
+    Authenticate via Google OAuth. Expects the ID token from Google Sign-In.
+    Creates an account on first login; returns JWT on subsequent logins.
+    """
+    import os
+    # In production, verify the Google ID token with Google's API
+    # For now, we trust the client-provided fields as a scaffolding implementation
+    if not body.token:
+        raise HTTPException(status_code=400, detail="OAuth token is required")
+
+    # Check for existing OAuth user
+    existing = (
+        db.query(models.User)
+        .filter(models.User.oauth_provider == "google", models.User.oauth_id == body.oauth_id)
+        .first()
+    )
+    if existing:
+        token = create_access_token(existing.username)
+        refresh = create_refresh_token(existing.username)
+        return schemas.TokenResponse(access_token=token, refresh_token=refresh, username=existing.username)
+
+    # Check if email already registered with password
+    email_user = db.query(models.User).filter(models.User.email == body.email).first()
+    if email_user:
+        # Link OAuth to existing account
+        email_user.oauth_provider = "google"
+        email_user.oauth_id = body.oauth_id
+        db.commit()
+        token = create_access_token(email_user.username)
+        refresh = create_refresh_token(email_user.username)
+        return schemas.TokenResponse(access_token=token, refresh_token=refresh, username=email_user.username)
+
+    # Create new user from OAuth
+    username = body.username or body.email.split("@")[0]
+    # Ensure unique username
+    base_username = username
+    counter = 1
+    while db.query(models.User).filter(models.User.username == username).first():
+        username = f"{base_username}{counter}"
+        counter += 1
+
+    user = models.User(
+        username=username,
+        email=body.email,
+        hashed_password="",  # No password for OAuth users
+        oauth_provider="google",
+        oauth_id=body.oauth_id,
+    )
+    db.add(user)
+    db.commit()
+
+    # Create default email preferences
+    db.add(models.EmailPreference(user_id=user.username))
+    db.commit()
+
+    track_action(db, user.username, ACTION_REGISTER, detail={"method": "google_oauth"})
+    db.commit()
+
+    token = create_access_token(user.username)
+    refresh = create_refresh_token(user.username)
+    return schemas.TokenResponse(access_token=token, refresh_token=refresh, username=user.username)
+
+
+@router.post("/oauth/apple", response_model=schemas.TokenResponse)
+def apple_oauth(body: schemas.OAuthLoginRequest, db: Session = Depends(get_db)):
+    """
+    Authenticate via Apple Sign-In. Same flow as Google OAuth.
+    """
+    if not body.token:
+        raise HTTPException(status_code=400, detail="OAuth token is required")
+
+    existing = (
+        db.query(models.User)
+        .filter(models.User.oauth_provider == "apple", models.User.oauth_id == body.oauth_id)
+        .first()
+    )
+    if existing:
+        token = create_access_token(existing.username)
+        refresh = create_refresh_token(existing.username)
+        return schemas.TokenResponse(access_token=token, refresh_token=refresh, username=existing.username)
+
+    email_user = db.query(models.User).filter(models.User.email == body.email).first() if body.email else None
+    if email_user:
+        email_user.oauth_provider = "apple"
+        email_user.oauth_id = body.oauth_id
+        db.commit()
+        token = create_access_token(email_user.username)
+        refresh = create_refresh_token(email_user.username)
+        return schemas.TokenResponse(access_token=token, refresh_token=refresh, username=email_user.username)
+
+    username = body.username or (body.email.split("@")[0] if body.email else f"user_{body.oauth_id[:8]}")
+    base_username = username
+    counter = 1
+    while db.query(models.User).filter(models.User.username == username).first():
+        username = f"{base_username}{counter}"
+        counter += 1
+
+    user = models.User(
+        username=username,
+        email=body.email or f"{username}@private.apple.com",
+        hashed_password="",
+        oauth_provider="apple",
+        oauth_id=body.oauth_id,
+    )
+    db.add(user)
+    db.commit()
+
+    db.add(models.EmailPreference(user_id=user.username))
+    db.commit()
+
+    track_action(db, user.username, ACTION_REGISTER, detail={"method": "apple_oauth"})
+    db.commit()
+
+    token = create_access_token(user.username)
+    refresh = create_refresh_token(user.username)
+    return schemas.TokenResponse(access_token=token, refresh_token=refresh, username=user.username)

@@ -16,7 +16,9 @@ class User(Base):
     quiz_completed = Column(Boolean, default=False)
     is_premium = Column(Boolean, default=False)
     premium_until = Column(DateTime(timezone=True))
-
+    # Gap 6: Social OAuth
+    oauth_provider = Column(String)        # google, apple, null for password-based
+    oauth_id = Column(String, index=True)  # provider's unique user ID
 
 
 class Whiskey(Base):
@@ -72,6 +74,9 @@ class UserRating(Base):
     serving_style = Column(String)  # neat, rocks, cocktail, highball
     location_note = Column(String)  # freeform: "The Macallan Bar, NYC"
     image_path = Column(String)     # relative path to uploaded rating photo
+    # Gap 12: Vintage/Batch tracking
+    batch_number = Column(String)   # e.g. "Batch 12", "2023 Release"
+    vintage_year = Column(Integer)  # e.g. 2019
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     whiskey = relationship("Whiskey", back_populates="ratings")
@@ -751,3 +756,138 @@ class UserAction(Base):
     detail_json = Column(Text, default="{}")
     whiskey_id = Column(Integer, index=True)
     category = Column(String(50))
+
+
+# ── Scan History (Gap 4) ──────────────────────────────────────────────────
+
+
+class ScanHistory(Base):
+    """Server-side scan history (label scans, barcode lookups, menu scans)."""
+    __tablename__ = "scan_history"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(String, nullable=False, index=True)
+    whiskey_id = Column(Integer, ForeignKey("whiskeys.id", ondelete="SET NULL"), nullable=True, index=True)
+    scan_type = Column(String, nullable=False, default="label")  # label, barcode, menu
+    ai_identified_name = Column(String)
+    found_in_db = Column(Boolean, default=False)
+    image_path = Column(String)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    whiskey = relationship("Whiskey")
+
+
+# ── @Mentions (Gap 3) ─────────────────────────────────────────────────────
+
+
+class CommentMention(Base):
+    """Tracks @username mentions in check-in comments."""
+    __tablename__ = "comment_mentions"
+    __table_args__ = (
+        UniqueConstraint("comment_id", "mentioned_username", name="uq_comment_mention"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    comment_id = Column(Integer, ForeignKey("checkin_comments.id", ondelete="CASCADE"), nullable=False, index=True)
+    mentioned_username = Column(String, nullable=False, index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+# ── Community Awards (Gap 11) ─────────────────────────────────────────────
+
+
+class CommunityAward(Base):
+    """Annual community award results."""
+    __tablename__ = "community_awards"
+    __table_args__ = (
+        UniqueConstraint("year", "category_slug", "rank", name="uq_award_year_category_rank"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    year = Column(Integer, nullable=False, index=True)
+    category_slug = Column(String, nullable=False)
+    title = Column(String, nullable=False)
+    whiskey_id = Column(Integer, ForeignKey("whiskeys.id", ondelete="CASCADE"), nullable=False)
+    rank = Column(Integer, default=1)
+    vote_count = Column(Integer, default=0)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    whiskey = relationship("Whiskey")
+
+
+class CommunityVote(Base):
+    """User votes for community awards."""
+    __tablename__ = "community_votes"
+    __table_args__ = (
+        UniqueConstraint("user_id", "year", "category_slug", name="uq_user_vote_category"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(String, nullable=False, index=True)
+    year = Column(Integer, nullable=False)
+    category_slug = Column(String, nullable=False)
+    whiskey_id = Column(Integer, ForeignKey("whiskeys.id", ondelete="CASCADE"), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+# ── E-Commerce Marketplace Scaffolding (Gap 13) ──────────────────────────
+
+
+class CartItem(Base):
+    """Shopping cart item."""
+    __tablename__ = "cart_items"
+    __table_args__ = (
+        UniqueConstraint("user_id", "whiskey_id", name="uq_cart_item"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(String, nullable=False, index=True)
+    whiskey_id = Column(Integer, ForeignKey("whiskeys.id", ondelete="CASCADE"), nullable=False, index=True)
+    quantity = Column(Integer, default=1)
+    added_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    whiskey = relationship("Whiskey")
+
+
+class Order(Base):
+    """Purchase order."""
+    __tablename__ = "orders"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(String, nullable=False, index=True)
+    status = Column(String, default="pending")  # pending, confirmed, shipped, delivered, cancelled
+    total_usd = Column(Float)
+    shipping_address_json = Column(Text)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class OrderItem(Base):
+    """Line item within an order."""
+    __tablename__ = "order_items"
+
+    id = Column(Integer, primary_key=True, index=True)
+    order_id = Column(Integer, ForeignKey("orders.id", ondelete="CASCADE"), nullable=False, index=True)
+    whiskey_id = Column(Integer, ForeignKey("whiskeys.id"), nullable=False, index=True)
+    quantity = Column(Integer, default=1)
+    price_usd = Column(Float, nullable=False)
+
+    order = relationship("Order")
+    whiskey = relationship("Whiskey")
+
+
+# ── Subscription Box Scaffolding (Gap 14) ─────────────────────────────────
+
+
+class SubscriptionBox(Base):
+    """Curated whiskey subscription box preferences."""
+    __tablename__ = "subscription_boxes"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(String, nullable=False, unique=True, index=True)
+    tier = Column(String, default="explorer")  # explorer, connoisseur, collector
+    frequency = Column(String, default="monthly")  # monthly, quarterly
+    preference_json = Column(Text, default="{}")  # {categories: [], price_range: {}, avoid: []}
+    status = Column(String, default="active")  # active, paused, cancelled
+    next_shipment_date = Column(DateTime(timezone=True))
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
