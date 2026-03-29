@@ -757,7 +757,7 @@ async def scan_label(
     scan_record = models.ScanHistory(
         user_id=current_user.username,
         whiskey_id=matched.id if matched else None,
-        scanned_name=identified_name,
+        ai_identified_name=identified_name,
         scan_type="label",
     )
     db.add(scan_record)
@@ -804,7 +804,7 @@ def get_scan_history(
     return (
         db.query(models.ScanHistory)
         .filter(models.ScanHistory.user_id == current_user.username)
-        .order_by(models.ScanHistory.scanned_at.desc())
+        .order_by(models.ScanHistory.created_at.desc())
         .offset(skip)
         .limit(limit)
         .all()
@@ -914,7 +914,7 @@ async def scan_menu(
         db.add(models.ScanHistory(
             user_id=current_user.username,
             whiskey_id=matched.id if matched else None,
-            scanned_name=name,
+            ai_identified_name=name,
             scan_type="menu",
         ))
 

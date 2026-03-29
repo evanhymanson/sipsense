@@ -278,14 +278,14 @@ export default function ScanBottle() {
                       {scan.whiskey_id ? (
                         <Link to={`/whiskey/${scan.whiskey_id}`} className="recent-item">
                           <div className="recent-info">
-                            <span className="recent-name">{scan.scanned_name}</span>
-                            <span className="recent-distillery">{scan.scan_type} &middot; {new Date(scan.scanned_at).toLocaleDateString()}</span>
+                            <span className="recent-name">{scan.ai_identified_name}</span>
+                            <span className="recent-distillery">{scan.scan_type} &middot; {new Date(scan.created_at).toLocaleDateString()}</span>
                           </div>
                         </Link>
                       ) : (
                         <div className="recent-item">
                           <div className="recent-info">
-                            <span className="recent-name">{scan.scanned_name}</span>
+                            <span className="recent-name">{scan.ai_identified_name}</span>
                             <span className="recent-distillery">{scan.scan_type} &middot; not in database</span>
                           </div>
                         </div>
