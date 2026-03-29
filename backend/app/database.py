@@ -107,6 +107,15 @@ def _run_migrations():
                     ))
                     conn.commit()
                     break
+        # Push notification preference columns on email_preferences
+        if "email_preferences" in inspector.get_table_names():
+            existing = {c["name"] for c in inspector.get_columns("email_preferences")}
+            for col_name in ("push_social", "push_price_drop", "push_streak", "push_weekly"):
+                if col_name not in existing:
+                    conn.execute(sa.text(
+                        f"ALTER TABLE email_preferences ADD COLUMN {col_name} BOOLEAN DEFAULT TRUE"
+                    ))
+            conn.commit()
 
 _run_migrations()
 
@@ -185,6 +194,8 @@ def _ensure_indexes():
         ("idx_emailpref_user", "email_preferences", "user_id"),
         ("idx_emaillog_user", "email_log", "user_id"),
         ("idx_emaillog_type", "email_log", "email_type"),
+        # Push subscriptions
+        ("idx_pushsub_user", "push_subscriptions", "user_id"),
     ]
     # Composite indexes for common query patterns (e.g. feed: WHERE user_id=? ORDER BY created_at DESC)
     _composite_indexes = [

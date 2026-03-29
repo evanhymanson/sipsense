@@ -229,3 +229,102 @@ def send_drip_emails():
     finally:
         db.close()
     logger.info("Drip emails: sent %d emails", sent)
+
+
+def send_streak_push_reminders():
+    """Send daily push to users with active streaks who haven't checked in today.
+    Runs daily 8pm UTC."""
+    from .database import SessionLocal
+    from . import models
+    from .push_service import send_push_notification
+
+    logger.info("Starting streak push reminder job")
+    db = SessionLocal()
+    sent = 0
+    today = datetime.now(timezone.utc).date().isoformat()
+    try:
+        streaks = (
+            db.query(models.UserStreak)
+            .filter(
+                models.UserStreak.current_streak > 0,
+                models.UserStreak.last_active_date != today,
+            )
+            .all()
+        )
+        for streak in streaks:
+            try:
+                if send_push_notification(
+                    user_id=streak.user_id,
+                    alert_type="streak",
+                    title="Keep your streak alive!",
+                    body=f"You're on a {streak.current_streak}-day streak. Check in today!",
+                    url="/discover",
+                    tag="streak_reminder",
+                ):
+                    sent += 1
+            except Exception:
+                logger.exception("Failed streak push for %s", streak.user_id)
+    finally:
+        db.close()
+    logger.info("Streak push reminders: sent %d", sent)
+
+
+def check_price_alerts():
+    """Fire price drop push + in-app alerts for triggered PriceAlerts.
+    Runs daily 9am UTC."""
+    from .database import SessionLocal
+    from . import models
+    from .push_service import send_push_notification
+
+    logger.info("Starting price alert check job")
+    db = SessionLocal()
+    triggered = 0
+    try:
+        alerts = (
+            db.query(models.PriceAlert)
+            .filter(models.PriceAlert.triggered == False)  # noqa: E712
+            .all()
+        )
+        for alert in alerts:
+            try:
+                whiskey = db.query(models.Whiskey).filter(models.Whiskey.id == alert.whiskey_id).first()
+                if not whiskey or not whiskey.price_usd:
+                    continue
+                current_price = whiskey.price_usd
+
+                should_fire = False
+                if alert.target_price and current_price <= alert.target_price:
+                    should_fire = True
+                elif alert.original_price and current_price < alert.original_price * 0.95:
+                    should_fire = True
+
+                if not should_fire:
+                    continue
+
+                # In-app alert
+                db.add(models.WatchlistAlert(
+                    username=alert.username,
+                    alert_type="price_drop",
+                    whiskey_id=alert.whiskey_id,
+                    message=f"{whiskey.name} dropped to ${current_price:.2f}!",
+                ))
+
+                # Push notification
+                send_push_notification(
+                    user_id=alert.username,
+                    alert_type="price_drop",
+                    title="Price drop alert",
+                    body=f"{whiskey.name} is now ${current_price:.2f}",
+                    url=f"/whiskey/{alert.whiskey_id}",
+                    tag=f"price_{alert.whiskey_id}",
+                )
+
+                alert.triggered = True
+                triggered += 1
+            except Exception:
+                logger.exception("Failed price alert for %s whiskey %d",
+                                 alert.username, alert.whiskey_id)
+        db.commit()
+    finally:
+        db.close()
+    logger.info("Price alerts: triggered %d", triggered)

@@ -142,6 +142,21 @@ def add_checkin_comment(
     track_action(db, current_user.username, ACTION_COMMENT,
                  detail={"rating_id": rating_id})
     db.commit()
+
+    # Push notification (fire-and-forget, never breaks the response)
+    if rating.user_id != current_user.username:
+        try:
+            from ..push_service import send_push_notification
+            send_push_notification(
+                user_id=rating.user_id,
+                alert_type="social",
+                title="New comment",
+                body=f"{current_user.username} commented on your check-in",
+                url="/alerts",
+                tag="comment",
+            )
+        except Exception:
+            pass
     db.refresh(comment)
     return comment
 
@@ -215,6 +230,21 @@ def follow_user(
     track_action(db, current_user.username, ACTION_FOLLOW,
                  detail={"target": username})
     db.commit()
+
+    # Push notification (fire-and-forget)
+    try:
+        from ..push_service import send_push_notification
+        send_push_notification(
+            user_id=username,
+            alert_type="social",
+            title="New follower",
+            body=f"{current_user.username} started following you",
+            url=f"/user/{current_user.username}",
+            tag="follow",
+        )
+    except Exception:
+        pass
+
     return {"status": "following"}
 
 

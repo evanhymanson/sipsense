@@ -10,6 +10,7 @@ import './App.css'
 const Onboarding = lazy(() => import('./pages/Onboarding'))
 const ChatSidebar = lazy(() => import('./components/ChatSidebar'))
 const InstallPrompt = lazy(() => import('./components/InstallPrompt'))
+const PushPermissionBanner = lazy(() => import('./components/PushPermissionBanner'))
 const Browse = lazy(() => import('./pages/Browse'))
 const WhiskeyDetail = lazy(() => import('./pages/WhiskeyDetail'))
 const Discover = lazy(() => import('./pages/Discover'))
@@ -37,6 +38,14 @@ function RequireAuth({ children }) {
   return children
 }
 
+function isChunkLoadError(error) {
+  return error?.name === 'ChunkLoadError' ||
+    error?.message?.includes('Failed to fetch dynamically imported module') ||
+    error?.message?.includes('Importing a module script failed') ||
+    error?.message?.includes('Loading chunk') ||
+    error?.message?.includes('Loading CSS chunk')
+}
+
 class ErrorBoundary extends Component {
   constructor(props) {
     super(props)
@@ -46,6 +55,17 @@ class ErrorBoundary extends Component {
     return { hasError: true, error }
   }
   componentDidCatch(error, errorInfo) {
+    // On chunk load failure after a deploy, force a hard reload to get fresh assets
+    if (isChunkLoadError(error)) {
+      const reloadKey = 'sipsense_chunk_reload'
+      if (!sessionStorage.getItem(reloadKey)) {
+        sessionStorage.setItem(reloadKey, '1')
+        window.location.reload()
+        return
+      }
+      // Already tried once this session — clear flag and show error UI
+      sessionStorage.removeItem(reloadKey)
+    }
     trackEvent('frontend_error', {
       message: error.message,
       stack: error.stack?.slice(0, 1000),
@@ -215,6 +235,7 @@ function Nav() {
 function AppShell() {
   const [chatOpen, setChatOpen] = useState(false)
   const location = useLocation()
+  const navigate = useNavigate()
   const isOnboarding = location.pathname === '/onboarding' || location.pathname === '/quiz'
   const isFullscreen = location.pathname === '/videos'
 
@@ -224,6 +245,18 @@ function AppShell() {
     startPageTimer()
     return () => endPageTimer(location.pathname)
   }, [location.pathname])
+
+  // Handle push notification click → navigate within the app
+  useEffect(() => {
+    if (!('serviceWorker' in navigator)) return
+    function handleSwMessage(event) {
+      if (event.data?.type === 'NAVIGATE') {
+        navigate(event.data.url)
+      }
+    }
+    navigator.serviceWorker.addEventListener('message', handleSwMessage)
+    return () => navigator.serviceWorker.removeEventListener('message', handleSwMessage)
+  }, [navigate])
 
   return (
     <>
@@ -291,6 +324,7 @@ export default function App() {
         <ToastProvider>
           <AppShell />
           <InstallPrompt />
+          <PushPermissionBanner />
         </ToastProvider>
       </BrowserRouter>
     </HelmetProvider>

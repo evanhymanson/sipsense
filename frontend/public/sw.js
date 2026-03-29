@@ -1,5 +1,5 @@
 // SipSense Service Worker — cache-first for static assets, network-first for API
-const CACHE_NAME = 'sipsense-v1'
+const CACHE_NAME = 'sipsense-__BUILD_ID__'
 const STATIC_ASSETS = ['/', '/manifest.json']
 
 self.addEventListener('install', (e) => {
@@ -53,5 +53,56 @@ self.addEventListener('fetch', (e) => {
           return res
         })
     )
+  )
+})
+
+// ── Push Notifications ────────────────────────────────────────────────────
+
+self.addEventListener('push', (e) => {
+  if (!e.data) return
+
+  let payload
+  try {
+    payload = e.data.json()
+  } catch {
+    payload = { title: 'SipSense', body: e.data.text(), url: '/alerts' }
+  }
+
+  const { title, body, url, icon, tag } = payload
+
+  e.waitUntil(
+    self.registration.showNotification(title || 'SipSense', {
+      body: body || '',
+      icon: icon || '/icons/icon-192.png',
+      badge: '/icons/icon-192.png',
+      tag: tag || 'sipsense',
+      data: { url: url || '/alerts' },
+      vibrate: [100, 50, 200],
+    })
+  )
+})
+
+self.addEventListener('notificationclick', (e) => {
+  e.notification.close()
+
+  const targetUrl = e.notification.data?.url || '/alerts'
+
+  e.waitUntil(
+    self.clients
+      .matchAll({ type: 'window', includeUncontrolled: true })
+      .then((clients) => {
+        // If app is already open, focus it and navigate
+        for (const client of clients) {
+          if (client.url.includes(self.location.origin) && 'focus' in client) {
+            client.focus()
+            client.postMessage({ type: 'NAVIGATE', url: targetUrl })
+            return
+          }
+        }
+        // Otherwise open a new window
+        if (self.clients.openWindow) {
+          return self.clients.openWindow(targetUrl)
+        }
+      })
   )
 })

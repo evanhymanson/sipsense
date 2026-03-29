@@ -614,4 +614,27 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(prefs),
     }),
+
+  // ── Push Notifications ──────────────────────────────────────────────────
+  getPushStatus: () => request('/push/status'),
+  subscribePush: (subscription, userAgent) => {
+    const p256dh = subscription.getKey('p256dh')
+    const auth = subscription.getKey('auth')
+    return request('/push/subscribe', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        endpoint: subscription.endpoint,
+        p256dh: btoa(String.fromCharCode(...new Uint8Array(p256dh))),
+        auth: btoa(String.fromCharCode(...new Uint8Array(auth))),
+        user_agent: userAgent,
+      }),
+    })
+  },
+  unsubscribePush: (endpoint) =>
+    request('/push/subscribe', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ endpoint, p256dh: '', auth: '' }),
+    }),
 }

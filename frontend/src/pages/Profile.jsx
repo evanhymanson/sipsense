@@ -1134,7 +1134,7 @@ export default function Profile() {
         )}
       </div>
 
-      {/* ── Email Preferences ─────────────────────────────────── */}
+      {/* ── Notification Preferences ────────────────────────── */}
       {emailPrefs && (
         <div className="prof-section" style={{ marginTop: '1.5rem' }}>
           <h3>Email Preferences</h3>
@@ -1144,6 +1144,32 @@ export default function Profile() {
               { key: 're_engagement', label: 'Re-engagement Tips' },
               { key: 'onboarding_drip', label: 'Onboarding Emails' },
               { key: 'marketing', label: 'Marketing & News' },
+            ].map(({ key, label }) => (
+              <div key={key} className="prof-email-toggle">
+                <span className="prof-email-label">{label}</span>
+                <input
+                  type="checkbox"
+                  checked={emailPrefs[key] ?? true}
+                  disabled={emailPrefsSaving}
+                  onChange={async (e) => {
+                    const updated = { ...emailPrefs, [key]: e.target.checked }
+                    setEmailPrefs(updated)
+                    setEmailPrefsSaving(true)
+                    try { await api.updateEmailPreferences(updated) }
+                    catch { setEmailPrefs(emailPrefs) }
+                    finally { setEmailPrefsSaving(false) }
+                  }}
+                />
+              </div>
+            ))}
+          </div>
+          <h3 style={{ marginTop: '1.2rem' }}>Push Notifications</h3>
+          <div className="prof-email-prefs">
+            {[
+              { key: 'push_social', label: 'Follows & Comments' },
+              { key: 'push_price_drop', label: 'Price Drop Alerts' },
+              { key: 'push_streak', label: 'Streak Reminders' },
+              { key: 'push_weekly', label: 'Weekly Highlights' },
             ].map(({ key, label }) => (
               <div key={key} className="prof-email-toggle">
                 <span className="prof-email-label">{label}</span>
