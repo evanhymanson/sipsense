@@ -693,6 +693,10 @@ class EmailPreferenceRead(BaseModel):
     re_engagement: bool = True
     onboarding_drip: bool = True
     marketing: bool = True
+    push_social: bool = True
+    push_price_drop: bool = True
+    push_streak: bool = True
+    push_weekly: bool = True
 
     model_config = {"from_attributes": True}
 
@@ -702,6 +706,36 @@ class EmailPreferenceUpdate(BaseModel):
     re_engagement: bool | None = None
     onboarding_drip: bool | None = None
     marketing: bool | None = None
+    push_social: bool | None = None
+    push_price_drop: bool | None = None
+    push_streak: bool | None = None
+    push_weekly: bool | None = None
+
+
+# ── Push Notifications ───────────────────────────────────────────────────
+
+
+class PushSubscriptionCreate(BaseModel):
+    endpoint: str
+    p256dh: str
+    auth: str
+    user_agent: str | None = None
+
+
+class PushSubscriptionRead(BaseModel):
+    id: int
+    endpoint: str
+    user_agent: str | None = None
+    created_at: datetime
+    is_active: bool
+
+    model_config = {"from_attributes": True}
+
+
+class PushStatusResponse(BaseModel):
+    subscribed: bool
+    subscription_count: int
+    vapid_public_key: str
 
 
 # ── Admin ────────────────────────────────────────────────────────────────

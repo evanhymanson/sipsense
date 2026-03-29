@@ -25,6 +25,8 @@ def main():
         send_weekly_digests,
         send_re_engagement_emails,
         send_drip_emails,
+        send_streak_push_reminders,
+        check_price_alerts,
     )
 
     # Weekly digest: Sunday 10am UTC
@@ -46,6 +48,20 @@ def main():
         send_drip_emails,
         CronTrigger(hour=11),
         id="drip_emails",
+    )
+
+    # Streak push reminder: Daily 8pm UTC
+    scheduler.add_job(
+        send_streak_push_reminders,
+        CronTrigger(hour=20),
+        id="streak_push_reminders",
+    )
+
+    # Price alerts: Daily 9am UTC
+    scheduler.add_job(
+        check_price_alerts,
+        CronTrigger(hour=9),
+        id="price_alerts",
     )
 
     # Graceful shutdown

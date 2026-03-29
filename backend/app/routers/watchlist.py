@@ -237,5 +237,23 @@ def maybe_create_alert(whiskey_id: int):
             )
             db.add(alert)
         db.commit()
+
+        # Push notifications (fire-and-forget)
+        try:
+            from ..push_service import send_push_notification
+            for watcher in watchers:
+                try:
+                    send_push_notification(
+                        user_id=watcher.username,
+                        alert_type="social",
+                        title="Watchlist activity",
+                        body=message,
+                        url=f"/whiskey/{whiskey_id}",
+                        tag=f"watchlist_{whiskey_id}",
+                    )
+                except Exception:
+                    pass
+        except Exception:
+            pass
     finally:
         db.close()

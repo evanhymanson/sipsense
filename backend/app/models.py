@@ -563,6 +563,10 @@ class EmailPreference(Base):
     re_engagement = Column(Boolean, default=True)
     onboarding_drip = Column(Boolean, default=True)
     marketing = Column(Boolean, default=True)
+    push_social = Column(Boolean, default=True)
+    push_price_drop = Column(Boolean, default=True)
+    push_streak = Column(Boolean, default=True)
+    push_weekly = Column(Boolean, default=True)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
 
@@ -577,6 +581,25 @@ class EmailLog(Base):
     ses_message_id = Column(String, nullable=True)
     status = Column(String, default="sent")  # sent, failed
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class PushSubscription(Base):
+    """Browser push subscription endpoint per user per device."""
+    __tablename__ = "push_subscriptions"
+    __table_args__ = (
+        UniqueConstraint("user_id", "endpoint", name="uq_push_sub"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(String, ForeignKey("users.username", ondelete="CASCADE"),
+                     nullable=False, index=True)
+    endpoint = Column(Text, nullable=False)
+    p256dh = Column(Text, nullable=False)
+    auth = Column(Text, nullable=False)
+    user_agent = Column(String, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    last_used_at = Column(DateTime(timezone=True), server_default=func.now())
+    is_active = Column(Boolean, default=True)
 
 
 # ── Top Lists ────────────────────────────────────────────────────────────
