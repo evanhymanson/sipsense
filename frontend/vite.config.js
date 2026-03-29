@@ -1,8 +1,23 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import { readFileSync, writeFileSync } from 'fs'
+import { resolve } from 'path'
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react(),
+    // Inject build timestamp into sw.js so the cache name rotates on each deploy
+    {
+      name: 'sw-build-id',
+      writeBundle(options) {
+        const swPath = resolve(options.dir, 'sw.js')
+        try {
+          const content = readFileSync(swPath, 'utf-8')
+          writeFileSync(swPath, content.replace('__BUILD_ID__', Date.now().toString()))
+        } catch { /* sw.js not present in dev */ }
+      },
+    },
+  ],
   test: {
     environment: 'jsdom',
     globals: true,

@@ -1,5 +1,5 @@
 // SipSense Service Worker — cache-first for static assets, network-first for API
-const CACHE_NAME = 'sipsense-v1'
+const CACHE_NAME = 'sipsense-__BUILD_ID__'
 const STATIC_ASSETS = ['/', '/manifest.json']
 
 self.addEventListener('install', (e) => {

@@ -37,6 +37,14 @@ function RequireAuth({ children }) {
   return children
 }
 
+function isChunkLoadError(error) {
+  return error?.name === 'ChunkLoadError' ||
+    error?.message?.includes('Failed to fetch dynamically imported module') ||
+    error?.message?.includes('Importing a module script failed') ||
+    error?.message?.includes('Loading chunk') ||
+    error?.message?.includes('Loading CSS chunk')
+}
+
 class ErrorBoundary extends Component {
   constructor(props) {
     super(props)
@@ -46,6 +54,17 @@ class ErrorBoundary extends Component {
     return { hasError: true, error }
   }
   componentDidCatch(error, errorInfo) {
+    // On chunk load failure after a deploy, force a hard reload to get fresh assets
+    if (isChunkLoadError(error)) {
+      const reloadKey = 'sipsense_chunk_reload'
+      if (!sessionStorage.getItem(reloadKey)) {
+        sessionStorage.setItem(reloadKey, '1')
+        window.location.reload()
+        return
+      }
+      // Already tried once this session — clear flag and show error UI
+      sessionStorage.removeItem(reloadKey)
+    }
     trackEvent('frontend_error', {
       message: error.message,
       stack: error.stack?.slice(0, 1000),
