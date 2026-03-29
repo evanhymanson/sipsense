@@ -10,6 +10,8 @@ from sqlalchemy.orm import Session
 from .. import models, schemas
 from ..database import get_db
 from ..auth import get_current_user, get_optional_user
+from ..storage import make_cdn_url
+from ..schemas import _prefer_nobg
 
 router = APIRouter(prefix="/affiliate", tags=["affiliate"])
 
@@ -129,7 +131,7 @@ def get_pending_followups(
                 "id": w.id,
                 "name": w.name,
                 "distillery": w.distillery,
-                "image_url": w.image_url,
+                "image_url": make_cdn_url(_prefer_nobg(w.image_url)),
                 "category": w.category,
             }
             for w in whiskeys
