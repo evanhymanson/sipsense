@@ -1,5 +1,7 @@
 """Social endpoints: toasts (likes), public user profiles, and follow graph."""
 
+import re
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import case, func as sqlfunc
@@ -11,6 +13,8 @@ from ..auth import get_current_user, get_optional_user
 from ..track import track_action
 from ..analytics_constants import ACTION_FOLLOW, ACTION_COMMENT
 from ..levels import compute_user_level
+
+_MENTION_RE = re.compile(r"@([A-Za-z0-9_]+)")
 
 router = APIRouter(tags=["social"])
 
@@ -138,6 +142,40 @@ def add_checkin_comment(
             from_username=current_user.username,
             message=f"{current_user.username} commented on your check-in",
         ))
+
+    # Gap 3: Parse @mentions and notify mentioned users
+    db.flush()  # ensure comment.id is assigned
+    mentioned_usernames = set(_MENTION_RE.findall(body.text))
+    # Remove self-mentions and the check-in owner (already notified above)
+    mentioned_usernames.discard(current_user.username)
+    mentioned_usernames.discard(rating.user_id)
+    for mentioned in mentioned_usernames:
+        # Verify the mentioned user exists
+        target = db.query(models.User).filter(models.User.username == mentioned).first()
+        if not target:
+            continue
+        db.add(models.CommentMention(
+            comment_id=comment.id,
+            mentioned_username=mentioned,
+        ))
+        db.add(models.WatchlistAlert(
+            username=mentioned,
+            alert_type="mention",
+            from_username=current_user.username,
+            message=f"{current_user.username} mentioned you in a comment",
+        ))
+        try:
+            from ..push_service import send_push_notification
+            send_push_notification(
+                user_id=mentioned,
+                alert_type="social",
+                title="You were mentioned",
+                body=f"{current_user.username} mentioned you in a comment",
+                url="/alerts",
+                tag="mention",
+            )
+        except Exception:
+            pass
 
     track_action(db, current_user.username, ACTION_COMMENT,
                  detail={"rating_id": rating_id})

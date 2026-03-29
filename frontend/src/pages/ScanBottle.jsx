@@ -5,19 +5,7 @@ import { useToast } from '../components/Toast'
 import { getCategoryEmoji, MAX_UPLOAD_SIZE, MAX_UPLOAD_SIZE_LABEL } from '../constants'
 import './ScanBottle.css'
 
-const RECENT_KEY = 'sipsense_recent_scans'
-const MAX_RECENT = 5
-
-function loadRecent() {
-  try { return JSON.parse(localStorage.getItem(RECENT_KEY) || '[]') } catch { return [] }
-}
-
-function saveRecent(whiskey) {
-  const prev = loadRecent().filter(w => w.id !== whiskey.id)
-  const next = [{ id: whiskey.id, name: whiskey.name, distillery: whiskey.distillery,
-    category: whiskey.category, image_url: whiskey.image_url }, ...prev].slice(0, MAX_RECENT)
-  localStorage.setItem(RECENT_KEY, JSON.stringify(next))
-}
+// Legacy localStorage fallback removed — now uses server-side scan history (Gap 4)
 
 function imageCls(category) {
   const c = (category || '').toLowerCase()
@@ -36,15 +24,25 @@ export default function ScanBottle() {
   const [result, setResult] = useState(null)         // { found_in_db, whiskey, ai_identified }
   const [error, setError] = useState(null)
   const [shelfMsg, setShelfMsg] = useState('')
-  const [recent, setRecent] = useState(loadRecent)
+  const [recent, setRecent] = useState([])
   const [showBarcode, setShowBarcode] = useState(false)
   const [manualUpc, setManualUpc] = useState('')
+  const [scanMode, setScanMode] = useState('label') // 'label' or 'menu'
+  const [menuResults, setMenuResults] = useState(null)
+  const menuFileRef = useRef(null)
 
   // Clean up preview object URL on unmount
   const previewRef = useRef(preview)
   previewRef.current = preview
   useEffect(() => {
     return () => { if (previewRef.current) URL.revokeObjectURL(previewRef.current) }
+  }, [])
+
+  // Load server-side scan history
+  useEffect(() => {
+    api.getScanHistory()
+      .then(history => setRecent(history.slice(0, 10)))
+      .catch(() => {})
   }, [])
 
   // ── Label scan ────────────────────────────────────────────────────────
@@ -69,13 +67,33 @@ export default function ScanBottle() {
     try {
       const data = await api.scanLabel(file)
       setResult(data)
-      if (data.whiskey) {
-        saveRecent(data.whiskey)
-        setRecent(loadRecent())
-      }
+      // Refresh server-side scan history
+      api.getScanHistory().then(h => setRecent(h.slice(0, 10))).catch(() => {})
     } catch (err) {
       const msg = err.message || 'Could not identify label'
       setError(msg.includes('not a whiskey') ? 'No whiskey label detected — try a clearer photo of the front label.' : msg)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Gap 9: Menu scan
+  async function handleMenuScan(e) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (file.size > MAX_UPLOAD_SIZE) {
+      addToast(`Photo must be under ${MAX_UPLOAD_SIZE_LABEL}`, 'error')
+      return
+    }
+    setLoading(true)
+    setError(null)
+    setMenuResults(null)
+    try {
+      const data = await api.scanMenu(file)
+      setMenuResults(data)
+      api.getScanHistory().then(h => setRecent(h.slice(0, 10))).catch(() => {})
+    } catch (err) {
+      setError(err.message || 'Could not read menu')
     } finally {
       setLoading(false)
     }
@@ -91,8 +109,7 @@ export default function ScanBottle() {
     try {
       const whiskey = await api.lookupBarcode(upc)
       setResult({ found_in_db: true, whiskey, ai_identified: null })
-      saveRecent(whiskey)
-      setRecent(loadRecent())
+      api.getScanHistory().then(h => setRecent(h.slice(0, 10))).catch(() => {})
     } catch (err) {
       setError(err.message || 'Barcode not found in our database')
     } finally {
@@ -145,8 +162,51 @@ export default function ScanBottle() {
           Take a photo of the label — AI identifies it instantly.
         </p>
 
-        {/* ── Idle / upload state ── */}
-        {!result && !loading && (
+        <div className="scan-mode-toggle">
+          <button className={`btn-pill ${scanMode === 'label' ? 'active' : ''}`} onClick={() => { setScanMode('label'); setMenuResults(null) }}>Label Scan</button>
+          <button className={`btn-pill ${scanMode === 'menu' ? 'active' : ''}`} onClick={() => { setScanMode('menu'); setResult(null) }}>Menu Scan</button>
+        </div>
+
+        {/* ── Menu Scan Mode ── */}
+        {scanMode === 'menu' && !loading && !menuResults && (
+          <div className="menu-scan-section">
+            <p>Take a photo of a bar or restaurant menu to identify all whiskeys on it.</p>
+            <div
+              className="label-drop-zone"
+              onClick={() => menuFileRef.current?.click()}
+              role="button"
+              tabIndex={0}
+            >
+              <span className="label-drop-icon">📋</span>
+              <p className="label-drop-text">Tap to scan a menu</p>
+            </div>
+            <input ref={menuFileRef} type="file" accept="image/*" capture="environment" onChange={handleMenuScan} style={{ display: 'none' }} />
+            {error && <div className="scan-error"><p>{error}</p></div>}
+          </div>
+        )}
+
+        {scanMode === 'menu' && menuResults && (
+          <div className="menu-results">
+            <h2>Found {menuResults.items_found} whiskeys on menu</h2>
+            <div className="menu-results-list">
+              {menuResults.results?.map((item, i) => (
+                <div key={i} className="menu-result-item">
+                  <div className="menu-result-name">{item.menu_name}</div>
+                  {item.menu_price && <span className="menu-result-price">${item.menu_price}</span>}
+                  {item.found_in_db && item.whiskey ? (
+                    <Link to={`/whiskey/${item.whiskey.id}`} className="menu-result-link">View in SipSense</Link>
+                  ) : (
+                    <span className="menu-result-notfound">Not in database</span>
+                  )}
+                </div>
+              ))}
+            </div>
+            <button className="scan-another-btn" onClick={() => { setMenuResults(null); setError(null) }}>Scan Another Menu</button>
+          </div>
+        )}
+
+        {/* ── Idle / upload state (Label mode) ── */}
+        {scanMode === 'label' && !result && !loading && (
           <>
             <div
               className={`label-drop-zone ${preview ? 'label-drop-zone--has-preview' : ''}`}
@@ -211,22 +271,35 @@ export default function ScanBottle() {
 
             {recent.length > 0 && (
               <div className="recent-scans">
-                <h3>Recent Scans</h3>
+                <h3>Scan History</h3>
                 <div className="recent-list">
-                  {recent.map(w => (
-                    <Link key={w.id} to={`/whiskey/${w.id}`} className="recent-item">
-                      <div className={`recent-img ${imageCls(w.category)}`}>
-                        <span className="recent-emoji">{getCategoryEmoji(w.category)}</span>
-                        {w.image_url && (
-                          <img src={w.image_url} alt={w.name} className="recent-bottle-img"
-                            onError={e => { e.target.style.display = 'none' }} />
-                        )}
-                      </div>
-                      <div className="recent-info">
-                        <span className="recent-name">{w.name}</span>
-                        <span className="recent-distillery">{w.distillery}</span>
-                      </div>
-                    </Link>
+                  {recent.map(scan => (
+                    <div key={scan.id} className="recent-item-row">
+                      {scan.whiskey_id ? (
+                        <Link to={`/whiskey/${scan.whiskey_id}`} className="recent-item">
+                          <div className="recent-info">
+                            <span className="recent-name">{scan.scanned_name}</span>
+                            <span className="recent-distillery">{scan.scan_type} &middot; {new Date(scan.scanned_at).toLocaleDateString()}</span>
+                          </div>
+                        </Link>
+                      ) : (
+                        <div className="recent-item">
+                          <div className="recent-info">
+                            <span className="recent-name">{scan.scanned_name}</span>
+                            <span className="recent-distillery">{scan.scan_type} &middot; not in database</span>
+                          </div>
+                        </div>
+                      )}
+                      <button
+                        className="recent-delete"
+                        onClick={() => {
+                          api.deleteScanHistoryItem(scan.id).then(() => {
+                            setRecent(prev => prev.filter(s => s.id !== scan.id))
+                          }).catch(() => {})
+                        }}
+                        aria-label="Delete scan"
+                      >×</button>
+                    </div>
                   ))}
                 </div>
               </div>

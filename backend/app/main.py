@@ -235,7 +235,7 @@ app.include_router(toplists.router)
 app.include_router(critics.router)
 app.include_router(userlists.router)
 
-from .routers import seo, price_alerts, stripe_billing, blog
+from .routers import seo, price_alerts, stripe_billing, blog, regions, leaderboard, awards, marketplace, subscription_box
 app.include_router(seo.router)
 app.include_router(price_alerts.router)
 app.include_router(blog.router)
@@ -246,6 +246,11 @@ app.include_router(challenges.router)
 app.include_router(email_prefs.router)
 app.include_router(push_notifications.router)
 app.include_router(admin.router)
+app.include_router(regions.router)
+app.include_router(leaderboard.router)
+app.include_router(awards.router)
+app.include_router(marketplace.router)
+app.include_router(subscription_box.router)
 
 @app.get("/", tags=["health"])
 def root():

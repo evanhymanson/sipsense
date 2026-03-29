@@ -641,4 +641,93 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ endpoint, p256dh: '', auth: '' }),
     }),
+
+  // ── Gap 2: Regions ──────────────────────────────────────────────────────
+  getRegions: () => request('/regions/'),
+  getRegion: (slug) => request(`/regions/${slug}`),
+  getRegionWhiskeys: (slug, params = {}) => {
+    const qs = new URLSearchParams(params).toString()
+    return request(`/regions/${slug}/whiskeys${qs ? '?' + qs : ''}`)
+  },
+
+  // ── Gap 1: Distillery bottles ───────────────────────────────────────────
+  getDistilleryBottles: (slug, params = {}) => {
+    const qs = new URLSearchParams(params).toString()
+    return request(`/learn/distilleries/${slug}/bottles${qs ? '?' + qs : ''}`)
+  },
+
+  // ── Gap 8: Grain taxonomy ──────────────────────────────────────────────
+  getGrains: () => request('/learn/grains'),
+  getGrain: (slug) => request(`/learn/grains/${slug}`),
+
+  // ── Gap 4: Scan history ────────────────────────────────────────────────
+  getScanHistory: () => request('/scan/history'),
+  deleteScanHistoryItem: (id) =>
+    request(`/scan/history/${id}`, { method: 'DELETE' }),
+
+  // ── Gap 9: Menu scanner ────────────────────────────────────────────────
+  scanMenu: (file) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    return request('/scan/menu', { method: 'POST', body: formData })
+  },
+
+  // ── Gap 6: OAuth ───────────────────────────────────────────────────────
+  googleOAuth: (data) =>
+    request('/auth/oauth/google', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    }),
+  appleOAuth: (data) =>
+    request('/auth/oauth/apple', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    }),
+
+  // ── Gap 7: Leaderboard ─────────────────────────────────────────────────
+  getLeaderboard: (params = {}) => {
+    const qs = new URLSearchParams(params).toString()
+    return request(`/leaderboard/${qs ? '?' + qs : ''}`)
+  },
+
+  // ── Gap 11: Awards ─────────────────────────────────────────────────────
+  getAwardCategories: () => request('/awards/categories'),
+  getAwards: (year) => request(`/awards/${year}`),
+  getAwardNominees: (year, category, limit = 10) =>
+    request(`/awards/${year}/${category}/nominees?limit=${limit}`),
+  castVote: (year, category, whiskeyId) =>
+    request(`/awards/${year}/${category}/vote`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ whiskey_id: whiskeyId }),
+    }),
+  getMyVote: (year, category) =>
+    request(`/awards/${year}/${category}/my-vote`),
+
+  // ── Gap 13: Marketplace ────────────────────────────────────────────────
+  getCart: () => request('/marketplace/cart'),
+  addToCart: (whiskeyId, quantity = 1) =>
+    request('/marketplace/cart', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ whiskey_id: whiskeyId, quantity }),
+    }),
+  removeFromCart: (itemId) =>
+    request(`/marketplace/cart/${itemId}`, { method: 'DELETE' }),
+  checkout: () =>
+    request('/marketplace/checkout', { method: 'POST' }),
+  getOrders: () => request('/marketplace/orders'),
+
+  // ── Gap 14: Subscription Box ───────────────────────────────────────────
+  getBoxTiers: () => request('/subscription-box/tiers'),
+  getBoxPreferences: () => request('/subscription-box/preferences'),
+  updateBoxPreferences: (prefs) =>
+    request('/subscription-box/preferences', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(prefs),
+    }),
+  previewBox: () => request('/subscription-box/preview'),
 }

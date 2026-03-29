@@ -64,10 +64,46 @@ def send_weekly_digests():
                     .first()
                 )
 
+                # Gap 5: Personalized recommendation based on taste profile
+                personal_rec = None
+                try:
+                    user_ratings = (
+                        db.query(models.UserRating)
+                        .filter(models.UserRating.user_id == user.username)
+                        .order_by(models.UserRating.score.desc())
+                        .limit(5)
+                        .all()
+                    )
+                    if user_ratings:
+                        rated_ids = [r.whiskey_id for r in user_ratings]
+                        top_rated = db.query(models.Whiskey).filter(
+                            models.Whiskey.id == user_ratings[0].whiskey_id
+                        ).first()
+                        if top_rated and top_rated.category:
+                            rec = (
+                                db.query(models.Whiskey)
+                                .filter(
+                                    models.Whiskey.category.ilike(f"%{top_rated.category}%"),
+                                    models.Whiskey.id.notin_(rated_ids),
+                                    models.Whiskey.rating_avg >= 3.5,
+                                )
+                                .order_by(models.Whiskey.rating_avg.desc())
+                                .first()
+                            )
+                            if rec:
+                                personal_rec = {
+                                    "name": rec.name,
+                                    "category": rec.category,
+                                    "reason": f"Because you loved {top_rated.name}",
+                                }
+                except Exception:
+                    pass
+
                 data = {
                     "checkins_this_week": checkins,
                     "current_streak": streak.current_streak if streak else 0,
                     "trending_name": trending[0] if trending else None,
+                    "personal_recommendation": personal_rec,
                 }
 
                 # Skip if nothing to report

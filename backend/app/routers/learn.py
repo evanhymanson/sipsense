@@ -5,7 +5,11 @@ Educational content about whiskey: category guides, distillery stories, and glos
 Content is embedded directly — no DB or file system required.
 """
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy.orm import Session
+
+from .. import models, schemas
+from ..database import get_db
 
 router = APIRouter(prefix="/learn", tags=["learn"])
 
@@ -159,6 +163,19 @@ DISTILLERIES = [
         "emoji": "🥃",
         "tagline": "The bourbon that proved gentle could be great",
         "known_for": ["Wheated mash bill", "Hand-dipped red wax", "Star Hill Farm"],
+        "lat": 37.6334,
+        "lng": -85.3497,
+        "founded_year": 1953,
+        "fun_facts": [
+            "Bill Samuels Sr. burned his family's 170-year-old bourbon recipe to start fresh.",
+            "Every single bottle is still hand-dipped in red wax — over 30 million per year.",
+            "Star Hill Farm is a designated National Historic Landmark.",
+        ],
+        "production_details": {
+            "mash_bill": "70% corn, 16% soft red winter wheat, 14% malted barley",
+            "water_source": "Spring-fed lake on Star Hill Farm, limestone-filtered",
+            "barrel_type": "New charred American white oak, rotated during aging",
+        },
         "body": [
             "In 1953, Bill Samuels Sr. did something unusual: he burned his family's 170-year-old bourbon recipe. He wanted a bourbon his wife would actually enjoy drinking — something soft and smooth rather than the harsh, rye-forward whiskeys of the era.",
             "The result was Maker's Mark. By replacing the traditional rye grain with soft winter wheat, Samuels created a 'wheated' bourbon: caramel sweetness up front, vanilla warmth throughout, a soft round finish with no sharp edges. His wife Margie named it after the pewter-maker's marks she collected as a hobby, designed the bottle, and started dipping each one in red sealing wax by hand. That wax-dipped silhouette became one of the most recognized in the spirits world.",
@@ -173,6 +190,19 @@ DISTILLERIES = [
         "emoji": "🥃",
         "tagline": "The oldest distillery in Kentucky — and home to the most sought-after bottles in bourbon",
         "known_for": ["Pappy Van Winkle", "Eagle Rare", "George T. Stagg", "Antique Collection"],
+        "lat": 38.2098,
+        "lng": -84.8733,
+        "founded_year": 1787,
+        "fun_facts": [
+            "Survived Prohibition by producing 'medicinal whiskey' — one of only four distilleries permitted to do so.",
+            "Has an experimental warehouse ('Warehouse X') that tests aging under extreme conditions: UV light, sound vibrations, and temperature swings.",
+            "The flagship Buffalo Trace bourbon uses the same mash bill (#1) as Pappy Van Winkle.",
+        ],
+        "production_details": {
+            "mash_bill": "Mash Bill #1: corn, rye, malted barley (exact ratios undisclosed). Also produces Mash Bill #2 (wheated) for Weller/Pappy lines.",
+            "water_source": "Limestone-filtered Kentucky River water",
+            "barrel_type": "New charred American white oak, aged in century-old warehouses",
+        },
         "body": [
             "Buffalo Trace Distillery in Frankfort, Kentucky has been making whiskey — by some accounts — since 1787, surviving Prohibition by operating as a 'medicinal whiskey' facility. It's one of the oldest continuously operating distilleries in America, and arguably the most famous address in bourbon.",
             "It's also home to the most allocated, sought-after bottles in the world. The Pappy Van Winkle family of bourbons. Eagle Rare 17-Year. George T. Stagg barrel-proof. William Larue Weller. These are whiskeys people wait years for, pay hundreds of dollars for on the secondary market, and sometimes camp outside liquor stores in the early morning cold for. The distillery's annual 'Antique Collection' release has become a cultural event.",
@@ -187,6 +217,19 @@ DISTILLERIES = [
         "emoji": "🏴󠁧󠁢󠁳󠁣󠁴󠁿",
         "tagline": "The distillery that invented the idea of single malt as a product category",
         "known_for": ["World's best-selling single malt", "Pioneered the single malt category", "Family-owned since 1887"],
+        "lat": 57.4547,
+        "lng": -3.1283,
+        "founded_year": 1887,
+        "fun_facts": [
+            "William Grant built the distillery largely by hand with help from his seven sons and two daughters.",
+            "Still family-owned by William Grant & Sons — one of the few major Scotch distilleries not owned by a conglomerate.",
+            "The stag logo represents the Gaelic name: 'Glenfiddich' means 'Valley of the Deer.'",
+        ],
+        "production_details": {
+            "mash_bill": "100% malted barley (single malt)",
+            "water_source": "Robbie Dhu spring, running through the distillery grounds",
+            "barrel_type": "Ex-bourbon American oak and ex-Oloroso sherry European oak casks",
+        },
         "body": [
             "Glenfiddich ('Valley of the Deer' in Scottish Gaelic) was founded in 1887 by William Grant in the Speyside region. For most of the 20th century it was the world's best-selling single malt Scotch whisky. In many years it still is.",
             "That success is partly due to strategy and partly due to quality. In the 1960s, when blended Scotch utterly dominated the market, Glenfiddich pioneered the concept of selling single malt as a premium product category in its own right. It was a counterintuitive move at the time. It changed the industry.",
@@ -201,6 +244,19 @@ DISTILLERIES = [
         "emoji": "🏴󠁧󠁢󠁳󠁣󠁴󠁿",
         "tagline": "The most polarizing whisky on Earth — and proud of it",
         "known_for": ["Intensely peated", "Royal Warrant from Prince Charles", "Friends of Laphroaig fan club"],
+        "lat": 55.6304,
+        "lng": -6.1519,
+        "founded_year": 1815,
+        "fun_facts": [
+            "Prince Charles granted Laphroaig a Royal Warrant in 1994, making it the only Scotch distillery with one.",
+            "Friends of Laphroaig members receive a lifetime lease on a square foot of Islay peat bog — and a dram when they visit to collect 'rent.'",
+            "The distillery cuts its own peat from a bog on the Kilbride estuary, just a short walk from the buildings.",
+        ],
+        "production_details": {
+            "mash_bill": "100% malted barley, heavily peated (~40-50 ppm phenols)",
+            "water_source": "Kilbride Dam, flowing over peat beds on its way to the distillery",
+            "barrel_type": "Primarily ex-bourbon American oak barrels",
+        },
         "body": [
             "Laphroaig (pronounced 'La-FROYG') is the whisky that most divides opinion. People who love it really love it — including Prince Charles, who granted it a Royal Warrant of Appointment. People who don't love it say it smells like a hospital fire at the beach. Both descriptions are technically accurate.",
             "The reason is peat. Laphroaig's barley is dried over burning Islay peat cut from the distillery's own bog — a bog that has been soaked in seawater for thousands of years. The result is a whisky that carries smoke, seaweed, iodine, antiseptic, and the cold grey Atlantic in every dram. It's one of the least subtle things you'll ever taste.",
@@ -215,6 +271,19 @@ DISTILLERIES = [
         "emoji": "🏴󠁧󠁢󠁳󠁣󠁴󠁿",
         "tagline": "Where peat fanatics go when Laphroaig isn't enough",
         "known_for": ["Highest peat levels of any major distillery", "Cult annual releases", "One of the world's most awarded whiskies"],
+        "lat": 55.6378,
+        "lng": -6.1083,
+        "founded_year": 1815,
+        "fun_facts": [
+            "The distillery was nearly demolished in 1981 before Glenmorangie plc rescued it in 1997.",
+            "Ardbeg sent samples to the International Space Station in 2011 to test how zero gravity affects whisky maturation.",
+            "Annual Ardbeg Day releases have become so popular that fans queue overnight at the distillery gates.",
+        ],
+        "production_details": {
+            "mash_bill": "100% malted barley, heavily peated (~55 ppm phenols)",
+            "water_source": "Loch Uigeadail and Loch Airigh Nam Beist",
+            "barrel_type": "Ex-bourbon American oak, with some Oloroso sherry cask finishes",
+        },
         "body": [
             "If Laphroaig is the entry point to Islay peat, Ardbeg is where the obsession deepens. The distillery on the southeast coast of Islay produces whisky at around 55 ppm phenols — among the highest peat levels of any major distillery in the world. This is not subtle.",
             "What makes Ardbeg special beyond the smoke is its complexity. The peat is there — campfire, tar, sea brine — but underneath it are layers of dark chocolate, vanilla, citrus oil, and coastal wildness that keep revealing themselves over time. It's not one-dimensional heat; it's an evolving conversation in your glass.",
@@ -229,6 +298,19 @@ DISTILLERIES = [
         "emoji": "🏴󠁧󠁢󠁳󠁣󠁴󠁿",
         "tagline": "Scotch whisky's luxury brand — sherry casks, deep color, and stratospheric ambition",
         "known_for": ["Sherry cask maturation", "Record-breaking auction prices", "The Easter Elchies estate"],
+        "lat": 57.4862,
+        "lng": -3.2079,
+        "founded_year": 1824,
+        "fun_facts": [
+            "A Valerio Adami 1926 Macallan sold for $1.5 million at Christie's in 2019.",
+            "Macallan's new distillery (opened 2018) features a grass-covered undulating roof designed by Rogers Stirk Harbour + Partners.",
+            "The distillery uses the smallest copper pot stills on Speyside, concentrating flavor through reduced copper contact.",
+        ],
+        "production_details": {
+            "mash_bill": "100% Golden Promise malted barley (traditionally; now also Minstrel variety)",
+            "water_source": "Easter Elchies estate springs",
+            "barrel_type": "Exclusively sherry-seasoned oak from Jerez, Spain — both Oloroso and Pedro Ximenez casks",
+        },
         "body": [
             "The Macallan is Scotch whisky's closest equivalent to a luxury fashion house. Based in Speyside on the Easter Elchies estate, it's defined by two things: exceptional sherry-cask maturation and a price ladder that extends into the stratosphere.",
             "The sherry cask commitment is genuine and distinctive. While most distilleries use ex-bourbon barrels for the majority of their whisky, Macallan traditionally ages a large proportion in expensive Oloroso sherry casks from Jerez, Spain. These casks give the spirit rich dried fruit notes — raisin, fig, dark chocolate, orange peel — along with deep mahogany color and weight. The result is one of the most recognizable house styles in Scotch.",
@@ -243,6 +325,19 @@ DISTILLERIES = [
         "emoji": "🗾",
         "tagline": "Japan's first distillery — and the bottle that changed everything",
         "known_for": ["Japan's first whisky distillery (1923)", "Yamazaki 18 — one of the world's most awarded whiskies", "Mizunara oak cask expressions"],
+        "lat": 34.8934,
+        "lng": 135.6784,
+        "founded_year": 1923,
+        "fun_facts": [
+            "Founded at the confluence of three rivers (Katsura, Uji, Kizu) — a location chosen by Shinjiro Torii for its exceptionally pure, soft water.",
+            "Yamazaki Sherry Cask 2013 won World Whisky of the Year in 2014 — the first Japanese whisky to claim the title.",
+            "The distillery houses 16 different pot still shapes, allowing it to produce a huge range of spirit characters in-house.",
+        ],
+        "production_details": {
+            "mash_bill": "100% malted barley (single malt), with multiple yeast strains for different flavor profiles",
+            "water_source": "Underground well at the confluence of three rivers, naturally filtered through bamboo forest geology",
+            "barrel_type": "American white oak, Spanish sherry casks, and rare Japanese Mizunara oak",
+        },
         "body": [
             "The Yamazaki distillery was built in 1923 in a misty bamboo valley outside Osaka, at the confluence of three rivers — a location chosen for its pure water. It was Japan's first whisky distillery. Its founder, Shinjiro Torii, had already built a successful wine importing business when he decided Japan needed its own whisky. He hired Masataka Taketsuru, who had just returned from studying Scotch production in Scotland, and together they built something genuinely new.",
             "Yamazaki produces single malt in a remarkable variety of styles internally — different pot still shapes, yeast strains, and cask types including the rare Japanese Mizunara oak, which gives a distinctive sandalwood and incense character impossible to replicate elsewhere. These are blended into expressions of exceptional balance.",
@@ -257,6 +352,19 @@ DISTILLERIES = [
         "emoji": "☘️",
         "tagline": "The whiskey that rebuilt an entire industry from the ground up",
         "known_for": ["World's best-selling Irish whiskey", "Triple distillation", "Rebuilt the Irish whiskey category"],
+        "lat": 51.9132,
+        "lng": -8.1158,
+        "founded_year": 1780,
+        "fun_facts": [
+            "The Midleton distillery houses the world's largest pot still (capacity: 31,648 gallons), built in 1825.",
+            "Jameson's global sales grew from 500,000 cases in 1990 to over 10 million cases by 2023.",
+            "The original Bow Street Distillery in Dublin is now a visitor experience — production moved to Midleton in 1975.",
+        ],
+        "production_details": {
+            "mash_bill": "Blend of malted barley, unmalted barley, and grain whiskey (column still)",
+            "water_source": "Dungourney River, running through the Midleton estate",
+            "barrel_type": "Mix of ex-bourbon American oak and ex-sherry European oak casks",
+        },
         "body": [
             "Jameson is the reason Irish whiskey exists in your local bar. Before the brand's global expansion in the 1990s and 2000s, Irish whiskey was nearly dead as a category — reduced from hundreds of distilleries in the 1800s to a handful by the mid-20th century. A combination of independence, Prohibition cutting off American exports, and trade disputes with Britain had devastated the industry.",
             "Jameson's recovery strategy, centered on Irish pubs worldwide and an approachable, universally likable product, rebuilt the category from the ground up. It introduced tens of millions of people to Irish whiskey who would never have tried it otherwise.",
@@ -271,6 +379,19 @@ DISTILLERIES = [
         "emoji": "🥃",
         "tagline": "101 proof, no apologies, same recipe since 1954",
         "known_for": ["Jimmy Russell — longest-serving active Master Distiller in history", "Wild Turkey 101", "High-rye mash bill"],
+        "lat": 38.0406,
+        "lng": -84.7277,
+        "founded_year": 1869,
+        "fun_facts": [
+            "Jimmy Russell has been Master Distiller since 1954 — the longest-tenured in the history of American whiskey.",
+            "The name came from a 1940 hunting trip when distillery executive Thomas McCarthy shared bourbon samples with friends while hunting wild turkeys.",
+            "Wild Turkey 101 is bottled at higher proof (50.5% ABV) specifically to preserve bold flavor through dilution.",
+        ],
+        "production_details": {
+            "mash_bill": "75% corn, 13% rye, 12% malted barley",
+            "water_source": "Limestone-filtered Kentucky River water from the Kentucky River Palisades",
+            "barrel_type": "New charred American white oak, #4 alligator char (deepest char level)",
+        },
         "body": [
             "Wild Turkey doesn't try to be elegant. It's a bourbon with a point of view: bold, high-rye character at 101 proof that earned the name 'Wild' and has never looked back.",
             "Jimmy Russell has been the Master Distiller at Wild Turkey since 1954. His son Eddie joined in 1981. Together they are the longest-serving father-son distilling team in the history of American whiskey. Jimmy has said he's never changed his recipe. He has no plans to.",
@@ -285,6 +406,19 @@ DISTILLERIES = [
         "emoji": "🥃",
         "tagline": "The most interesting distillery in Kentucky, and most people don't know why",
         "known_for": ["10 distinct bourbon recipes", "Two mash bills × five yeast strains", "Single Barrel and Small Batch expressions"],
+        "lat": 38.0138,
+        "lng": -84.9942,
+        "founded_year": 1888,
+        "fun_facts": [
+            "Four Roses produces 10 distinct bourbon recipes: 2 mash bills x 5 proprietary yeast strains.",
+            "The distillery was virtually unknown in the US for decades — its parent company sold only low-quality blends domestically while exporting the good stuff to Japan.",
+            "The distinctive Spanish Mission-style distillery building is one of the most photographed in Kentucky.",
+        ],
+        "production_details": {
+            "mash_bill": "Mash Bill B: 60% corn, 35% rye, 5% malted barley. Mash Bill E: 75% corn, 20% rye, 5% malted barley.",
+            "water_source": "Salt River, limestone-filtered",
+            "barrel_type": "New charred American white oak, single-story aging warehouses for consistent temperature",
+        },
         "body": [
             "Four Roses is the most technically fascinating distillery in Kentucky. Here's why: they make 10 different bourbon recipes. Using two mash bills (one standard, one high-rye at 35% rye grain) and five separate proprietary yeast strains — each with a distinct flavor personality — Four Roses produces 10 distinct bourbons, which are blended in different combinations for different expressions.",
             "No other major Kentucky distillery operates this way. Most use one, maybe two recipes. Four Roses' internal complexity is enormous, and it's entirely in service of blending nuance. Each yeast strain contributes something different: one adds floral notes, one adds spice, one adds fruitiness. Understanding this system is like understanding bourbon's grammar.",
@@ -299,6 +433,19 @@ DISTILLERIES = [
         "emoji": "☘️",
         "tagline": "The purest expression of Irish pot still whiskey — rich, complex, deeply satisfying",
         "known_for": ["Pure pot still style", "Malted + unmalted barley", "One of the world's most awarded Irish whiskies"],
+        "lat": 51.9132,
+        "lng": -8.1158,
+        "founded_year": 1903,
+        "fun_facts": [
+            "Named after the robin redbreast — a bird considered lucky in Irish folklore.",
+            "Produced at the same Midleton distillery as Jameson, but using the traditional pure pot still method.",
+            "The 21-year-old expression has won World's Best Single Pot Still multiple times at the World Whiskies Awards.",
+        ],
+        "production_details": {
+            "mash_bill": "Mix of malted and unmalted barley (pure pot still style) — exact ratios proprietary",
+            "water_source": "Dungourney River, flowing through the Midleton estate",
+            "barrel_type": "Combination of ex-bourbon American oak and ex-Oloroso sherry Spanish oak casks",
+        },
         "body": [
             "Redbreast is what happens when Irish whiskey stops trying to be approachable and starts trying to be excellent. It's the standard-bearer of 'pure pot still' Irish whiskey, a style unique to Ireland that uses a blend of malted and unmalted barley distilled in a copper pot still.",
             "That combination — malted and unmalted barley — produces something distinctive: a slightly oily, richly textured whiskey with a spiciness and weight that sets it apart from the lighter triple-distilled blends that dominate Irish whiskey shelves. There's dried fruit from sherry cask maturation, nutty complexity, a creamy mouthfeel, and a long, warming finish.",
@@ -344,6 +491,206 @@ GLOSSARY = [
 ]
 
 
+# ── Grain & Mash Bill Taxonomy ────────────────────────────────────────────────
+
+GRAIN_TAXONOMY = [
+    {
+        "slug": "bourbon-mash-bills",
+        "title": "Bourbon Mash Bills",
+        "emoji": "\U0001f33d",
+        "tagline": "At least 51% corn — but the rest is where the magic happens",
+        "body": [
+            "Every bourbon starts with corn — at least 51% by law. Corn provides the foundation: sweetness, body, and that unmistakable caramel warmth. But the remaining 49% is where distillers make their artistic choices, and it's what separates one bourbon from another.",
+            "The two main camps are high-rye and wheated. High-rye bourbons (like Four Roses, Bulleit, Knob Creek) use rye as the secondary grain, typically 15-35% of the mash bill. Rye adds spice, complexity, pepper, and a drier finish. Wheated bourbons (like Maker's Mark, Weller, Pappy Van Winkle) replace the rye with soft red winter wheat, producing a rounder, sweeter, gentler whiskey.",
+            "The third grain is always malted barley (5-15%), which provides the enzymes needed to convert starches to fermentable sugars during mashing. It also contributes nutty, biscuity notes to the final spirit.",
+        ],
+        "subcategories": [
+            {
+                "name": "Traditional / High-Rye",
+                "description": "65-75% corn, 15-35% rye, 5-15% malted barley. Spicy, complex, full-flavored.",
+                "examples": ["Four Roses", "Bulleit Bourbon", "Knob Creek", "Wild Turkey"],
+            },
+            {
+                "name": "Wheated",
+                "description": "65-80% corn, 15-20% wheat, 5-15% malted barley. Soft, sweet, round.",
+                "examples": ["Maker's Mark", "W.L. Weller", "Pappy Van Winkle", "Larceny"],
+            },
+            {
+                "name": "High-Corn",
+                "description": "75-85% corn with lower rye/wheat. Sweeter, lighter, very approachable.",
+                "examples": ["Buffalo Trace", "Old Forester", "Evan Williams"],
+            },
+        ],
+        "quick_facts": [
+            "Federal law requires at least 51% corn for bourbon",
+            "The secondary grain (rye or wheat) defines the bourbon's personality",
+            "Malted barley is always present for enzymatic conversion",
+            "High-rye bourbons typically have 20-35% rye grain",
+        ],
+    },
+    {
+        "slug": "single-malt",
+        "title": "Single Malt Grain",
+        "emoji": "\U0001f33e",
+        "tagline": "100% malted barley — one grain, infinite expression",
+        "body": [
+            "Single malt whisky is the purest expression of a single grain: 100% malted barley, distilled in copper pot stills at a single distillery. The 'single' refers to the distillery, not the barrel or batch. The 'malt' refers to the malting process — barley grains are soaked in water, allowed to germinate, then dried with hot air (or peat smoke) to convert their starches into fermentable sugars.",
+            "What makes single malt endlessly variable isn't the grain (it's always barley) but everything else: the water source, the yeast strain, the shape and size of the copper pot stills, the type of barrels used for aging, the warehouse conditions, and of course the climate. A Speyside malt aged in sherry casks tastes nothing like an Islay malt aged in bourbon barrels, despite both being 100% malted barley.",
+            "The peating question is crucial. Most single malts are unpeated — the barley is dried with hot air, producing a clean, grain-forward spirit. Peated malts dry the barley over burning peat, infusing it with smoky phenolic compounds measured in PPM (parts per million). Lightly peated: 10-20 ppm. Heavily peated: 40-55 ppm. Octomore: 300+ ppm.",
+        ],
+        "subcategories": [
+            {
+                "name": "Unpeated Malt",
+                "description": "Clean, elegant, showcasing fruit, floral, and wood character.",
+                "examples": ["Glenfiddich", "The Glenlivet", "The Macallan", "Glenmorangie"],
+            },
+            {
+                "name": "Lightly Peated",
+                "description": "10-25 ppm. A whisper of smoke adding depth without dominating.",
+                "examples": ["Highland Park", "Springbank", "Talisker", "Benromach"],
+            },
+            {
+                "name": "Heavily Peated",
+                "description": "40+ ppm. Bold, smoky, maritime — the Islay signature.",
+                "examples": ["Laphroaig", "Ardbeg", "Lagavulin", "Octomore"],
+            },
+        ],
+        "quick_facts": [
+            "100% malted barley is the only grain in single malt",
+            "Peat levels range from 0 ppm (unpeated) to 300+ ppm (Octomore)",
+            "Scotland, Japan, and Ireland are the three largest producers",
+            "Pot still distillation gives heavier, more flavorful spirit than column stills",
+        ],
+    },
+    {
+        "slug": "rye-grain",
+        "title": "Rye Whiskey Grain",
+        "emoji": "\U0001f336\ufe0f",
+        "tagline": "The spice that defines American whiskey's bold side",
+        "body": [
+            "Rye grain is the assertive counterpart to corn. Where corn brings sweetness and warmth, rye brings pepper, herbal dill, baking spice, and a dry, lingering finish. American rye whiskey must contain at least 51% rye grain, but many craft distillers push to 95-100% for maximum character.",
+            "The flavor profile of rye-heavy whiskeys is distinctly different from bourbon: less sweet, more savory, with herbal and spicy notes that remind some people of rye bread or caraway seeds. This dryness is what made rye the original spirit for classic cocktails like the Manhattan and the Sazerac — the grain's natural spice stands up to sweet vermouths and bitters in ways that softer corn-based spirits cannot.",
+            "Canadian 'rye' is a different tradition entirely. Most Canadian rye whisky uses rye as a flavoring component blended with lighter grain spirits, not as the majority grain. The name stuck from the 1800s when rye was the distinguishing ingredient. Canadian rye tends to be lighter, smoother, and sweeter than American rye — two very different drinks sharing one name.",
+        ],
+        "subcategories": [
+            {
+                "name": "American Rye (51-65%)",
+                "description": "Balanced rye with corn softening the spice. Approachable entry point.",
+                "examples": ["Rittenhouse 100", "Bulleit Rye", "Knob Creek Rye"],
+            },
+            {
+                "name": "High-Rye (95-100%)",
+                "description": "Intense, peppery, herbaceous. Maximum rye character.",
+                "examples": ["Whistlepig", "Alberta Premium Cask Strength", "Sagamore Spirit"],
+            },
+            {
+                "name": "Canadian Rye",
+                "description": "Rye as a flavoring grain in lighter blends. Smooth and accessible.",
+                "examples": ["Crown Royal Northern Harvest", "Lot No. 40", "Canadian Club 100% Rye"],
+            },
+        ],
+        "quick_facts": [
+            "American rye requires at least 51% rye grain by law",
+            "Rye grain contributes pepper, herbs, spice, and a dry finish",
+            "The original Manhattan was made with rye, not bourbon",
+            "Canadian 'rye' may contain very little actual rye grain",
+        ],
+    },
+    {
+        "slug": "wheat-whiskey",
+        "title": "Wheat Whiskey",
+        "emoji": "\U0001f33e",
+        "tagline": "Soft, sweet, and gentle — the whiskey world's velvet glove",
+        "body": [
+            "Wheat whiskey uses wheat as the majority grain (at least 51%), producing a spirit that's softer, sweeter, and more delicate than corn-based bourbon or spicy rye. Wheat whiskey is relatively rare as a standalone category, but wheat plays a crucial supporting role in wheated bourbons.",
+            "The character of wheat in whiskey is gentle: honeyed sweetness, bread-like softness, light vanilla, and a smooth, almost creamy mouthfeel. There's none of rye's spice or corn's heavy sweetness. If bourbon is a bear hug, wheat whiskey is a warm handshake.",
+            "Where wheat really shines is as a secondary grain in bourbon (wheated bourbon). Maker's Mark, Weller, and the legendary Pappy Van Winkle all replace rye with wheat, and the result is some of the most sought-after whiskey on earth. The wheat softens the corn's sweetness and eliminates the rye's bite, producing a seamless, approachable, dangerously drinkable spirit.",
+        ],
+        "subcategories": [
+            {
+                "name": "Straight Wheat Whiskey",
+                "description": "51%+ wheat as the primary grain. Rare but growing in craft circles.",
+                "examples": ["Bernheim Original", "Dry Fly Wheat Whiskey"],
+            },
+            {
+                "name": "Wheated Bourbon",
+                "description": "Bourbon using wheat instead of rye as secondary grain.",
+                "examples": ["Maker's Mark", "W.L. Weller", "Pappy Van Winkle"],
+            },
+        ],
+        "quick_facts": [
+            "Wheat whiskey requires at least 51% wheat grain",
+            "Wheat produces the softest, most approachable spirit of any grain",
+            "Wheated bourbons replace rye with wheat for a rounder flavor",
+            "Pappy Van Winkle is the most famous wheated bourbon expression",
+        ],
+    },
+    {
+        "slug": "corn-whiskey",
+        "title": "Corn Whiskey",
+        "emoji": "\U0001f33d",
+        "tagline": "The purest expression of America's native grain",
+        "body": [
+            "Corn whiskey is the most elemental American spirit — at least 80% corn, with minimal barrel influence. Unlike bourbon, corn whiskey doesn't require new charred oak barrels; it can be aged in used or uncharred barrels, or not aged at all. This lets the grain's natural sweetness dominate.",
+            "The flavor is raw, sweet, and grainy — think creamed corn, cornbread, buttered popcorn, and light caramel. Without the heavy char-barrel influence of bourbon, corn whiskey is lighter, sweeter, and more about grain character than wood character.",
+            "Historically, corn whiskey is the direct descendant of American moonshine — the clear, unaged spirit that Appalachian distillers made from the corn that grew abundantly in the hills. Today's commercial corn whiskeys range from white (unaged) to lightly aged expressions. Mellow Corn, a 4-year bottled-in-bond corn whiskey, has developed a cult following for its unique sweet, buttery profile.",
+        ],
+        "subcategories": [
+            {
+                "name": "White (Unaged) Corn",
+                "description": "Clear spirit straight from the still. Raw corn sweetness.",
+                "examples": ["Georgia Moon", "Midnight Moon", "Ole Smoky White Lightnin'"],
+            },
+            {
+                "name": "Aged Corn Whiskey",
+                "description": "Aged in used or uncharred barrels. Sweet and grain-forward.",
+                "examples": ["Mellow Corn", "Balcones Baby Blue"],
+            },
+        ],
+        "quick_facts": [
+            "Must contain at least 80% corn (vs. 51% for bourbon)",
+            "Does NOT require new charred oak barrels like bourbon does",
+            "Can be unaged — the most traditional American spirit style",
+            "Mellow Corn is the most famous aged corn whiskey expression",
+        ],
+    },
+    {
+        "slug": "blended-whiskey",
+        "title": "Blended Whiskey",
+        "emoji": "\U0001f943",
+        "tagline": "The art of combining grains and distillates for consistency and complexity",
+        "body": [
+            "Blended whiskey is the master blender's art form — combining distillates from different grains, different stills, and sometimes different distilleries to achieve a target flavor profile. The vast majority of whiskey sold worldwide is blended, from Johnnie Walker to Jameson to Crown Royal.",
+            "The typical blend combines malt whisky (made from malted barley in pot stills, more flavorful) with grain whisky (made from corn or wheat in column stills, lighter and cheaper to produce). The malt provides complexity, fruit, and weight; the grain provides smoothness, volume, and approachability. A great blend is greater than the sum of its parts.",
+            "Blended Scotch (Johnnie Walker, Chivas Regal, Dewar's) uses malt whiskies from multiple distilleries — each contributing a specific flavor note — married with grain whisky for balance. The master blender may work with 30-40 different component whiskies. Japanese blends (Hibiki, Nikka From the Barrel) follow a similar philosophy but typically use only whiskies from the parent company's own distilleries.",
+        ],
+        "subcategories": [
+            {
+                "name": "Blended Scotch",
+                "description": "Malt + grain whiskies from multiple Scottish distilleries.",
+                "examples": ["Johnnie Walker", "Chivas Regal", "Dewar's", "Monkey Shoulder"],
+            },
+            {
+                "name": "Blended Japanese",
+                "description": "Multiple spirit types from company-owned distilleries, balanced for harmony.",
+                "examples": ["Hibiki", "Nikka From the Barrel", "Suntory Toki"],
+            },
+            {
+                "name": "Blended Irish",
+                "description": "Pot still + grain whiskey, triple-distilled for smoothness.",
+                "examples": ["Jameson", "Tullamore D.E.W.", "Powers"],
+            },
+        ],
+        "quick_facts": [
+            "Over 90% of Scotch sold globally is blended, not single malt",
+            "Master blenders may combine 30-40 different component whiskies",
+            "Grain whisky from column stills provides the smooth, light base",
+            "Blended does not mean lower quality — Hibiki is a blended masterpiece",
+        ],
+    },
+]
+
+
 # ── Routes ────────────────────────────────────────────────────────────────────
 
 @router.get("/categories")
@@ -378,6 +725,9 @@ def list_distilleries():
             "category": d["category"],
             "emoji": d["emoji"],
             "tagline": d["tagline"],
+            "lat": d.get("lat"),
+            "lng": d.get("lng"),
+            "founded_year": d.get("founded_year"),
         }
         for d in DISTILLERIES
     ]
@@ -389,6 +739,54 @@ def get_distillery(slug: str):
     if not dist:
         raise HTTPException(status_code=404, detail=f"Distillery '{slug}' not found")
     return dist
+
+
+@router.get("/distilleries/{slug}/bottles")
+def get_distillery_bottles(
+    slug: str,
+    skip: int = Query(0, ge=0),
+    limit: int = Query(20, ge=1, le=100),
+    db: Session = Depends(get_db),
+):
+    """Return whiskeys from the database matching a distillery."""
+    dist = next((d for d in DISTILLERIES if d["slug"] == slug), None)
+    if not dist:
+        raise HTTPException(status_code=404, detail=f"Distillery '{slug}' not found")
+
+    # Match by distillery name (strip "The " prefix for flexibility)
+    search_name = dist["title"].removeprefix("The ")
+    q = db.query(models.Whiskey).filter(
+        models.Whiskey.distillery.ilike(f"%{search_name}%")
+    )
+    total = q.count()
+    whiskeys = q.order_by(models.Whiskey.rating_avg.desc()).offset(skip).limit(limit).all()
+    return {
+        "items": [schemas.WhiskeyRead.model_validate(w) for w in whiskeys],
+        "total": total,
+    }
+
+
+@router.get("/grains")
+def list_grains():
+    """Return all grain/mash bill taxonomy entries (summary)."""
+    return [
+        {
+            "slug": g["slug"],
+            "title": g["title"],
+            "emoji": g["emoji"],
+            "tagline": g["tagline"],
+        }
+        for g in GRAIN_TAXONOMY
+    ]
+
+
+@router.get("/grains/{slug}")
+def get_grain(slug: str):
+    """Return full detail for a grain/mash bill category."""
+    grain = next((g for g in GRAIN_TAXONOMY if g["slug"] == slug), None)
+    if not grain:
+        raise HTTPException(status_code=404, detail=f"Grain category '{slug}' not found")
+    return grain
 
 
 @router.get("/glossary")
