@@ -52,6 +52,18 @@ export default function Learn() {
         </div>
       </section>
       <section className="learn-section">
+        <h2>Rankings & Guides</h2>
+        <div className="learn-grid">
+          <Link to="/blog" className="learn-card">
+            <span className="learn-card-emoji">🏆</span>
+            <div className="learn-card-text">
+              <h3>Best Whiskeys</h3>
+              <p>Data-driven rankings built from real community ratings</p>
+            </div>
+          </Link>
+        </div>
+      </section>
+      <section className="learn-section">
         <h2>Reference</h2>
         <div className="learn-grid">
           <Link to="/learn/glossary" className="learn-card">

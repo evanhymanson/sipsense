@@ -53,6 +53,12 @@ def get_sitemap(db: Session = Depends(get_db)):
     for slug in DISTILLERY_SLUGS:
         _url(f"https://sipsense.ai/learn/distilleries/{slug}", "monthly", "0.7")
 
+    # Blog articles (auto-generated SEO content)
+    from .blog import ARTICLES as BLOG_ARTICLES
+    _url("https://sipsense.ai/blog", "weekly", "0.8")
+    for article in BLOG_ARTICLES:
+        _url(f"https://sipsense.ai/blog/{article['slug']}", "weekly", "0.7")
+
     # All whiskey detail pages (with images, ordered by popularity)
     whiskey_ids = (
         db.query(models.Whiskey.id)
