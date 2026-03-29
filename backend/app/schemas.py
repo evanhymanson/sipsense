@@ -701,3 +701,23 @@ class EmailPreferenceUpdate(BaseModel):
     re_engagement: bool | None = None
     onboarding_drip: bool | None = None
     marketing: bool | None = None
+
+
+# ── Admin ────────────────────────────────────────────────────────────────
+
+class WhiskeyAdminUpdate(BaseModel):
+    name: str | None = None
+    distillery: str | None = None
+    category: str | None = None
+    region: str | None = None
+    age: int | None = None
+    abv: float | None = None
+    price_usd: float | None = None
+    description: str | None = None
+    flavor_profile: str | None = None
+    image_url: str | None = None
+    upc: str | None = None
+
+
+class WhiskeyBatchClearImages(BaseModel):
+    whiskey_ids: list[int]

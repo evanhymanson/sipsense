@@ -67,7 +67,7 @@ if _ENV in ("staging", "production"):
     logging.root.setLevel(logging.INFO)
 
 from .database import engine, Base
-from .routers import whiskeys, recommendations, quiz, favorites, chat, learn, flights, gift, palate, compare, stores, auth, trending, pairings, collection, personality, blindtasting, daily, feed, social, ai_features, journal, sharecard, journeys, watchlist, discover, videos, affiliate, subscription, sponsored, analytics, matchscores, toplists, critics, userlists, taste_identity, streaks, challenges, email_prefs
+from .routers import whiskeys, recommendations, quiz, favorites, chat, learn, flights, gift, palate, compare, stores, auth, trending, pairings, collection, personality, blindtasting, daily, feed, social, ai_features, journal, sharecard, journeys, watchlist, discover, videos, affiliate, subscription, sponsored, analytics, matchscores, toplists, critics, userlists, taste_identity, streaks, challenges, email_prefs, admin
 
 logger = logging.getLogger(__name__)
 
@@ -243,7 +243,7 @@ app.include_router(taste_identity.router)
 app.include_router(streaks.router)
 app.include_router(challenges.router)
 app.include_router(email_prefs.router)
-
+app.include_router(admin.router)
 
 @app.get("/", tags=["health"])
 def root():
