@@ -272,6 +272,7 @@ a { color: inherit; text-decoration: none; }
 
 /* ── Whiskey card — vertical, bottle floating above card ─────────────── */
 .card {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
