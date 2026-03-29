@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useSearchParams, Link } from 'react-router-dom'
+import { Helmet } from 'react-helmet-async'
 import { api, isLoggedIn } from '../api/client'
 import { useToast } from '../components/Toast'
 import WhiskeyCard from '../components/WhiskeyCard'
@@ -390,6 +391,11 @@ export default function Browse() {
 
   return (
     <div className="page">
+      <Helmet>
+        <title>Browse Whiskeys | SipSense</title>
+        <meta name="description" content="Explore thousands of whiskeys with AI-powered recommendations. Filter by category, flavor, price, and more." />
+        <link rel="canonical" href="https://sipsense.ai/" />
+      </Helmet>
       {/* ── Hero ──────────────────────────────────────────── */}
       <div className="browse-hero">
         <div className="browse-hero-text">

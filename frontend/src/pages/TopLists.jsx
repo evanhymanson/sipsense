@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
+import { Helmet } from 'react-helmet-async'
 import { api } from '../api/client'
 import WhiskeyCard from '../components/WhiskeyCard'
 
@@ -25,6 +26,11 @@ function TopListIndex() {
 
   return (
     <div className="page">
+      <Helmet>
+        <title>Top Whiskey Lists | SipSense</title>
+        <meta name="description" content="Curated and community-driven whiskey rankings — discover the best bottles by category, price, and style." />
+        <link rel="canonical" href="https://sipsense.ai/lists" />
+      </Helmet>
       <h1>Top Lists</h1>
       <p className="page-subtitle">Curated and community-driven whiskey rankings</p>
       <div className="toplists-grid">
@@ -59,6 +65,11 @@ function TopListDetail({ slug }) {
 
   return (
     <div className="page">
+      <Helmet>
+        <title>{list.title} | SipSense</title>
+        {list.description && <meta name="description" content={list.description} />}
+        <link rel="canonical" href={`https://sipsense.ai/lists/${slug}`} />
+      </Helmet>
       <Link to="/lists" className="back-link">&larr; All Lists</Link>
       <h1>{list.image_emoji} {list.title}</h1>
       {list.description && <p className="page-subtitle">{list.description}</p>}
