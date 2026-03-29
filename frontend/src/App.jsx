@@ -30,6 +30,8 @@ const Learn = lazy(() => import('./pages/Learn'))
 const LearnCategory = lazy(() => import('./pages/LearnCategory'))
 const LearnDistillery = lazy(() => import('./pages/LearnDistillery'))
 const LearnGlossary = lazy(() => import('./pages/LearnGlossary'))
+const Blog = lazy(() => import('./pages/Blog'))
+const BlogArticle = lazy(() => import('./pages/BlogArticle'))
 
 function RequireAuth({ children }) {
   if (!isLoggedIn()) {
@@ -275,6 +277,8 @@ function AppShell() {
           <Route path="/learn/categories/:slug" element={<ErrorBoundary key="learn-cat"><LearnCategory /></ErrorBoundary>} />
           <Route path="/learn/distilleries/:slug" element={<ErrorBoundary key="learn-dist"><LearnDistillery /></ErrorBoundary>} />
           <Route path="/learn/glossary" element={<ErrorBoundary key="learn-gloss"><LearnGlossary /></ErrorBoundary>} />
+          <Route path="/blog" element={<ErrorBoundary key="blog"><Blog /></ErrorBoundary>} />
+          <Route path="/blog/:slug" element={<ErrorBoundary key="blog-article"><BlogArticle /></ErrorBoundary>} />
           {/* Auth-required routes */}
           <Route path="/discover" element={<RequireAuth><ErrorBoundary key="discover"><Discover /></ErrorBoundary></RequireAuth>} />
           <Route path="/me" element={<RequireAuth><ErrorBoundary key="profile"><Profile /></ErrorBoundary></RequireAuth>} />

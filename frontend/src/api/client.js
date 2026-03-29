@@ -451,6 +451,10 @@ export const api = {
   getDistillery: (slug) => request(`/learn/distilleries/${slug}`),
   getGlossary: () => request('/learn/glossary'),
 
+  // ── Blog ────────────────────────────────────────────────────────────
+  getBlogArticles: () => request('/blog/articles'),
+  getBlogArticle: (slug) => request(`/blog/articles/${slug}`),
+
   // ── Affiliate ──────────────────────────────────────────────────────────
   recordAffiliateClick: (body) =>
     request('/affiliate/click', { method: 'POST', body: JSON.stringify(body) }),
