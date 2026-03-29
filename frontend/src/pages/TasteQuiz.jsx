@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
+import { Helmet } from 'react-helmet-async'
 import { api, isLoggedIn } from '../api/client'
 import './TasteQuiz.css'
 
@@ -97,10 +98,6 @@ function buildQuizPayload(answers) {
 export default function TasteQuiz() {
   const navigate = useNavigate()
 
-  useEffect(() => {
-    if (!isLoggedIn()) navigate('/onboarding', { replace: true })
-  }, [navigate])
-
   const [step, setStep] = useState(0)
   const [answers, setAnswers] = useState({})
   const [selected, setSelected] = useState(null) // for brief highlight before advance
@@ -163,6 +160,10 @@ export default function TasteQuiz() {
   if (isResults) {
     return (
       <div className="taste-quiz">
+        <Helmet>
+          <title>Your Whiskey Recommendations | SipSense</title>
+          <meta name="description" content="Personalized whiskey recommendations based on your taste preferences." />
+        </Helmet>
         <div className="tq-card">
           <span className="tq-emoji">🥃</span>
           <h1 className="tq-results-title">Your Starter Bottles</h1>
@@ -217,8 +218,13 @@ export default function TasteQuiz() {
 
           {!loading && (
             <>
-              <button className="tq-cta" onClick={() => navigate('/')}>
-                Start Exploring
+              {!isLoggedIn() && (
+                <button className="tq-cta" onClick={() => navigate('/onboarding')}>
+                  Create Account to Save Your Profile
+                </button>
+              )}
+              <button className={isLoggedIn() ? 'tq-cta' : 'tq-retake'} onClick={() => navigate('/')}>
+                {isLoggedIn() ? 'Start Exploring' : 'Browse Without Signing Up'}
               </button>
               <button className="tq-retake" onClick={retake}>
                 Retake Quiz
@@ -235,6 +241,11 @@ export default function TasteQuiz() {
 
   return (
     <div className="taste-quiz">
+      <Helmet>
+        <title>Taste Quiz — Find Your Whiskey | SipSense</title>
+        <meta name="description" content="Answer 6 quick questions and get personalized whiskey recommendations matched to your taste preferences." />
+        <link rel="canonical" href="https://sipsense.ai/quiz" />
+      </Helmet>
       <div className="tq-card">
         {/* Progress dots */}
         <div className="tq-progress" role="progressbar" aria-valuenow={step + 1} aria-valuemin={1} aria-valuemax={totalQuestions} aria-label={`Step ${step + 1} of ${totalQuestions}`}>
