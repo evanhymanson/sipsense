@@ -1,7 +1,8 @@
 """Gap 13: E-Commerce marketplace scaffolding — cart and order infrastructure."""
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
+from sqlalchemy import func as sqlfunc
+from sqlalchemy.orm import Session, joinedload
 
 from .. import models, schemas
 from ..database import get_db
@@ -18,16 +19,16 @@ def get_cart(
     """Get user's shopping cart."""
     items = (
         db.query(models.CartItem)
+        .options(joinedload(models.CartItem.whiskey))
         .filter(models.CartItem.user_id == current_user.username)
         .all()
     )
     result = []
     for item in items:
-        whiskey = db.query(models.Whiskey).filter(models.Whiskey.id == item.whiskey_id).first()
-        if whiskey:
+        if item.whiskey:
             result.append({
                 "id": item.id,
-                "whiskey": schemas.WhiskeyRead.model_validate(whiskey),
+                "whiskey": schemas.WhiskeyRead.model_validate(item.whiskey),
                 "quantity": item.quantity,
                 "added_at": item.added_at,
             })
@@ -98,6 +99,7 @@ def create_order(
     """Convert cart to order. Marketplace is coming soon — this creates a pending order."""
     items = (
         db.query(models.CartItem)
+        .options(joinedload(models.CartItem.whiskey))
         .filter(models.CartItem.user_id == current_user.username)
         .all()
     )
@@ -110,8 +112,7 @@ def create_order(
     db.flush()  # get order.id
 
     for cart_item in items:
-        whiskey = db.query(models.Whiskey).filter(models.Whiskey.id == cart_item.whiskey_id).first()
-        price = (whiskey.price_usd or 0) if whiskey else 0
+        price = (cart_item.whiskey.price_usd or 0) if cart_item.whiskey else 0
         order_item = models.OrderItem(
             order_id=order.id,
             whiskey_id=cart_item.whiskey_id,
@@ -146,14 +147,26 @@ def get_orders(
         .limit(50)
         .all()
     )
-    result = []
-    for order in orders:
-        items = db.query(models.OrderItem).filter(models.OrderItem.order_id == order.id).all()
-        result.append({
+    if not orders:
+        return []
+
+    # Batch-load item counts for all orders in a single query
+    order_ids = [o.id for o in orders]
+    count_rows = (
+        db.query(models.OrderItem.order_id, sqlfunc.count(models.OrderItem.id))
+        .filter(models.OrderItem.order_id.in_(order_ids))
+        .group_by(models.OrderItem.order_id)
+        .all()
+    )
+    item_counts = {oid: cnt for oid, cnt in count_rows}
+
+    return [
+        {
             "id": order.id,
             "status": order.status,
             "total_usd": order.total_usd,
-            "item_count": len(items),
+            "item_count": item_counts.get(order.id, 0),
             "created_at": order.created_at,
-        })
-    return result
+        }
+        for order in orders
+    ]

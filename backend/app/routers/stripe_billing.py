@@ -142,21 +142,29 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
     if existing:
         return JSONResponse({"status": "already_processed"})
 
+    # Record the event first so retries won't reprocess it
     db.add(models.StripeEvent(event_id=event["id"], event_type=event["type"]))
+    db.commit()
 
     event_type = event["type"]
     data = event["data"]["object"]
 
-    if event_type == "checkout.session.completed":
-        _handle_checkout_complete(data, db)
-    elif event_type == "customer.subscription.updated":
-        _handle_subscription_updated(data, db)
-    elif event_type == "customer.subscription.deleted":
-        _handle_subscription_deleted(data, db)
-    else:
-        logger.info("Unhandled Stripe event: %s", event_type)
+    try:
+        if event_type == "checkout.session.completed":
+            _handle_checkout_complete(data, db)
+        elif event_type == "customer.subscription.updated":
+            _handle_subscription_updated(data, db)
+        elif event_type == "customer.subscription.deleted":
+            _handle_subscription_deleted(data, db)
+        else:
+            logger.info("Unhandled Stripe event: %s", event_type)
 
-    db.commit()
+        db.commit()
+    except Exception:
+        db.rollback()
+        logger.exception("Failed to process Stripe event %s (%s)", event["id"], event_type)
+        raise
+
     return JSONResponse({"status": "ok"})
 
 

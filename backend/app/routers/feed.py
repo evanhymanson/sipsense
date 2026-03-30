@@ -1,7 +1,7 @@
 """Activity feed: paginated global timeline of check-ins."""
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session, contains_eager, joinedload
 from typing import Optional
 
 from .. import models, schemas
@@ -22,7 +22,6 @@ def get_feed(
 ):
     query = (
         db.query(models.UserRating)
-        .options(joinedload(models.UserRating.whiskey))
         .order_by(models.UserRating.created_at.desc())
     )
 
@@ -38,9 +37,14 @@ def get_feed(
 
     if category:
         cat_safe = category.replace("%", "\\%").replace("_", "\\_")
-        query = query.join(models.Whiskey).filter(
+        # Use contains_eager so the explicit join also populates the relationship
+        query = query.join(models.Whiskey).options(
+            contains_eager(models.UserRating.whiskey)
+        ).filter(
             models.Whiskey.category.ilike(f"%{cat_safe}%")
         )
+    else:
+        query = query.options(joinedload(models.UserRating.whiskey))
 
     ratings = query.offset(skip).limit(limit + 1).all()
     has_more = len(ratings) > limit
