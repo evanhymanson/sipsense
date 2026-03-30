@@ -30,7 +30,7 @@ class TestWhiskeyVector:
     def test_vector_dimensions(self):
         w = _make_whiskey()
         vec = _whiskey_vector(w)
-        expected = len(CATEGORIES) + 3 + len(FLAVOR_TAGS)  # categories + abv/age/price + flavors
+        expected = len(CATEGORIES) + 5 + len(FLAVOR_TAGS)  # categories + abv/age/price/flavor_x/flavor_y + flavors
         assert len(vec) == expected
 
     def test_vector_normalized(self):
@@ -73,7 +73,7 @@ class TestQuizVector:
         )
         vec = _quiz_vector(answers)
         # Find smoky/peaty indices
-        flavor_start = len(CATEGORIES) + 3
+        flavor_start = len(CATEGORIES) + 5
         smoky_idx = flavor_start + FLAVOR_TAGS.index("smoky")
         peaty_idx = flavor_start + FLAVOR_TAGS.index("peaty")
         # These should have high values (=1.0 before normalization)

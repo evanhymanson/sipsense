@@ -30,9 +30,9 @@ def _profile_from_ratings(ratings) -> dict:
         cat = (r.whiskey.category or "unknown").lower()
         category_data.setdefault(cat, []).append(r.score)
 
-        profile = (r.whiskey.flavor_profile or "").lower()
+        profile_tags = {t.strip().lower() for t in (r.whiskey.flavor_profile or "").split(",")}
         for tag in FLAVOR_TAGS:
-            if tag in profile:
+            if tag in profile_tags:
                 flavor_counts[tag] = flavor_counts.get(tag, 0) + 1
 
     if not vectors:

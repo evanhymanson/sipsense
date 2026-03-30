@@ -29,11 +29,15 @@ _SIMILAR_TTL = 600  # 10 minutes
 _SIMILAR_MAX = 300
 
 
-# Features used to build the whiskey content vector
+# Features used to build the whiskey content vector.
+# Aligned with generate_flavor_profiles.py VALID_FLAVORS (adjective forms).
 FLAVOR_TAGS = [
     "smoky", "peaty", "sweet", "fruity", "floral", "spicy",
     "vanilla", "caramel", "honey", "oak", "nutty", "citrus",
     "chocolate", "leather", "herbal", "grain",
+    "cherry", "apple", "pepper", "cinnamon", "toffee",
+    "butterscotch", "maple", "tobacco", "brine", "mint",
+    "coffee", "malty", "earthy", "coconut",
 ]
 
 CATEGORIES = ["bourbon", "scotch", "irish", "japanese", "rye", "canadian", "single malt", "blended"]
@@ -52,9 +56,13 @@ def _whiskey_vector(whiskey: models.Whiskey) -> np.ndarray:
     vec.append(min((whiskey.age or 10) / 30.0, 1.0))
     vec.append(min((whiskey.price_usd or 50.0) / 300.0, 1.0))
 
-    # Flavor profile one-hot
-    profile = (whiskey.flavor_profile or "").lower()
-    vec += [1.0 if tag in profile else 0.0 for tag in FLAVOR_TAGS]
+    # Flavor coordinates: Sweet(0)↔Smoky(100) and Light(0)↔Bold(100)
+    vec.append((whiskey.flavor_x if whiskey.flavor_x is not None else 50) / 100.0)
+    vec.append((whiskey.flavor_y if whiskey.flavor_y is not None else 50) / 100.0)
+
+    # Flavor profile one-hot (tokenize to avoid substring false positives)
+    profile_tags = {t.strip().lower() for t in (whiskey.flavor_profile or "").split(",")}
+    vec += [1.0 if tag in profile_tags else 0.0 for tag in FLAVOR_TAGS]
 
     arr = np.array(vec, dtype=np.float32)
     norm = np.linalg.norm(arr)
@@ -93,15 +101,20 @@ def content_based_recommendations(
         db.query(models.Whiskey).filter(models.Whiskey.id.in_(liked_ids)).all()
         if liked_ids else []
     )
-    centroid = np.mean([_whiskey_vector(w) for w in liked_whiskeys], axis=0)
+    # Weight by rating score so 5-star ratings pull centroid more than 3.5-star
+    liked_score_map = {r.whiskey_id: r.score for r in liked_ratings}
+    vecs = [_whiskey_vector(w) for w in liked_whiskeys]
+    weights = np.array([liked_score_map.get(w.id, 3.5) for w in liked_whiskeys], dtype=np.float32)
+    centroid = np.average(vecs, axis=0, weights=weights) if vecs else np.zeros(len(CATEGORIES) + 5 + len(FLAVOR_TAGS))
 
     # SQL prefilter: match on liked categories + flavor keywords
     liked_cats = list({(w.category or "").lower() for w in liked_whiskeys if w.category})
     flavor_tokens = []
     for w in liked_whiskeys:
         if w.flavor_profile:
+            w_tags = {t.strip().lower() for t in w.flavor_profile.split(",")}
             for tag in FLAVOR_TAGS:
-                if tag in (w.flavor_profile or "").lower():
+                if tag in w_tags:
                     flavor_tokens.append(tag)
     top_flavor_tokens = list(dict.fromkeys(flavor_tokens))[:5]  # dedupe, keep order
 
@@ -127,10 +140,23 @@ def content_based_recommendations(
         candidates = broad_q.limit(_MAX_CANDIDATES).all()
 
     # Score candidates by cosine similarity to centroid
-    scored = [(w, float(np.dot(_whiskey_vector(w), centroid))) for w in candidates]
-    scored.sort(key=lambda x: x[1], reverse=True)
+    scored = [(w, _whiskey_vector(w), float(np.dot(_whiskey_vector(w), centroid)))
+              for w in candidates]
+    scored.sort(key=lambda x: x[2], reverse=True)
 
-    return scored[:top_n]
+    # Diversify with MMR: avoid recommending near-identical bottles
+    selected: list[tuple[models.Whiskey, float]] = []
+    selected_vecs: list[np.ndarray] = []
+    for w, vec, score in scored:
+        if len(selected) >= top_n:
+            break
+        # Skip if too similar to an already-selected result
+        if selected_vecs and max(float(np.dot(vec, sv)) for sv in selected_vecs) > 0.95:
+            continue
+        selected.append((w, score))
+        selected_vecs.append(vec)
+
+    return selected
 
 
 # ── Quiz recommendations ────────────────────────────────────────────────────
@@ -153,12 +179,13 @@ def _quiz_vector(answers) -> np.ndarray:
     """Build a normalized target vector from quiz answers."""
     vec = []
 
-    # Category — full weight if preference given, neutral (0.5) if "any"
+    # Category — full weight if preference given, zero if "any" (so category
+    # doesn't influence scoring when user has no preference)
     if answers.style and answers.style != "any":
         cat = answers.style.lower()
         vec += [1.0 if cat == c else 0.0 for c in CATEGORIES]
     else:
-        vec += [0.5] * len(CATEGORIES)
+        vec += [0.0] * len(CATEGORIES)
 
     # ABV
     abv = _BODY_ABV.get(answers.body, 46.0)
@@ -170,6 +197,12 @@ def _quiz_vector(answers) -> np.ndarray:
     # Price
     price = _BUDGET_PRICE.get(answers.budget, 55.0)
     vec.append(min(price / 300.0, 1.0))
+
+    # Flavor coordinates: map smokiness→flavor_x, body→flavor_y
+    smoky_x = {"none": 0.1, "light": 0.4, "heavy": 0.85}.get(answers.smokiness, 0.5)
+    body_y = {"light": 0.25, "medium": 0.5, "full": 0.8}.get(answers.body, 0.5)
+    vec.append(smoky_x)
+    vec.append(body_y)
 
     # Flavor tags — smokiness drives smoky/peaty; everything else from flavors list
     smoky_val = {"none": 0.0, "light": 0.5, "heavy": 1.0}.get(answers.smokiness, 0.0)
@@ -202,12 +235,13 @@ def _generate_reason(whiskey: models.Whiskey, answers) -> str:
         parts.append(f"a {cat}")
 
     # Flavor overlap (show up to 3 matching tags)
-    matched = [f for f in (answers.flavors or []) if f.lower() in profile]
+    profile_tags = {t.strip().lower() for t in profile.split(",")}
+    matched = [f for f in (answers.flavors or []) if f.lower() in profile_tags]
     if matched:
         parts.append(f"with {', '.join(matched[:3])} notes you'll love")
 
     # Smokiness
-    is_smoky = "smoky" in profile or "peaty" in profile
+    is_smoky = "smoky" in profile_tags or "peaty" in profile_tags
     if answers.smokiness == "heavy" and is_smoky:
         parts.append("bringing the peat you're after")
     elif answers.smokiness == "none" and not is_smoky:
