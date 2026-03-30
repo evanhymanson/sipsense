@@ -37,6 +37,11 @@ def _get_taste_vector(username: str, db: Session) -> dict:
     return profile
 
 
+def invalidate_taste_cache(username: str):
+    """Clear cached taste vector for a user (e.g. after they rate a whiskey)."""
+    _taste_cache.pop(username, None)
+
+
 @router.post("/batch")
 def batch_match_scores(
     whiskey_ids: list[int],
@@ -67,6 +72,6 @@ def batch_match_scores(
     for w in whiskeys:
         w_vec = _whiskey_vector(w)
         sim = cosine_similarity(user_vec, w_vec)
-        scores[w.id] = max(0, min(100, int(sim * 100)))
+        scores[w.id] = max(0, min(100, round(sim * 100)))
 
     return {"scores": scores, "has_profile": True}

@@ -64,13 +64,9 @@ def _score_whiskey(whiskey: models.Whiskey, archetype: dict) -> float:
         base -= 0.3
 
     # Flavor overlap bonus
-    profile = (whiskey.flavor_profile or "").lower()
-    matches = sum(1 for f in archetype["flavors"] if f in profile)
+    profile_tags = {t.strip().lower() for t in (whiskey.flavor_profile or "").split(",")}
+    matches = sum(1 for f in archetype["flavors"] if f in profile_tags)
     base += matches * 0.25
-
-    # Rating reputation signal
-    if whiskey.rating_avg and whiskey.rating_avg > 0:
-        base += (whiskey.rating_avg - 3.0) * 0.3
 
     # Budget archetype penalizes expensive bottles
     if archetype["name"] == "budget_explorer" and whiskey.price_usd and whiskey.price_usd > 60:
@@ -173,13 +169,25 @@ def train(
         n_items = len(item2idx)
         print(f"Index space: {n_users} users, {n_items} items")
 
-        # 2. Build tensors
-        user_indices = torch.LongTensor([user2idx[r[0]] for r in ratings])
-        item_indices = torch.LongTensor([item2idx[r[1]] for r in ratings])
-        scores = torch.FloatTensor([r[2] for r in ratings])
+        # 2. Train/val split (80/20) for honest evaluation
+        random.shuffle(ratings)
+        split = int(len(ratings) * 0.8)
+        train_ratings = ratings[:split]
+        val_ratings = ratings[split:]
+        print(f"Split: {len(train_ratings)} train, {len(val_ratings)} val")
 
-        dataset = TensorDataset(user_indices, item_indices, scores)
+        # Build tensors for train set
+        train_users = torch.LongTensor([user2idx[r[0]] for r in train_ratings])
+        train_items = torch.LongTensor([item2idx[r[1]] for r in train_ratings])
+        train_scores = torch.FloatTensor([r[2] for r in train_ratings])
+
+        dataset = TensorDataset(train_users, train_items, train_scores)
         loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
+
+        # Build tensors for val set (only for ratings where user+item exist in maps)
+        val_users = torch.LongTensor([user2idx[r[0]] for r in val_ratings])
+        val_items = torch.LongTensor([item2idx[r[1]] for r in val_ratings])
+        val_scores = torch.FloatTensor([r[2] for r in val_ratings])
 
         # 3. Build model
         model = NCFModel(
@@ -189,7 +197,7 @@ def train(
         )
 
         # Initialize global bias to mean rating for faster convergence
-        mean_rating = scores.mean().item()
+        mean_rating = train_scores.mean().item()
         with torch.no_grad():
             model.global_bias.fill_(mean_rating)
         print(f"Global bias initialized to mean rating: {mean_rating:.2f}")
@@ -197,11 +205,15 @@ def train(
         optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=1e-5)
         criterion = torch.nn.MSELoss()
 
-        # 4. Train
+        # 4. Train with early stopping
         print(f"\nTraining NCF model ({epochs} epochs, lr={lr}, batch_size={batch_size})")
         print("-" * 50)
 
-        best_loss = float("inf")
+        best_val_loss = float("inf")
+        patience = 5
+        patience_counter = 0
+        best_state = None
+
         for epoch in range(1, epochs + 1):
             model.train()
             epoch_loss = 0.0
@@ -216,21 +228,43 @@ def train(
                 epoch_loss += loss.item()
                 n_batches += 1
 
-            avg_loss = epoch_loss / n_batches
+            avg_train_loss = epoch_loss / n_batches
+
+            # Validation loss
+            model.eval()
+            with torch.no_grad():
+                val_preds = model(val_users, val_items)
+                val_loss = criterion(val_preds, val_scores).item()
+
             if epoch % 5 == 0 or epoch == 1:
-                print(f"  Epoch {epoch:3d}/{epochs}  loss={avg_loss:.4f}")
+                print(f"  Epoch {epoch:3d}/{epochs}  train_loss={avg_train_loss:.4f}  val_loss={val_loss:.4f}")
 
-            if avg_loss < best_loss:
-                best_loss = avg_loss
+            if val_loss < best_val_loss:
+                best_val_loss = val_loss
+                patience_counter = 0
+                best_state = {k: v.clone() for k, v in model.state_dict().items()}
+            else:
+                patience_counter += 1
+                if patience_counter >= patience:
+                    print(f"  Early stopping at epoch {epoch} (no val improvement for {patience} epochs)")
+                    break
 
-        # 5. Evaluate
+        # Restore best model
+        if best_state:
+            model.load_state_dict(best_state)
+
+        # 5. Evaluate on both sets
         model.eval()
         with torch.no_grad():
-            all_preds = model(user_indices, item_indices)
-            rmse = torch.sqrt(criterion(all_preds, scores)).item()
-            mae = torch.mean(torch.abs(all_preds - scores)).item()
+            train_preds = model(train_users, train_items)
+            train_rmse = torch.sqrt(criterion(train_preds, train_scores)).item()
+            val_preds = model(val_users, val_items)
+            val_rmse = torch.sqrt(criterion(val_preds, val_scores)).item()
+            val_mae = torch.mean(torch.abs(val_preds - val_scores)).item()
 
-        print(f"\nFinal metrics: RMSE={rmse:.4f}, MAE={mae:.4f}")
+        rmse = val_rmse
+        mae = val_mae
+        print(f"\nFinal metrics: train_RMSE={train_rmse:.4f}, val_RMSE={val_rmse:.4f}, val_MAE={val_mae:.4f}")
 
         # 6. Save model
         torch.save(model.state_dict(), MODEL_PATH)
@@ -261,7 +295,7 @@ def train(
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Train SipSense NCF recommender model")
     parser.add_argument("--epochs", type=int, default=20)
-    parser.add_argument("--lr", type=float, default=0.005)
+    parser.add_argument("--lr", type=float, default=0.001)
     parser.add_argument("--batch-size", type=int, default=256)
     parser.add_argument("--embedding-dim", type=int, default=32)
     parser.add_argument("--synthetic-only", action="store_true",

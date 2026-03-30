@@ -608,9 +608,11 @@ def rate_whiskey(
                  detail={"score": rating.score})
     db.commit()
 
-    # Invalidate cached recommendations so new rating is reflected
+    # Invalidate cached recommendations and taste vectors so new rating is reflected
     from .recommendations import invalidate_user_recs
+    from .matchscores import invalidate_taste_cache
     invalidate_user_recs(current_user.username)
+    invalidate_taste_cache(current_user.username)
 
     # Post-check-in insights
     from ..checkin_insights import generate_checkin_insights
