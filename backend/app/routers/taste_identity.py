@@ -154,7 +154,9 @@ def get_percentiles(
     if not user_counts:
         return {
             "total_rated_percentile": 0,
-            "category_rank": None,
+            "top_category": None,
+            "top_category_percentile": None,
+            "top_category_count": None,
             "diversity_score": 0,
             "total_users": 0,
         }
@@ -217,7 +219,9 @@ def get_percentiles(
 
     return {
         "total_rated_percentile": total_rated_percentile,
-        "category_rank": category_rank,
+        "top_category": category_rank["category"] if category_rank else None,
+        "top_category_percentile": category_rank["percentile"] if category_rank else None,
+        "top_category_count": category_rank["user_count_in_category"] if category_rank else None,
         "diversity_score": diversity_score,
         "total_users": total_users,
     }
