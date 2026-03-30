@@ -10,7 +10,7 @@ export default function Marketplace() {
   useEffect(() => {
     if (!isLoggedIn()) { setLoading(false); return }
     Promise.all([
-      api.getCart().catch(() => []),
+      api.getCart().then(r => r.items || []).catch(() => []),
       api.getOrders().catch(() => []),
     ]).then(([c, o]) => {
       setCart(c)
@@ -49,7 +49,7 @@ export default function Marketplace() {
                 {cart.map(item => (
                   <div key={item.id} className="cart-item">
                     <div className="cart-item-info">
-                      <strong>{item.whiskey_name}</strong>
+                      <strong>{item.whiskey?.name || 'Unknown whiskey'}</strong>
                       <span className="cart-qty">Qty: {item.quantity}</span>
                     </div>
                     <button className="btn-sm btn-danger" onClick={() => removeItem(item.id)}>Remove</button>

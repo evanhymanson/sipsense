@@ -111,7 +111,7 @@ def create_order(
 
     for cart_item in items:
         whiskey = db.query(models.Whiskey).filter(models.Whiskey.id == cart_item.whiskey_id).first()
-        price = whiskey.price_usd or 0 if whiskey else 0
+        price = (whiskey.price_usd or 0) if whiskey else 0
         order_item = models.OrderItem(
             order_id=order.id,
             whiskey_id=cart_item.whiskey_id,

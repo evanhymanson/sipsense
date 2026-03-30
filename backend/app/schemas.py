@@ -826,7 +826,10 @@ class VoteCreate(BaseModel):
 
 class OAuthLoginRequest(BaseModel):
     provider: str  # google, apple
-    id_token: str
+    token: str  # OAuth ID token
+    oauth_id: str  # Provider's unique user ID
+    email: str | None = None
+    username: str | None = None
 
 
 # ── E-Commerce Marketplace (Gap 13) ──────────────────────────────────────
