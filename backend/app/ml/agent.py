@@ -6,6 +6,7 @@ Tools call the existing DB and recommender infrastructure directly.
 """
 
 import json
+import logging
 import math
 import os
 from collections import Counter
@@ -28,6 +29,8 @@ from ..database import SessionLocal
 from .. import models
 from ..schemas import QuizAnswers
 from .recommender import similar_whiskeys, quiz_recommendations
+
+logger = logging.getLogger(__name__)
 
 
 def _escape_like(s: str) -> str:
@@ -155,7 +158,7 @@ def search_whiskeys(
             q = q.filter(models.Whiskey.price_usd >= min_price)
         if max_price and max_price > 0:
             q = q.filter(
-                (models.Whiskey.price_usd <= max_price) | (models.Whiskey.price_usd == None)
+                (models.Whiskey.price_usd <= max_price) | (models.Whiskey.price_usd.is_(None))
             )
         if min_rating and min_rating > 0:
             q = q.filter(models.Whiskey.rating_avg >= min_rating)
@@ -275,7 +278,7 @@ def get_database_stats() -> str:
 
         region_rows = (
             db.query(models.Whiskey.region, sqlfunc.count(models.Whiskey.id))
-            .filter(models.Whiskey.region != None, models.Whiskey.region != "")
+            .filter(models.Whiskey.region.isnot(None), models.Whiskey.region != "")
             .group_by(models.Whiskey.region)
             .order_by(sqlfunc.count(models.Whiskey.id).desc())
             .limit(15)
@@ -287,7 +290,7 @@ def get_database_stats() -> str:
             sqlfunc.min(models.Whiskey.price_usd),
             sqlfunc.max(models.Whiskey.price_usd),
             sqlfunc.avg(models.Whiskey.price_usd),
-        ).filter(models.Whiskey.price_usd != None).first()
+        ).filter(models.Whiskey.price_usd.isnot(None)).first()
 
         avg_rating_row = db.query(sqlfunc.avg(models.Whiskey.rating_avg)).scalar()
 
@@ -336,7 +339,7 @@ def get_top_rated(
             q = q.filter(models.Whiskey.region.ilike(f"%{_escape_like(region)}%"))
         if max_price and max_price > 0:
             q = q.filter(
-                (models.Whiskey.price_usd <= max_price) | (models.Whiskey.price_usd == None)
+                (models.Whiskey.price_usd <= max_price) | (models.Whiskey.price_usd.is_(None))
             )
         cap = min(int(limit), _MAX_TOOL_RESULTS)
         results = (
@@ -456,9 +459,9 @@ def find_value_picks(
         q = (
             db.query(models.Whiskey)
             .filter(
-                models.Whiskey.price_usd != None,
+                models.Whiskey.price_usd.isnot(None),
                 models.Whiskey.price_usd > 0,
-                models.Whiskey.rating_avg != None,
+                models.Whiskey.rating_avg.isnot(None),
                 models.Whiskey.rating_avg > 0,
             )
         )
@@ -514,7 +517,7 @@ def build_tasting_flight(
     try:
         count = max(3, min(int(count), 5))
         price_filter = (
-            [(models.Whiskey.price_usd <= max_price_per_bottle) | (models.Whiskey.price_usd == None)]
+            [(models.Whiskey.price_usd <= max_price_per_bottle) | (models.Whiskey.price_usd.is_(None))]
             if max_price_per_bottle and max_price_per_bottle > 0 else []
         )
 
@@ -719,7 +722,7 @@ def get_by_occasion(occasion: str, budget: float = 0.0) -> str:
             q = q.filter(models.Whiskey.abv <= max_abv)
         if effective_budget > 0:
             q = q.filter(
-                (models.Whiskey.price_usd <= effective_budget) | (models.Whiskey.price_usd == None)
+                (models.Whiskey.price_usd <= effective_budget) | (models.Whiskey.price_usd.is_(None))
             )
         results = q.order_by(models.Whiskey.rating_avg.desc()).limit(6).all()
 
@@ -1308,7 +1311,7 @@ def create_learning_path(goal: str, budget_per_bottle: float = 0.0) -> str:
                 q = q.filter(models.Whiskey.region.ilike(f"%{_escape_like(region)}%"))
             if price_cap > 0:
                 q = q.filter(
-                    (models.Whiskey.price_usd <= price_cap) | (models.Whiskey.price_usd == None)
+                    (models.Whiskey.price_usd <= price_cap) | (models.Whiskey.price_usd.is_(None))
                 )
             if seen_ids:
                 q = q.filter(~models.Whiskey.id.in_(seen_ids))
@@ -1486,8 +1489,8 @@ def _geocode_place(place_name: str):
             results = resp.json()
             if results:
                 return float(results[0]["lat"]), float(results[0]["lon"])
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning("Geocoding failed for %r: %s", place_name, e)
     return None
 
 
@@ -1632,8 +1635,8 @@ def find_nearby_stores(
                             shop_type=tags.get("shop", "alcohol"),
                         ))
                 db.commit()
-            except Exception:
-                pass  # Overpass failed — return empty
+            except Exception as e:
+                logger.warning("Overpass API failed for (%s, %s): %s", lat, lng, e)
 
         stores_data.sort(key=lambda s: s["distance_m"])
         stores_data = stores_data[:15]
@@ -1764,7 +1767,7 @@ def find_cheaper_alternatives(whiskey_name: str, max_results: int = 5) -> str:
         # Find similar whiskeys that cost less
         q = db.query(models.Whiskey).filter(
             models.Whiskey.id != target.id,
-            models.Whiskey.price_usd != None,
+            models.Whiskey.price_usd.isnot(None),
             models.Whiskey.price_usd > 0,
             models.Whiskey.price_usd < target.price_usd,
             models.Whiskey.rating_avg >= max(target.rating_avg - 0.5, 3.0),
@@ -1778,7 +1781,7 @@ def find_cheaper_alternatives(whiskey_name: str, max_results: int = 5) -> str:
             # Fall back to any category
             results = db.query(models.Whiskey).filter(
                 models.Whiskey.id != target.id,
-                models.Whiskey.price_usd != None,
+                models.Whiskey.price_usd.isnot(None),
                 models.Whiskey.price_usd < target.price_usd,
                 models.Whiskey.rating_avg >= 3.5,
             ).order_by(models.Whiskey.rating_avg.desc()).limit(max_results).all()
