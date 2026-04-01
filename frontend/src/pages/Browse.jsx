@@ -151,6 +151,7 @@ export default function Browse() {
   const [nextBottle, setNextBottle] = useState(null)
   const [nextBottleLinks, setNextBottleLinks] = useState(null)
   const [nextBottleDismissed, setNextBottleDismissed] = useState(false)
+  const shownBottleIds = useRef(new Set())
 
   // Post-purchase follow-ups
   const [followups, setFollowups] = useState([])
@@ -207,6 +208,7 @@ export default function Browse() {
     api.getExplainedRecommendations(1)
       .then(data => {
         if (data.length > 0) {
+          shownBottleIds.current.add(data[0].whiskey.id)
           setNextBottle(data[0])
           return api.getBuyLinks(data[0].whiskey.id)
         }
@@ -219,14 +221,21 @@ export default function Browse() {
   }, [])
 
   function refreshNextBottle() {
+    const currentId = nextBottle?.whiskey?.id
+    if (currentId) shownBottleIds.current.add(currentId)
     setNextBottle(null)
     setNextBottleLinks(null)
-    api.getExplainedRecommendations(3)
+    api.getExplainedRecommendations(8)
       .then(data => {
-        const alt = data.find(d => d.whiskey.id !== nextBottle?.whiskey?.id) || data[0]
-        if (alt) {
-          setNextBottle(alt)
-          return api.getBuyLinks(alt.whiskey.id).then(links => setNextBottleLinks(links))
+        let pick = data.find(d => !shownBottleIds.current.has(d.whiskey.id))
+        if (!pick) {
+          shownBottleIds.current.clear()
+          pick = data.find(d => d.whiskey.id !== currentId) || data[0]
+        }
+        if (pick) {
+          shownBottleIds.current.add(pick.whiskey.id)
+          setNextBottle(pick)
+          return api.getBuyLinks(pick.whiskey.id).then(links => setNextBottleLinks(links))
         }
       })
       .catch(() => setNextBottleDismissed(true))
