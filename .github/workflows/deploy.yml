@@ -13,6 +13,11 @@ on:
         options:
           - production
 
+# Only one deploy at a time — newer pushes cancel in-progress deploys
+concurrency:
+  group: deploy-production
+  cancel-in-progress: true
+
 jobs:
   # Run tests before any deploy
   test:
