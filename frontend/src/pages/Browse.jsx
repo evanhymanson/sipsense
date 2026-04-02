@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef } from 'react'
 import { useSearchParams, Link } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
 import { api, isLoggedIn } from '../api/client'
@@ -10,20 +10,68 @@ import { WHISKEY_CATEGORIES, getCategoryEmoji } from '../constants'
 
 function Marquee({ children, reverse }) {
   const outerRef = useRef(null)
-  const trackRef = useRef(null)
   const dragging = useRef(false)
   const didDrag = useRef(false)
   const startX = useRef(0)
   const scrollStart = useRef(0)
+  const pausedRef = useRef(false)
+  const rafRef = useRef(null)
+  const lastTime = useRef(null)
   const [paused, setPaused] = useState(false)
   const [progress, setProgress] = useState(0)
+
+  // Keep ref in sync with state so rAF loop reads latest value
+  useEffect(() => { pausedRef.current = paused }, [paused])
+
+  const getHalfWidth = useCallback(() => {
+    const el = outerRef.current
+    return el ? el.scrollWidth / 2 : 0
+  }, [])
 
   const updateProgress = useCallback(() => {
     const el = outerRef.current
     if (!el) return
-    const max = el.scrollWidth - el.clientWidth
-    if (max > 0) setProgress(el.scrollLeft / max)
+    const half = el.scrollWidth / 2
+    if (half > 0) setProgress(Math.min(1, Math.max(0, el.scrollLeft / half)))
   }, [])
+
+  // Set initial scroll position for reverse marquee
+  useLayoutEffect(() => {
+    if (reverse && outerRef.current) {
+      outerRef.current.scrollLeft = outerRef.current.scrollWidth / 2
+    }
+  }, [reverse, children])
+
+  // requestAnimationFrame-driven auto-scroll
+  useEffect(() => {
+    const el = outerRef.current
+    if (!el) return
+
+    const tick = (now) => {
+      rafRef.current = requestAnimationFrame(tick)
+      if (lastTime.current === null) { lastTime.current = now; return }
+      if (pausedRef.current) { lastTime.current = now; return }
+
+      const dt = now - lastTime.current
+      lastTime.current = now
+      const half = el.scrollWidth / 2
+      if (half <= 0) return
+
+      const speed = half / 30000 // pixels per ms (30s full cycle)
+
+      if (reverse) {
+        el.scrollLeft -= speed * dt
+        if (el.scrollLeft <= 0) el.scrollLeft += half
+      } else {
+        el.scrollLeft += speed * dt
+        if (el.scrollLeft >= half) el.scrollLeft -= half
+      }
+      updateProgress()
+    }
+
+    rafRef.current = requestAnimationFrame(tick)
+    return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current) }
+  }, [reverse, updateProgress])
 
   const onPointerDown = useCallback((e) => {
     dragging.current = true
@@ -38,10 +86,12 @@ function Marquee({ children, reverse }) {
     const dx = e.clientX - startX.current
     if (Math.abs(dx) > 5) {
       didDrag.current = true
-      outerRef.current.scrollLeft = scrollStart.current - dx
+      const half = getHalfWidth()
+      const raw = scrollStart.current - dx
+      outerRef.current.scrollLeft = Math.max(0, Math.min(raw, half))
       updateProgress()
     }
-  }, [updateProgress])
+  }, [getHalfWidth, updateProgress])
 
   const onPointerUp = useCallback(() => {
     dragging.current = false
@@ -55,17 +105,8 @@ function Marquee({ children, reverse }) {
     }
   }, [])
 
-  // Sync scroll position from CSS animation transform into scrollLeft when not dragging
-  useEffect(() => {
-    const el = outerRef.current
-    if (!el) return
-    const onScroll = () => updateProgress()
-    el.addEventListener('scroll', onScroll, { passive: true })
-    return () => el.removeEventListener('scroll', onScroll)
-  }, [updateProgress])
-
   return (
-    <div className={`browse-marquee${reverse ? ' browse-marquee--reverse' : ''}`}>
+    <div className="browse-marquee">
       <div
         className="browse-marquee-scroll"
         ref={outerRef}
@@ -77,10 +118,7 @@ function Marquee({ children, reverse }) {
         onMouseEnter={() => setPaused(true)}
         onMouseLeave={() => { if (!dragging.current) setPaused(false) }}
       >
-        <div
-          className={`browse-marquee-track${paused ? ' browse-marquee-track--paused' : ''}`}
-          ref={trackRef}
-        >
+        <div className="browse-marquee-track">
           {children}
         </div>
       </div>
@@ -197,9 +235,12 @@ export default function Browse() {
     api.getWhiskeyCount().then(r => setHeroCount(r.count)).catch(() => {})
     Promise.all([
       api.getTrending({ limit: 8 }).catch(() => []),
-      api.getNewArrivals(8).catch(() => []),
-    ]).then(([t, n]) => { setTrending(t); setNewArrivals(n) })
-      .catch(() => {})
+      api.getNewArrivals(12).catch(() => []),
+    ]).then(([t, n]) => {
+      const trendingIds = new Set(t.map(w => w.id))
+      setTrending(t)
+      setNewArrivals(n.filter(w => !trendingIds.has(w.id)).slice(0, 8))
+    }).catch(() => {})
   }, [])
 
   // Load personalized "Your Next Bottle" + follow-ups for logged-in users
