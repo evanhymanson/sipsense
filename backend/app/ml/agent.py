@@ -1594,7 +1594,7 @@ def find_nearby_stores(
                 f'out center body;'
             )
             try:
-                with httpx.Client(timeout=12.0) as client:
+                with httpx.Client(timeout=8.0) as client:
                     resp = client.post(
                         "https://overpass-api.de/api/interpreter",
                         data={"data": overpass_query},
