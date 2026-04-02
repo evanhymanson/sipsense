@@ -161,6 +161,48 @@ PRICE_CORRECTIONS_BY_ID: dict[int, float] = {
     5249: 300.0,    # Royal Salute 21 Year Jodhpur Polo Edition
     8356: 85.0,     # Glenlivet 18 YO Single Malt Batch Reserve
 
+    # ── EXTREME DISCREPANCIES: verified against current market ─────
+    # DB price too low (estimated prices that are absurdly cheap)
+    3778: 4800.0,    # Glenglassaugh 46 Year (was $52 — only 215 bottles exist)
+    2793: 500.0,     # Kavalan Amontillado Single Cask (was $50 — award-winning Taiwanese)
+    3341: 325.0,     # Balvenie Single Barrel 21 Year (was $39 — retail $285-350)
+    3275: 460.0,     # Balvenie The Second Red Rose 21 Year (was $58 — SRP $460)
+    3904: 375.0,     # Glenfiddich Grand Cru 23 Year (was $52 — retail $340-400)
+    4884: 150.0,     # Writers' Tears Cask Strength 2019 (was $26 — limited 3,780 bottles)
+    1649: 110.0,     # Glengoyne 15 Year Old (was $20 — retail $100-130)
+
+    # DB price too high (inflated estimates or wrong matches)
+    888: 2600.0,     # Balblair 1969 vintage (was $3,500 — rare but market is $2,500-2,800)
+    1365: 900.0,     # Auchentoshan 1977 vintage (was $607 — 1977 vintages go $800-1,200)
+    1204: 150.0,     # Ardbeg Kelpie (was $119 — limited edition secondary ~$150)
+    318: 85.0,       # The Feathery blended malt (was $66 — retail $68-115)
+    2078: 90.0,      # Highland Park Dark Origins (was $110 — discontinued, ~$90)
+    5360: 400.0,     # Eagle Rare 17 Year BTAC 2021 (was $150 — secondary $300-500)
+    8120: 60.0,      # Hinch 10 YO Irish Sherry Finish (was $85 — retail $55-65)
+    2020: 55.0,      # Compass Box The Spice Tree (was $97 — retail $49-65)
+    511: 55.0,       # Compass Box Spice Tree (was $97 — retail $49-65)
+    656: 145.0,      # Compass Box Delilah's (was $65 — limited edition $130-200)
+    8192: 35.0,      # Johnnie Walker Black Label (was $45 — retail $30-40)
+    252: 60.0,       # Compass Box The Peat Monster (was $85 — retail $50-70)
+    4459: 20.0,      # Ballantine's Finest (was $45 — budget blend $16-24)
+    437: 70.0,       # Clynelish 14 Year Old (was $96 — retail $62-77)
+
+    # ── REMAINING ESTIMATED: last displayed bottles still estimated ──
+    2788: 1500.0,    # Singleton of Glen Ord 1987 34 Year Prima & Ultima
+    3164: 3000.0,    # Fettercairn 40 Year (ultra-aged, very limited)
+    3333: 500.0,     # Bowmore Timeless Series 27 Year
+    3970: 2500.0,    # Talisker 1988 31 Year Prima & Ultima
+    3996: 200.0,     # Kilchoman ImpEx Cask Evolution 14 Year
+    5888: 4000.0,    # Elmer T. Lee 100 Year Tribute (collector — only 100 bottles)
+    2799: 3500.0,    # Port Ellen 37 Year (2017 Special Release)
+    3017: 150.0,     # Prometheus 27 Year (Glasgow Distillery)
+    3093: 3000.0,    # Port Ellen 32 Year 1983 (2015 Special Release)
+    4275: 800.0,     # Rosebank 31 Year (Release 2)
+    6090: 150.0,     # Legent Yamazaki Cask Finish Blend
+    1327: 400.0,     # Scott Selection Glen Grant 1973 26 Year
+    5123: 200.0,     # Hibiki Japanese Harmony (100th Anniversary Edition)
+    5077: 250.0,     # Johnnie Walker Blue Label Year of the Dog
+
     # ── WRONG "REAL" PRICES: Need correction ──────────────────────
     # These are marked price_is_estimated=0 but have clearly wrong values.
 
@@ -388,10 +430,10 @@ def verify_results(db: Session):
 
 
 def backup_db():
-    """Create a timestamped backup of the database."""
+    """Create a timestamped backup of the database (SQLite only)."""
     db_path = Path(__file__).resolve().parent.parent / "sipsense.db"
     if not db_path.exists():
-        log.warning("Database not found at %s, skipping backup", db_path)
+        log.info("No SQLite DB at %s (likely PostgreSQL) — skipping file backup", db_path)
         return
 
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")

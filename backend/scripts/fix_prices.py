@@ -142,7 +142,7 @@ CATEGORY_BASE_CAPS = {
     "indian":       400,
 }
 
-HARD_ESTIMATE_CAP = 5000.0  # No statistical estimate above this
+HARD_ESTIMATE_CAP = 2000.0  # No statistical estimate above this — anything higher needs hand-verification
 
 
 def get_price_cap(category: str, age: int | None) -> float:
@@ -160,84 +160,96 @@ def get_price_cap(category: str, age: int | None) -> float:
 # ── MSRP reference dictionary ──────────────────────────────────────────
 
 def _build_msrp_dict() -> dict[str, float]:
-    """Curated MSRP prices for popular whiskeys (750ml, USD)."""
+    """Curated prices for popular whiskeys (750ml, USD).
+
+    Pricing philosophy:
+      - Available bottles → current US retail
+      - Allocated/hard-to-find → secondary market price
+      - Discontinued/collector → auction/collector market value
+    """
     raw = {
-        # Bourbon
-        "Buffalo Trace": 27, "Eagle Rare 10": 35, "Blanton's Single Barrel": 65,
-        "Maker's Mark": 28, "Maker's Mark 46": 35, "Maker's Mark Cask Strength": 45,
-        "Woodford Reserve": 36, "Woodford Reserve Double Oaked": 55,
-        "Wild Turkey 101": 26, "Wild Turkey Rare Breed": 45,
-        "Bulleit Bourbon": 30, "Bulleit Rye": 30, "Bulleit 10 Year": 45,
+        # Bourbon — allocated (secondary market)
+        "Pappy Van Winkle 15 Year": 1200, "Pappy Van Winkle 20 Year": 1800,
+        "Pappy Van Winkle 23 Year": 2800,
+        "George T. Stagg": 1800, "Stagg Jr": 200, "Stagg": 200,
+        "William Larue Weller": 1500, "Eagle Rare 17": 400,
+        "Weller Special Reserve": 40, "Weller Antique 107": 100,
+        "Weller 12 Year": 150, "Weller Full Proof": 400,
+        "Blanton's Single Barrel": 100, "Blanton's Original": 100,
+        # Bourbon — standard (current retail)
+        "Buffalo Trace": 28, "Eagle Rare 10": 45,
+        "Maker's Mark": 32, "Maker's Mark 46": 40, "Maker's Mark Cask Strength": 45,
+        "Woodford Reserve": 40, "Woodford Reserve Double Oaked": 60,
+        "Wild Turkey 101": 28, "Wild Turkey Rare Breed": 48,
+        "Bulleit Bourbon": 30, "Bulleit Rye": 30, "Bulleit 10 Year": 50,
         "Jim Beam": 18, "Jim Beam Black": 25, "Jim Beam Single Barrel": 35,
-        "Knob Creek 9 Year": 36, "Knob Creek 12 Year": 60,
-        "Four Roses Single Barrel": 45, "Four Roses Small Batch": 32,
-        "Elijah Craig Small Batch": 30, "Elijah Craig Barrel Proof": 65,
+        "Knob Creek 9 Year": 36, "Knob Creek 12 Year": 65,
+        "Four Roses Single Barrel": 50, "Four Roses Small Batch": 35,
+        "Elijah Craig Small Batch": 32, "Elijah Craig Barrel Proof": 75,
         "Evan Williams Single Barrel": 28, "Evan Williams 1783": 16,
-        "Old Forester 86": 22, "Old Forester 100": 26,
+        "Old Forester 86": 25, "Old Forester 100": 26,
         "Old Forester 1920 Prohibition Style": 60,
         "Jack Daniel's Old No. 7": 28, "Jack Daniel's Single Barrel": 55,
         "George Dickel No. 12": 25, "George Dickel Bottled in Bond": 40,
-        "Heaven Hill Bottled in Bond 7 Year": 40,
-        "Weller Special Reserve": 25, "Weller Antique 107": 50,
-        "Weller 12 Year": 35, "Weller Full Proof": 50,
-        "Pappy Van Winkle 15 Year": 120, "Pappy Van Winkle 20 Year": 200,
-        "Pappy Van Winkle 23 Year": 300,
-        "George T. Stagg": 100, "Stagg Jr": 55,
-        "WhistlePig 10 Year": 80, "WhistlePig 12 Year Old World": 120,
-        "Angel's Envy": 50, "Booker's": 90,
-        "Michter's US-1 Bourbon": 45, "Michter's US-1 Rye": 45,
+        "Heaven Hill Bottled in Bond 7 Year": 30,
+        "WhistlePig 10 Year": 80, "WhistlePig 12 Year Old World": 140,
+        "Angel's Envy": 55, "Booker's": 100,
+        "Michter's US-1 Bourbon": 47, "Michter's US-1 Rye": 47,
         # Scotch Single Malt
-        "Glenfiddich 12 Year": 45, "Glenfiddich 15 Year Solera": 65,
-        "Glenfiddich 18 Year": 100, "Glenfiddich 21 Year Gran Reserva": 200,
-        "Glenlivet 12 Year": 40, "Glenlivet 18 Year": 85,
-        "Macallan 12 Year Double Cask": 65, "Macallan 12 Year Sherry Oak": 75,
-        "Macallan 18 Year Sherry Oak": 400, "Macallan 25 Year Sherry Oak": 2000,
-        "Macallan 30 Year": 5500,
-        "Ardbeg 10 Year": 55, "Ardbeg Uigeadail": 75, "Ardbeg Corryvreckan": 80,
+        "Glenfiddich 12 Year": 55, "Glenfiddich 15 Year Solera": 60,
+        "Glenfiddich 18 Year": 85, "Glenfiddich 21 Year Gran Reserva": 210,
+        "Glenlivet 12 Year": 50, "Glenlivet 18 Year": 100,
+        "Macallan 12 Year Double Cask": 65, "Macallan 12 Year Sherry Oak": 95,
+        "Macallan 18 Year Sherry Oak": 420, "Macallan 18 Year Double Cask": 370,
+        "Macallan 25 Year Sherry Oak": 2500, "Macallan 30 Year": 5500,
+        "Ardbeg 10 Year": 55, "Ardbeg Uigeadail": 80, "Ardbeg Corryvreckan": 90,
         "Lagavulin 16 Year": 90, "Lagavulin 8 Year": 65,
         "Laphroaig 10 Year": 50, "Laphroaig Quarter Cask": 60,
-        "Talisker 10 Year": 55, "Talisker 18 Year": 140,
-        "Highland Park 12 Year": 50, "Highland Park 18 Year": 130,
-        "Dalmore 12 Year": 65, "Dalmore 15 Year": 100, "Dalmore 18 Year": 200,
-        "Glenmorangie 10 Year The Original": 40, "Glenmorangie 18 Year": 100,
-        "Balvenie 12 Year DoubleWood": 60, "Balvenie 14 Year Caribbean Cask": 75,
-        "Balvenie 21 Year Portwood": 250, "Balvenie 30 Year": 1000,
-        "Oban 14 Year": 80, "Oban 18 Year": 130,
+        "Talisker 10 Year": 75, "Talisker 18 Year": 140,
+        "Highland Park 12 Year": 55, "Highland Park 18 Year": 170,
+        "Dalmore 12 Year": 73, "Dalmore 15 Year": 145, "Dalmore 18 Year": 360,
+        "Glenmorangie 10 Year The Original": 45, "Glenmorangie 18 Year": 100,
+        "Balvenie 12 Year DoubleWood": 66, "Balvenie 14 Year Caribbean Cask": 85,
+        "Balvenie 21 Year Portwood": 335, "Balvenie 30 Year": 1000,
+        "Oban 14 Year": 90, "Oban 18 Year": 170,
         "Aberlour 12 Year": 50, "Aberlour A'bunadh": 90,
-        "Springbank 10 Year": 70, "Springbank 15 Year": 130,
+        "Springbank 10 Year": 140, "Springbank 15 Year": 300,
         "Bunnahabhain 12 Year": 55, "Bunnahabhain 18 Year": 120,
-        "Bowmore 12 Year": 50, "Bowmore 15 Year": 70, "Bowmore 18 Year": 110,
+        "Bowmore 12 Year": 45, "Bowmore 15 Year": 60, "Bowmore 18 Year": 90,
         "Caol Ila 12 Year": 60, "Caol Ila 18 Year": 130,
         "Bruichladdich The Classic Laddie": 50,
         "Benromach 10 Year": 45, "Benromach 15 Year": 70,
         "Clynelish 14 Year": 65, "Cragganmore 12 Year": 45,
         "Glen Grant 12 Year": 35, "Glen Grant 18 Year": 100,
         "Tomatin 12 Year": 35, "Auchentoshan 12 Year": 35,
+        "GlenDronach 12 Year": 55, "GlenDronach 18 Year": 150,
+        "Glenfarclas 12 Year": 50, "Glenfarclas 25 Year": 250,
         # Blended Scotch
         "Johnnie Walker Black Label": 35, "Johnnie Walker Blue Label": 200,
         "Johnnie Walker Green Label 15 Year": 55,
         "Chivas Regal 12 Year": 30, "Chivas Regal 18 Year": 70,
         "Dewar's 12 Year": 28, "Dewar's 18 Year": 55,
-        "Monkey Shoulder": 30, "Famous Grouse": 22,
+        "Monkey Shoulder": 33, "Famous Grouse": 22,
         "Royal Salute 21 Year": 200,
         # Irish
-        "Jameson": 28, "Jameson Black Barrel": 35, "Jameson 18 Year": 100,
-        "Redbreast 12 Year": 65, "Redbreast 15 Year": 90,
-        "Green Spot": 55, "Yellow Spot 12 Year": 90,
+        "Jameson": 32, "Jameson Black Barrel": 40, "Jameson 18 Year": 100,
+        "Redbreast 12 Year": 70, "Redbreast 15 Year": 130,
+        "Green Spot": 60, "Yellow Spot 12 Year": 125,
         "Bushmills 10 Year": 35, "Bushmills 16 Year": 80,
-        "Bushmills 21 Year": 200, "Tullamore Dew": 25,
+        "Bushmills 21 Year": 150, "Tullamore Dew": 25,
         "Teeling Small Batch": 30, "Proper Twelve": 22,
         "Midleton Very Rare": 200, "Knappogue Castle 12 Year": 35,
-        # Japanese (updated 2025 — post-Suntory April 2024 price hike)
-        "Suntory Toki": 40, "Suntory Hibiki Harmony": 80,
-        "Suntory Hibiki 17 Year": 900, "Suntory Hibiki 21 Year": 1200,
-        "Yamazaki 12 Year": 185, "Yamazaki 18 Year": 750,
-        "Hakushu 12 Year": 175, "Hakushu 18 Year": 650,
+        # Japanese (updated 2026 — post-Suntory April 2024 price hike)
+        "Suntory Toki": 35, "Suntory Hibiki Harmony": 80,
+        "Suntory Hibiki 17 Year": 900, "Suntory Hibiki 21 Year": 1000,
+        "Yamazaki 12 Year": 190, "Yamazaki 18 Year": 900,
+        "Hakushu 12 Year": 195, "Hakushu 18 Year": 800,
         "Nikka From The Barrel": 70, "Nikka Coffey Grain": 70,
         "Akashi White Oak": 30,
         # Rye
-        "Rittenhouse Rye Bottled in Bond": 28, "Sazerac Rye": 30,
-        "High West Double Rye": 35, "Pikesville Rye 110": 50,
+        "Rittenhouse Rye Bottled in Bond": 30, "Sazerac Rye": 30,
+        "High West Double Rye": 45, "Pikesville Rye 110": 50,
+        "Colonel E.H. Taylor Rye": 100,
         # Canadian
         "Crown Royal": 28, "Crown Royal XR": 130,
         "Canadian Club": 14, "Lot No. 40": 35,
@@ -258,7 +270,10 @@ TRUSTED_SOURCES = {"iowa_liquor", "oregon_olcc", "montgomery_md", "vinmonopolet"
 
 # ── Phase 0: Backup & Baseline ─────────────────────────────────────────
 
-def backup_db() -> Path:
+def backup_db() -> Path | None:
+    if not DB_PATH.exists():
+        log.info("No SQLite DB at %s (likely PostgreSQL) — skipping file backup", DB_PATH)
+        return None
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     backup_path = DB_PATH.parent / f"sipsense.db.backup_pricefix_{timestamp}"
     shutil.copy2(DB_PATH, backup_path)
@@ -510,7 +525,7 @@ def phase3_null_bad_matches(db: Session, trusted_ids: set, dry_run: bool) -> int
 
 # ── Phase 4: Recalculate All Estimated Prices ─────────────────────────
 
-MAX_DISTILLERY_MULT = 4.0
+MAX_DISTILLERY_MULT = 2.5
 MIN_DISTILLERY_MULT = 0.25
 
 
@@ -646,9 +661,9 @@ def phase4_recalculate(db: Session, trusted_ids: set, dry_run: bool) -> int:
             base *= distillery_mults[dist]
             confidence += 0.15
 
-        # Apply per-category cap
+        # Apply per-category cap — cast to native float for PostgreSQL compat
         cap = get_price_cap(cat, w.age)
-        price = max(8.0, min(base, cap))
+        price = float(max(8.0, min(base, cap)))
 
         if not dry_run:
             w.price_usd = round(price, 2)
