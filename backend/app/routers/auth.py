@@ -98,7 +98,7 @@ class _RefreshRequest(BaseModel):
 
 
 @router.post("/refresh", response_model=schemas.TokenResponse)
-def refresh_token(body: _RefreshRequest, db: Session = Depends(get_db)):
+def refresh_token(body: _RefreshRequest, db: Session = Depends(get_db), _: None = Depends(auth_rate_limit)):
     result = decode_refresh_token(body.refresh_token)
     if result is None:
         raise HTTPException(
@@ -220,7 +220,10 @@ def google_oauth(body: schemas.OAuthLoginRequest, db: Session = Depends(get_db))
         except ValueError:
             raise HTTPException(status_code=401, detail="Invalid or expired Google token")
     else:
-        logger.warning("GOOGLE_OAUTH_CLIENT_ID not set — skipping token verification")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Google OAuth is not configured on this server",
+        )
 
     # Check for existing OAuth user
     existing = (
@@ -280,8 +283,38 @@ def apple_oauth(body: schemas.OAuthLoginRequest, db: Session = Depends(get_db)):
     """
     Authenticate via Apple Sign-In. Same flow as Google OAuth.
     """
+    import os as _os
     if not body.token:
         raise HTTPException(status_code=400, detail="OAuth token is required")
+
+    # Verify Apple ID token server-side
+    apple_client_id = _os.getenv("APPLE_CLIENT_ID", "")
+    if apple_client_id:
+        try:
+            import jwt as pyjwt
+            from jwt import PyJWKClient
+            jwks_client = PyJWKClient("https://appleid.apple.com/auth/keys")
+            signing_key = jwks_client.get_signing_key_from_jwt(body.token)
+            decoded = pyjwt.decode(
+                body.token,
+                signing_key.key,
+                algorithms=["RS256"],
+                audience=apple_client_id,
+                issuer="https://appleid.apple.com",
+            )
+            verified_email = decoded.get("email")
+            verified_sub = decoded.get("sub")
+            if verified_email:
+                body.email = verified_email
+            if verified_sub:
+                body.oauth_id = verified_sub
+        except Exception:
+            raise HTTPException(status_code=401, detail="Invalid or expired Apple token")
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Apple OAuth is not configured on this server",
+        )
 
     existing = (
         db.query(models.User)

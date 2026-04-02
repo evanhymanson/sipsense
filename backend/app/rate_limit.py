@@ -78,3 +78,33 @@ class AuthRateLimiter:
 
 
 auth_rate_limit = AuthRateLimiter(max_attempts=5, window_seconds=60)
+
+
+class ChatRateLimiter:
+    """Per-user rate limiting for chat endpoints.
+
+    Authenticated users: auth_max messages per window (default 20/min).
+    Anonymous users: anon_max messages per window (default 5/min).
+    """
+
+    def __init__(self, auth_max: int = 20, anon_max: int = 5, window: int = 60):
+        self.auth_max = auth_max
+        self.anon_max = anon_max
+        self.window = window
+        self._buckets: dict[str, list[float]] = defaultdict(list)
+
+    def check(self, key: str, is_authenticated: bool) -> None:
+        now = time.monotonic()
+        limit = self.auth_max if is_authenticated else self.anon_max
+        cutoff = now - self.window
+        self._buckets[key] = [t for t in self._buckets[key] if t > cutoff]
+        if len(self._buckets[key]) >= limit:
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="Chat rate limit exceeded. Try again shortly.",
+                headers={"Retry-After": str(self.window)},
+            )
+        self._buckets[key].append(now)
+
+
+chat_rate_limiter = ChatRateLimiter()

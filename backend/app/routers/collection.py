@@ -21,9 +21,9 @@ router = APIRouter(prefix="/collection", tags=["collection"])
 class CollectionItemCreate(BaseModel):
     whiskey_id: int
     status: Literal["sealed", "opened", "finished"] = "sealed"
-    purchase_price: Optional[float] = None
+    purchase_price: Optional[float] = Field(None, ge=0, le=100000)
     purchase_location: Optional[str] = None
-    personal_notes: Optional[str] = None
+    personal_notes: Optional[str] = Field(None, max_length=2000)
 
 
 class CollectionItemUpdate(BaseModel):
