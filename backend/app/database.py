@@ -132,6 +132,15 @@ def _run_migrations():
             if "vintage_year" not in existing:
                 conn.execute(sa.text("ALTER TABLE user_ratings ADD COLUMN vintage_year INTEGER"))
             conn.commit()
+        # Reset imported ratings for whiskeys with no real user ratings
+        if "whiskeys" in inspector.get_table_names():
+            result = conn.execute(sa.text(
+                "UPDATE whiskeys SET rating_avg = 0.0 "
+                "WHERE rating_count = 0 AND rating_avg > 0"
+            ))
+            if result.rowcount:
+                logger.info("Reset %d imported-only ratings to 0", result.rowcount)
+            conn.commit()
 
 _run_migrations()
 
@@ -163,6 +172,7 @@ def _ensure_indexes():
         ("idx_sponsored_whiskey", "sponsored_placements", "whiskey_id"),
         ("idx_follow_follower", "follows", "follower_id"),
         ("idx_follow_following", "follows", "following_id"),
+        ("idx_whiskey_category", "whiskeys", "category"),
         ("idx_toast_rating", "toasts", "rating_id"),
         ("idx_toast_user", "toasts", "user_id"),
         ("idx_userrating_created", "user_ratings", "created_at"),
