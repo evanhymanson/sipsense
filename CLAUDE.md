@@ -129,7 +129,7 @@ SipSense is a whiskey discovery and social platform. Users browse a catalog of 1
 - **AI tasting notes** — Claude generates nose/palate/finish/overall, cached in `AICache`
 - **AI palate summary** — Claude writes a narrative about user's taste history
 - **Bottle scan** — photo → Claude vision identifies whiskey; also UPC barcode lookup
-- **Chat agent** (`ml/agent.py`) — LangGraph ReAct agent with `claude-sonnet-4-5`, 20+ tools (search, recommend, compare, rate, remember preferences, find stores, build flights, gift finder, etc.), SSE streaming with rich UI rendering (whiskey cards with buy CTAs, Leaflet maps, comparison tables, flight visualizations, radar charts)
+- **Chat agent** (`ml/agent.py`) — LangGraph ReAct agent with Qwen3.5-397B via Together AI, 20+ tools (search, recommend, compare, rate, remember preferences, find stores, build flights, gift finder, etc.), SSE streaming with rich UI rendering (whiskey cards with buy CTAs, Leaflet maps, comparison tables, flight visualizations, radar charts)
 - **Chat memory** — `UserMemory` stores persistent preferences (JSON blob), `ConversationSummary` stores session summaries, both injected into system prompt
 
 ### Social
@@ -380,9 +380,11 @@ All in `backend/app/`. Import before reimplementing — these handle cross-cutti
 ### AI / ML
 | Variable | Default | Purpose |
 |---|---|---|
-| `ANTHROPIC_API_KEY` | — | Claude API key for tasting notes, chat, scanning |
-| `CLAUDE_MODEL` | `claude-sonnet-4-6` | Primary model for chat agent |
+| `ANTHROPIC_API_KEY` | — | Claude API key for tasting notes, scanning, pairings |
 | `CLAUDE_MODEL_SMALL` | `claude-haiku-4-5-20251001` | Fast model for tasting notes, pairings |
+| `TOGETHER_API_KEY` | — | Together AI API key for chat agent + summarizer |
+| `CHAT_MODEL` | `Qwen/Qwen3.5-397B-A17B` | Chat agent model (via Together AI) |
+| `SUMMARIZER_MODEL` | `Qwen/Qwen3.5-9B` | Conversation summarizer model (via Together AI) |
 
 ### Email & Push
 | Variable | Default | Purpose |
