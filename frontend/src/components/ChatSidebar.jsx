@@ -526,7 +526,9 @@ export default function ChatSidebar({ isOpen, onClose }) {
     setInput('')
     setIsLoading(true)
 
-    const history = nextMessages.map(m => ({ role: m.role, content: m.content }))
+    // Send only the last 20 messages — older context is covered by conversation
+    // summaries on the backend. Fewer tokens = faster time-to-first-token.
+    const history = nextMessages.slice(-20).map(m => ({ role: m.role, content: m.content }))
 
     // Abort the stream if it takes too long (90s total, or 30s with no data)
     const controller = new AbortController()

@@ -68,7 +68,15 @@ def _sse(payload: dict) -> str:
     return f"data: {json.dumps(payload)}\n\n"
 
 
-# ── User memory loading ──────────────────────────────────────────────────────
+# ── User memory loading (with per-session TTL cache) ────────────────────────
+
+import time as _time
+
+# In-memory cache: {user_id: (timestamp, memory_dict)}
+# Memory rarely changes mid-session, so cache for 5 minutes to skip
+# the DB round-trip on every single chat message.
+_memory_cache: dict[str, tuple[float, dict]] = {}
+_MEMORY_CACHE_TTL = 300  # seconds
 
 
 def _load_user_memory_sync(user_id: str) -> dict:
@@ -107,8 +115,23 @@ def _load_user_memory_sync(user_id: str) -> dict:
 
 
 async def _load_user_memory(user_id: str) -> dict:
-    """Async wrapper — runs the DB query in a thread to avoid blocking the event loop."""
-    return await asyncio.to_thread(_load_user_memory_sync, user_id)
+    """Async wrapper with TTL cache — skips DB entirely for repeat messages in a session."""
+    now = _time.monotonic()
+    cached = _memory_cache.get(user_id)
+    if cached and (now - cached[0]) < _MEMORY_CACHE_TTL:
+        return cached[1]
+
+    result = await asyncio.to_thread(_load_user_memory_sync, user_id)
+    _memory_cache[user_id] = (now, result)
+
+    # Evict stale entries to prevent unbounded growth
+    if len(_memory_cache) > 500:
+        cutoff = now - _MEMORY_CACHE_TTL
+        stale = [k for k, (ts, _) in _memory_cache.items() if ts < cutoff]
+        for k in stale:
+            del _memory_cache[k]
+
+    return result
 
 
 # ── Conversation summarization ────────────────────────────────────────────────
@@ -302,7 +325,10 @@ async def _stream_agent(messages: list[ChatMessage], user_id: str, user_location
     # Yield thinking immediately so the user sees feedback before DB queries
     yield _sse({"type": "thinking"})
 
-    lc_messages = [{"role": m.role, "content": m.content} for m in messages]
+    # Trim to last 20 messages — older context is captured in conversation summaries.
+    # Fewer tokens = faster time-to-first-token from the LLM.
+    recent = messages[-20:] if len(messages) > 20 else messages
+    lc_messages = [{"role": m.role, "content": m.content} for m in recent]
     memory = await _load_user_memory(user_id)
 
     configurable = {
