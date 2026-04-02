@@ -891,3 +891,22 @@ class SubscriptionBox(Base):
     status = Column(String, default="active")  # active, paused, cancelled
     next_shipment_date = Column(DateTime(timezone=True))
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class ModelTrainingLog(Base):
+    """Record of each NCF model training run for monitoring and quality gating."""
+    __tablename__ = "model_training_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    started_at = Column(DateTime(timezone=True), server_default=func.now())
+    completed_at = Column(DateTime(timezone=True))
+    n_ratings = Column(Integer)
+    n_real_ratings = Column(Integer)
+    n_users = Column(Integer)
+    n_items = Column(Integer)
+    train_rmse = Column(Float)
+    val_rmse = Column(Float)
+    val_mae = Column(Float)
+    epochs_run = Column(Integer)
+    status = Column(String, default="running")  # running, completed, rejected, failed
+    rejection_reason = Column(String)

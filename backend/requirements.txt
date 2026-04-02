@@ -5,7 +5,9 @@ pydantic==2.10.3
 email-validator>=2.0.0
 pydantic-settings==2.7.0
 python-multipart==0.0.20
-# torch installed separately in Dockerfile (CPU-only)
+# torch installed separately in Dockerfile (CPU-only, used for training)
+# onnxruntime used for lightweight inference (~50MB vs ~500MB PyTorch)
+onnxruntime>=1.17.0
 numpy==2.2.1
 scikit-learn==1.6.0
 alembic==1.14.0

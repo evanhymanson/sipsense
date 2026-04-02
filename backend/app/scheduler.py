@@ -27,6 +27,7 @@ def main():
         send_drip_emails,
         send_streak_push_reminders,
         check_price_alerts,
+        retrain_recommendation_model,
     )
 
     # Weekly digest: Sunday 10am UTC
@@ -62,6 +63,14 @@ def main():
         check_price_alerts,
         CronTrigger(hour=9),
         id="price_alerts",
+    )
+
+    # Model retrain: Weekly Monday 3am UTC (off-peak)
+    scheduler.add_job(
+        retrain_recommendation_model,
+        CronTrigger(day_of_week="mon", hour=3),
+        id="model_retrain",
+        misfire_grace_time=3600,
     )
 
     # Graceful shutdown

@@ -364,3 +364,114 @@ def check_price_alerts():
     finally:
         db.close()
     logger.info("Price alerts: triggered %d", triggered)
+
+
+def retrain_recommendation_model():
+    """Retrain the NCF recommendation model if enough new data exists.
+
+    Steps:
+    1. Check if enough new ratings since last training
+    2. Train new model with quality gating
+    3. Log results to ModelTrainingLog table
+    """
+    from .database import SessionLocal
+    from . import models
+
+    logger.info("Starting model retraining check")
+    db = SessionLocal()
+
+    try:
+        # 1. Check if enough new ratings exist since last training
+        last_log = (
+            db.query(models.ModelTrainingLog)
+            .filter(models.ModelTrainingLog.status == "completed")
+            .order_by(models.ModelTrainingLog.completed_at.desc())
+            .first()
+        )
+
+        if last_log and last_log.completed_at:
+            new_ratings_count = (
+                db.query(models.UserRating)
+                .filter(models.UserRating.created_at > last_log.completed_at)
+                .count()
+            )
+        else:
+            new_ratings_count = db.query(models.UserRating).count()
+
+        min_new_ratings = 10
+        if new_ratings_count < min_new_ratings:
+            logger.info(
+                "Only %d new ratings (need %d). Skipping retraining.",
+                new_ratings_count, min_new_ratings,
+            )
+            return
+
+        # 2. Create log entry
+        log = models.ModelTrainingLog(status="running")
+        db.add(log)
+        db.commit()
+        db.refresh(log)
+
+        # 3. Train
+        try:
+            from .ml.train import train, META_PATH
+            train(epochs=30, lr=0.001, batch_size=256, embedding_dim=32)
+        except Exception as e:
+            log.status = "failed"
+            log.rejection_reason = str(e)[:500]
+            log.completed_at = datetime.now(timezone.utc)
+            db.commit()
+            logger.exception("Model training failed")
+            return
+
+        # 4. Validate quality
+        import json
+        if META_PATH.exists():
+            meta = json.loads(META_PATH.read_text())
+            new_rmse = meta.get("rmse", float("inf"))
+        else:
+            log.status = "failed"
+            log.rejection_reason = "No meta file after training"
+            log.completed_at = datetime.now(timezone.utc)
+            db.commit()
+            return
+
+        # Reject if RMSE is unreasonably high (predictions off by >1.5 stars)
+        max_rmse = 1.5
+        if new_rmse > max_rmse:
+            log.status = "rejected"
+            log.rejection_reason = f"RMSE {new_rmse:.4f} exceeds threshold {max_rmse}"
+            log.val_rmse = new_rmse
+            log.completed_at = datetime.now(timezone.utc)
+            db.commit()
+            logger.warning("Model rejected: RMSE %.4f exceeds threshold", new_rmse)
+            return
+
+        # 5. Update log with success
+        log.status = "completed"
+        log.n_ratings = meta.get("n_ratings")
+        log.n_users = meta.get("n_users")
+        log.n_items = meta.get("n_items")
+        log.val_rmse = new_rmse
+        log.val_mae = meta.get("mae")
+        log.train_rmse = meta.get("train_rmse")
+        log.epochs_run = meta.get("epochs")
+        log.completed_at = datetime.now(timezone.utc)
+        db.commit()
+
+        # 6. Signal backend to reload model on next request
+        try:
+            from .ml.inference import reload_model
+            reload_model()
+        except Exception:
+            pass  # Backend will pick up new model on next cache miss
+
+        logger.info(
+            "Model retrained successfully: RMSE=%.4f, %d ratings",
+            new_rmse, meta.get("n_ratings", 0),
+        )
+
+    except Exception:
+        logger.exception("Unexpected error in model retraining")
+    finally:
+        db.close()
