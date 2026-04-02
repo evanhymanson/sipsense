@@ -508,7 +508,7 @@ class FeatureComparison(BaseModel):
 
 class PriceAlertCreate(BaseModel):
     whiskey_id: int
-    target_price: Optional[float] = None
+    target_price: Optional[float] = Field(None, ge=0, le=100000)
 
 
 class PriceAlertRead(BaseModel):
@@ -688,6 +688,15 @@ class ForgotPasswordRequest(BaseModel):
 class ResetPasswordRequest(BaseModel):
     token: str
     new_password: str = Field(..., min_length=8, max_length=128)
+
+    @model_validator(mode="after")
+    def password_complexity(self):
+        pw = self.new_password
+        if not re.search(r"[A-Z]", pw):
+            raise ValueError("Password must contain at least one uppercase letter")
+        if not re.search(r"\d", pw):
+            raise ValueError("Password must contain at least one digit")
+        return self
 
 
 # ── Email Preferences ──────────────────────────────────────────────────

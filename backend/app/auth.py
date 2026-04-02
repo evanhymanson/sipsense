@@ -83,9 +83,7 @@ def decode_access_token(token: str) -> str | None:
     """Returns the username from a valid access token, or None."""
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        # Accept tokens without type (backward compat) or with type="access"
-        token_type = payload.get("type")
-        if token_type is not None and token_type != "access":
+        if payload.get("type") != "access":
             return None
         return payload.get("sub")
     except JWTError:

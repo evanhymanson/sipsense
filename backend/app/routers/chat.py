@@ -34,6 +34,7 @@ from ..ml.agent import agent_graph
 from ..auth import decode_access_token as _decode_token
 from ..track import track_action
 from ..analytics_constants import ACTION_CHAT_MESSAGE
+from ..rate_limit import chat_rate_limiter
 
 logger = logging.getLogger(__name__)
 
@@ -390,6 +391,7 @@ def _resolve_user_id(authorization: str | None, token_body: str | None) -> str:
 @router.post("/")
 async def chat(request: ChatRequest, authorization: str | None = Header(None)):
     user_id = _resolve_user_id(authorization, request.token)
+    chat_rate_limiter.check(user_id, not user_id.startswith("anon_"))
 
     if not user_id.startswith("anon_"):
         last_msg = request.messages[-1].content if request.messages else ""

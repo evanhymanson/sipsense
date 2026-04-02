@@ -22,6 +22,40 @@ from ..storage import make_cdn_url
 
 router = APIRouter(tags=["ai"])
 
+
+def _extract_json(raw: str) -> str | None:
+    """Extract the first balanced JSON object from a string.
+
+    Uses brace-counting instead of greedy regex to handle nested objects correctly.
+    """
+    start = raw.find("{")
+    if start == -1:
+        return None
+    depth = 0
+    in_string = False
+    escape = False
+    for i in range(start, len(raw)):
+        c = raw[i]
+        if escape:
+            escape = False
+            continue
+        if c == "\\":
+            escape = True
+            continue
+        if c == '"':
+            in_string = not in_string
+            continue
+        if in_string:
+            continue
+        if c == "{":
+            depth += 1
+        elif c == "}":
+            depth -= 1
+            if depth == 0:
+                return raw[start : i + 1]
+    return None
+
+
 _client = None
 _client_api_key = None
 
@@ -742,12 +776,12 @@ async def scan_label(
     raw = response.content[0].text.strip()
 
     # Extract JSON even if Claude adds surrounding text
-    json_match = re.search(r'\{.*\}', raw, re.DOTALL)
-    if not json_match:
+    json_str = _extract_json(raw)
+    if not json_str:
         raise HTTPException(status_code=422, detail="Could not parse label — try a clearer photo")
 
     try:
-        ai_data = json.loads(json_match.group())
+        ai_data = json.loads(json_str)
     except json.JSONDecodeError:
         raise HTTPException(status_code=422, detail="Could not parse label — try a clearer photo")
 
@@ -894,12 +928,12 @@ async def scan_menu(
         raise HTTPException(status_code=502, detail=f"AI service error: {str(e)}")
 
     raw = response.content[0].text.strip()
-    json_match = re.search(r'\{.*\}', raw, re.DOTALL)
-    if not json_match:
+    json_str = _extract_json(raw)
+    if not json_str:
         raise HTTPException(status_code=422, detail="Could not parse menu — try a clearer photo")
 
     try:
-        ai_data = json.loads(json_match.group())
+        ai_data = json.loads(json_str)
     except json.JSONDecodeError:
         raise HTTPException(status_code=422, detail="Could not parse menu — try a clearer photo")
 
