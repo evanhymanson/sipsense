@@ -2478,30 +2478,15 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
 }
 .browse-marquee-scroll::-webkit-scrollbar { display: none; }
 .browse-marquee-scroll:active { cursor: grabbing; }
-/* Animated track */
+/* Track — flex row, JS drives scrollLeft for animation */
 .browse-marquee-track {
   display: flex;
   gap: 1rem;
   width: max-content;
-  animation: marquee-scroll-left 30s linear infinite;
-}
-.browse-marquee--reverse .browse-marquee-track {
-  animation: marquee-scroll-right 30s linear infinite;
-}
-.browse-marquee-track--paused {
-  animation-play-state: paused !important;
 }
 .browse-marquee-track > * {
   flex: 0 0 200px;
   min-width: 200px;
-}
-@keyframes marquee-scroll-left {
-  0%   { transform: translateX(0); }
-  100% { transform: translateX(-50%); }
-}
-@keyframes marquee-scroll-right {
-  0%   { transform: translateX(-50%); }
-  100% { transform: translateX(0); }
 }
 /* Progress bar */
 .browse-marquee-bar {
