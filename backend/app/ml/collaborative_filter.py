@@ -1,18 +1,23 @@
 """
 Neural Collaborative Filtering (NCF) for SipSense
 
-A PyTorch embedding model that learns user–whiskey interactions from ratings.
+A PyTorch embedding model that learns user-whiskey interactions from ratings.
 Based on the NCF paper (He et al., 2017) but simplified to a clean GMF + MLP
 hybrid that's easy to understand and extend.
 
 Architecture:
-    User ID  →  user_embedding (dim=32)  ─┐
-                                           ├─ concat → MLP(64→32→16) → 1
-    Whiskey ID → item_embedding (dim=32)  ─┘
+    User ID  ->  user_embedding (dim=32)  -+
+                                           +- concat -> MLP -> 1
+    Whiskey ID -> item_embedding (dim=32)  -+
+    Item features (optional, dim=13)      -+
 
 The MLP path learns non-linear interaction patterns beyond simple dot-product
 similarity.  Bias terms let the model capture "this user rates high" and
 "this whiskey is generally liked" independently.
+
+When item features (price, ABV, age, flavor coords, category) are provided,
+they are concatenated with the embeddings before the MLP, allowing the model
+to learn explicit feature preferences (e.g. price sensitivity) per user.
 
 Training uses MSE loss on observed ratings, with optional negative sampling
 to learn from unobserved pairs.
@@ -26,10 +31,11 @@ class NCFModel(nn.Module):
     """Neural Collaborative Filtering model.
 
     Args:
-        n_users:       Number of unique users in the dataset.
-        n_items:       Number of unique whiskeys.
-        embedding_dim: Dimensionality of user/item embeddings (default 32).
-        mlp_layers:    Sizes of MLP hidden layers after concatenation.
+        n_users:          Number of unique users in the dataset.
+        n_items:          Number of unique whiskeys.
+        embedding_dim:    Dimensionality of user/item embeddings (default 32).
+        mlp_layers:       Sizes of MLP hidden layers after concatenation.
+        n_item_features:  Number of item side-features (0 = embeddings only).
     """
 
     def __init__(
@@ -38,8 +44,10 @@ class NCFModel(nn.Module):
         n_items: int,
         embedding_dim: int = 32,
         mlp_layers: tuple[int, ...] = (64, 32, 16),
+        n_item_features: int = 0,
     ):
         super().__init__()
+        self.n_item_features = n_item_features
 
         # Embedding tables
         self.user_embedding = nn.Embedding(n_users, embedding_dim)
@@ -52,9 +60,9 @@ class NCFModel(nn.Module):
         # Global bias (mean rating)
         self.global_bias = nn.Parameter(torch.zeros(1))
 
-        # MLP tower: input is concat of user + item embeddings
+        # MLP tower: input is concat of user + item embeddings + optional item features
         layers = []
-        in_size = embedding_dim * 2
+        in_size = embedding_dim * 2 + n_item_features
         for out_size in mlp_layers:
             layers.append(nn.Linear(in_size, out_size))
             layers.append(nn.ReLU())
@@ -77,13 +85,18 @@ class NCFModel(nn.Module):
                 nn.init.zeros_(layer.bias)
 
     def forward(
-        self, user_ids: torch.Tensor, item_ids: torch.Tensor
+        self,
+        user_ids: torch.Tensor,
+        item_ids: torch.Tensor,
+        item_features: torch.Tensor | None = None,
     ) -> torch.Tensor:
         """Predict ratings for (user, item) pairs.
 
         Args:
-            user_ids: LongTensor of shape (batch_size,)
-            item_ids: LongTensor of shape (batch_size,)
+            user_ids:      LongTensor of shape (batch_size,)
+            item_ids:      LongTensor of shape (batch_size,)
+            item_features: Optional FloatTensor of shape (batch_size, n_item_features).
+                           Required when model was built with n_item_features > 0.
 
         Returns:
             Predicted ratings of shape (batch_size,).
@@ -94,8 +107,10 @@ class NCFModel(nn.Module):
         u_bias = self.user_bias(user_ids).squeeze(-1)  # (B,)
         i_bias = self.item_bias(item_ids).squeeze(-1)  # (B,)
 
-        # MLP interaction
+        # MLP interaction: embeddings + optional side features
         x = torch.cat([u_emb, i_emb], dim=-1)       # (B, 2D)
+        if item_features is not None:
+            x = torch.cat([x, item_features], dim=-1)  # (B, 2D + F)
         mlp_out = self.mlp(x).squeeze(-1)            # (B,)
 
         # Combine: global bias + user bias + item bias + learned interaction
@@ -105,16 +120,18 @@ class NCFModel(nn.Module):
         self,
         user_idx: int,
         all_item_indices: torch.Tensor,
+        all_item_features: torch.Tensor | None = None,
         exclude: set[int] | None = None,
         top_n: int = 10,
     ) -> list[tuple[int, float]]:
         """Return top-N item indices + predicted scores for a single user.
 
         Args:
-            user_idx:         Internal user index.
-            all_item_indices: Tensor of all valid item indices.
-            exclude:          Set of item indices to skip (already rated).
-            top_n:            Number of results.
+            user_idx:          Internal user index.
+            all_item_indices:  Tensor of all valid item indices.
+            all_item_features: Optional (n_items, n_item_features) feature tensor.
+            exclude:           Set of item indices to skip (already rated).
+            top_n:             Number of results.
 
         Returns:
             List of (item_index, predicted_score) sorted by score descending.
@@ -122,7 +139,7 @@ class NCFModel(nn.Module):
         self.eval()
         with torch.no_grad():
             user_t = torch.full_like(all_item_indices, user_idx)
-            scores = self.forward(user_t, all_item_indices).clamp(1.0, 5.0)
+            scores = self.forward(user_t, all_item_indices, item_features=all_item_features).clamp(1.0, 5.0)
 
         results = []
         for idx, score in zip(all_item_indices.tolist(), scores.tolist()):
