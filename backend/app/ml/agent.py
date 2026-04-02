@@ -1,8 +1,9 @@
 """
 SipSense LangGraph Chat Agent
 
-A ReAct agent powered by Claude that helps users discover and learn about whiskey.
-Tools call the existing DB and recommender infrastructure directly.
+A ReAct agent powered by Qwen3.5 (via Together AI) that helps users discover
+and learn about whiskey. Tools call the existing DB and recommender
+infrastructure directly.
 """
 
 import json
@@ -16,7 +17,7 @@ from typing import Annotated
 import httpx
 from sqlalchemy import and_, func as sqlfunc, or_
 
-from langchain_anthropic import ChatAnthropic
+from langchain_openai import ChatOpenAI
 from langchain_core.messages import BaseMessage, SystemMessage
 from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import tool
@@ -1941,9 +1942,10 @@ def _build_system_prompt(
 
 
 def build_agent():
-    llm = ChatAnthropic(
-        model=os.environ.get("CLAUDE_MODEL", "claude-sonnet-4-6"),
-        api_key=os.environ.get("ANTHROPIC_API_KEY", ""),
+    llm = ChatOpenAI(
+        model=os.environ.get("CHAT_MODEL", "Qwen/Qwen3.5-397B-A17B"),
+        base_url="https://api.together.xyz/v1",
+        api_key=os.environ.get("TOGETHER_API_KEY", ""),
         streaming=True,
     )
     model_with_tools = llm.bind_tools(TOOLS)

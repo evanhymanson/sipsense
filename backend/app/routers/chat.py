@@ -23,7 +23,7 @@ import logging
 import os
 from typing import Optional
 
-import anthropic
+from openai import OpenAI
 from fastapi import APIRouter, BackgroundTasks, Header
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
@@ -137,9 +137,9 @@ def _summarize_and_extract_sync(
     messages: list[dict], session_id: str, user_id: str,
 ) -> None:
     """Generate a conversation summary and extract missed preferences. Runs in background."""
-    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+    api_key = os.environ.get("TOGETHER_API_KEY", "")
     if not api_key:
-        logger.warning("No ANTHROPIC_API_KEY — skipping conversation summary")
+        logger.warning("No TOGETHER_API_KEY — skipping conversation summary")
         return
 
     # Build a compact transcript for the summarizer
@@ -151,16 +151,19 @@ def _summarize_and_extract_sync(
     transcript = "\n".join(transcript_lines)
 
     try:
-        client = anthropic.Anthropic(api_key=api_key)
-        response = client.messages.create(
-            model="claude-haiku-4-5-20251001",
+        client = OpenAI(
+            api_key=api_key,
+            base_url="https://api.together.xyz/v1",
+        )
+        response = client.chat.completions.create(
+            model=os.environ.get("SUMMARIZER_MODEL", "Qwen/Qwen3.5-9B"),
             max_tokens=500,
             messages=[
                 {"role": "user", "content": f"{_SUMMARIZE_PROMPT}\n\n<conversation>\n{transcript}\n</conversation>"}
             ],
             timeout=30.0,
         )
-        raw = response.content[0].text.strip()
+        raw = response.choices[0].message.content.strip()
         # Strip markdown code fences if present
         if raw.startswith("```"):
             raw = raw.split("\n", 1)[1] if "\n" in raw else raw[3:]
