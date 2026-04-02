@@ -36,13 +36,15 @@ def get_leaderboard(
     """
     cutoff = _period_cutoff(period)
 
-    # Checkin counts per user
+    # Checkin counts per user (bounded to top contributors only)
+    _TOP_N = 500  # only aggregate top N users to avoid full table scans
     checkin_q = db.query(
         models.UserRating.user_id,
         sqlfunc.count(models.UserRating.id).label("checkin_count"),
     ).group_by(models.UserRating.user_id)
     if cutoff:
         checkin_q = checkin_q.filter(models.UserRating.created_at >= cutoff)
+    checkin_q = checkin_q.order_by(sqlfunc.count(models.UserRating.id).desc()).limit(_TOP_N)
     checkin_map = {row[0]: row[1] for row in checkin_q.all()}
 
     # Helpful votes received (votes on the user's reviews)
@@ -54,6 +56,7 @@ def get_leaderboard(
     ).group_by(models.UserRating.user_id)
     if cutoff:
         helpful_q = helpful_q.filter(models.ReviewHelpful.created_at >= cutoff)
+    helpful_q = helpful_q.order_by(sqlfunc.count(models.ReviewHelpful.id).desc()).limit(_TOP_N)
     helpful_map = {row[0]: row[1] for row in helpful_q.all()}
 
     # Comments given per user
@@ -63,6 +66,7 @@ def get_leaderboard(
     ).group_by(models.CheckInComment.user_id)
     if cutoff:
         comment_q = comment_q.filter(models.CheckInComment.created_at >= cutoff)
+    comment_q = comment_q.order_by(sqlfunc.count(models.CheckInComment.id).desc()).limit(_TOP_N)
     comment_map = {row[0]: row[1] for row in comment_q.all()}
 
     # Combine all users

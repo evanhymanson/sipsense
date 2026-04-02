@@ -129,6 +129,9 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
     """Handle Stripe webhook events for subscription lifecycle."""
     stripe = _get_stripe()
 
+    if not _STRIPE_WEBHOOK_SECRET:
+        raise HTTPException(status_code=503, detail="Stripe webhook not configured")
+
     payload = await request.body()
     sig_header = request.headers.get("stripe-signature", "")
 

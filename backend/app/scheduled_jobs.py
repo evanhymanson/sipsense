@@ -24,7 +24,7 @@ def send_weekly_digests():
     db = SessionLocal()
     sent = 0
     try:
-        users = db.query(models.User).filter(models.User.is_active == True).all()
+        users = db.query(models.User).filter(models.User.is_active == True).yield_per(100)
         for user in users:
             try:
                 # Check preference
@@ -216,23 +216,21 @@ def send_drip_emails():
         for day_offset in [1, 3, 7, 14]:
             target_date = (now - timedelta(days=day_offset)).date()
 
-            # Find users registered on target_date
+            # Find users registered on target_date (filter in DB instead of loading all)
+            target_start = datetime.combine(target_date, datetime.min.time()).replace(tzinfo=timezone.utc)
+            target_end = target_start + timedelta(days=1)
             users = (
                 db.query(models.User)
-                .filter(models.User.is_active == True)
+                .filter(
+                    models.User.is_active == True,
+                    models.User.created_at >= target_start,
+                    models.User.created_at < target_end,
+                )
                 .all()
             )
 
             for user in users:
                 try:
-                    # Check registration date
-                    if user.created_at is None:
-                        continue
-                    reg_date = user.created_at
-                    if hasattr(reg_date, 'date'):
-                        reg_date = reg_date.date()
-                    if reg_date != target_date:
-                        continue
 
                     # Check preference
                     pref = (
@@ -321,9 +319,17 @@ def check_price_alerts():
             .filter(models.PriceAlert.triggered == False)  # noqa: E712
             .all()
         )
+        # Batch load all whiskeys referenced by alerts to avoid N+1 queries
+        whiskey_ids = list({a.whiskey_id for a in alerts})
+        whiskeys_by_id = {}
+        if whiskey_ids:
+            whiskeys_by_id = {
+                w.id: w
+                for w in db.query(models.Whiskey).filter(models.Whiskey.id.in_(whiskey_ids)).all()
+            }
         for alert in alerts:
             try:
-                whiskey = db.query(models.Whiskey).filter(models.Whiskey.id == alert.whiskey_id).first()
+                whiskey = whiskeys_by_id.get(alert.whiskey_id)
                 if not whiskey or not whiskey.price_usd:
                     continue
                 current_price = whiskey.price_usd
@@ -381,6 +387,16 @@ def retrain_recommendation_model():
     db = SessionLocal()
 
     try:
+        # Guard: prevent concurrent training runs
+        running = (
+            db.query(models.ModelTrainingLog)
+            .filter(models.ModelTrainingLog.status == "running")
+            .first()
+        )
+        if running:
+            logger.warning("Training already in progress (log id=%d). Skipping.", running.id)
+            return
+
         # 1. Check if enough new ratings exist since last training
         last_log = (
             db.query(models.ModelTrainingLog)

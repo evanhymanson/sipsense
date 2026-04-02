@@ -16,7 +16,7 @@ router = APIRouter(prefix="/recommendations", tags=["recommendations"])
 # TTL cache for recommendation results: {(username, top_n): (timestamp, results)}
 _rec_cache: dict[tuple, tuple[float, list]] = {}
 _REC_TTL = 300  # 5 minutes
-_REC_MAX_ENTRIES = 200
+_REC_MAX_ENTRIES = 2000
 
 
 @router.get("/", response_model=list[schemas.RecommendationResponse])
@@ -64,9 +64,15 @@ def get_recommendations(
 
 
 def _cache_recs(key: tuple, now: float, results: list):
+    # Evict expired entries first, then LRU if still over limit
     if len(_rec_cache) >= _REC_MAX_ENTRIES:
-        oldest = min(_rec_cache, key=lambda k: _rec_cache[k][0])
-        del _rec_cache[oldest]
+        expired = [k for k, (ts, _) in _rec_cache.items() if now - ts >= _REC_TTL]
+        for k in expired:
+            del _rec_cache[k]
+    if len(_rec_cache) >= _REC_MAX_ENTRIES:
+        # LRU eviction: remove the least-recently-used entry
+        lru_key = min(_rec_cache, key=lambda k: _rec_cache[k][0])
+        del _rec_cache[lru_key]
     _rec_cache[key] = (now, results)
 
 

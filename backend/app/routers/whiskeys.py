@@ -152,6 +152,7 @@ def _generate_blurb_bg(whiskey_id: int):
             model=os.getenv("CLAUDE_MODEL_SMALL", "claude-haiku-4-5-20251001"),
             max_tokens=350,
             messages=[{"role": "user", "content": prompt}],
+            timeout=30.0,
         )
         raw = message.content[0].text.strip()
 
