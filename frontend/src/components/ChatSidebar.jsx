@@ -7,6 +7,8 @@ import './ChatSidebar.css'
 const CHAT_STORAGE_KEY = 'sipsense_chat_messages'
 const CHAT_SESSION_KEY = 'sipsense_chat_session_id'
 const MAX_CHAT_MESSAGES = 200
+let _msgIdCounter = 0
+function nextMsgId() { return `msg-${++_msgIdCounter}-${Date.now()}` }
 
 function getOrCreateSessionId() {
   let sid = sessionStorage.getItem(CHAT_SESSION_KEY)
@@ -292,6 +294,38 @@ function ThinkingIndicator({ toolStatus }) {
   )
 }
 
+// ── Memoized message bubble — only re-renders when its own message changes ──
+
+const MessageBubble = memo(function MessageBubble({ msg, renderGenUI }) {
+  return (
+    <div className={`sb-bubble-wrap sb-bubble-wrap--${msg.role}`}>
+      <div className={`sb-bubble sb-bubble--${msg.role}`}>
+        {msg.content && (
+          <p className="sb-bubble-text">
+            {msg.content}
+            {msg.isStreaming && <span className="sb-cursor" />}
+          </p>
+        )}
+        {msg.isStreaming && !msg.content && (
+          <ThinkingIndicator toolStatus={msg.toolStatus} />
+        )}
+
+        {/* Generative UI blocks */}
+        {(msg.genUI || []).map((item, j) => renderGenUI(item, j))}
+
+        {/* Whiskey cards */}
+        {(msg.whiskeys || []).length > 0 && (
+          <div className="sb-cards">
+            {msg.whiskeys.slice(0, 6).map(w => (
+              <SidebarWhiskeyCard key={w.id} whiskey={w} />
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+})
+
 // ── Main ChatSidebar component ───────────────────────────────────────────────
 
 export default function ChatSidebar({ isOpen, onClose }) {
@@ -300,7 +334,7 @@ export default function ChatSidebar({ isOpen, onClose }) {
       const stored = localStorage.getItem(CHAT_STORAGE_KEY)
       if (stored) {
         const parsed = JSON.parse(stored)
-        return parsed.map(m => ({ ...m, isStreaming: false }))
+        return parsed.map(m => ({ ...m, id: m.id || nextMsgId(), isStreaming: false }))
       }
     } catch { /* corrupted data, start fresh */ }
     return []
@@ -315,19 +349,24 @@ export default function ChatSidebar({ isOpen, onClose }) {
   const messagesRef = useRef(messages)
   messagesRef.current = messages
 
-  // ── Streaming text buffer: accumulate SSE text chunks in a ref, flush via RAF ──
+  // ── Streaming buffer: accumulate ALL SSE updates in a ref, flush via RAF ──
+  // This prevents setState on every SSE event — only one render per animation frame
   const streamBufferRef = useRef('')
+  const streamUpdatesRef = useRef([])  // batched non-text updates (tools, whiskeys, etc.)
   const rafIdRef = useRef(null)
 
   const flushStreamBuffer = useCallback(() => {
     rafIdRef.current = null
     const text = streamBufferRef.current
-    if (!text) return
+    const updates = streamUpdatesRef.current
+    if (!text && updates.length === 0) return
     streamBufferRef.current = ''
+    streamUpdatesRef.current = []
     setMessages(prev => {
       const updated = [...prev]
       const last = { ...updated[updated.length - 1] }
-      last.content += text
+      if (text) last.content += text
+      for (const upd of updates) upd(last)
       updated[updated.length - 1] = last
       return updated
     })
@@ -335,6 +374,13 @@ export default function ChatSidebar({ isOpen, onClose }) {
 
   const appendStreamText = useCallback((text) => {
     streamBufferRef.current += text
+    if (rafIdRef.current == null) {
+      rafIdRef.current = requestAnimationFrame(flushStreamBuffer)
+    }
+  }, [flushStreamBuffer])
+
+  const queueStreamUpdate = useCallback((updater) => {
+    streamUpdatesRef.current.push(updater)
     if (rafIdRef.current == null) {
       rafIdRef.current = requestAnimationFrame(flushStreamBuffer)
     }
@@ -467,11 +513,11 @@ export default function ChatSidebar({ isOpen, onClose }) {
     if (!trimmed || isLoading) return
 
     const userMsg = {
-      role: 'user', content: trimmed,
+      id: nextMsgId(), role: 'user', content: trimmed,
       whiskeys: [], genUI: [], isStreaming: false,
     }
     const assistantMsg = {
-      role: 'assistant', content: '',
+      id: nextMsgId(), role: 'assistant', content: '',
       whiskeys: [], genUI: [], isStreaming: true,
     }
     const nextMessages = [...messages, userMsg].slice(-MAX_CHAT_MESSAGES)
@@ -550,17 +596,20 @@ export default function ChatSidebar({ isOpen, onClose }) {
     } finally {
       clearTimeout(hardTimeout)
       clearTimeout(idleTimer)
-      // Flush any remaining buffered text before finalizing
+      // Flush any remaining buffered text and queued updates before finalizing
       if (rafIdRef.current) {
         cancelAnimationFrame(rafIdRef.current)
         rafIdRef.current = null
       }
       const remaining = streamBufferRef.current
+      const pendingUpdates = streamUpdatesRef.current
       streamBufferRef.current = ''
+      streamUpdatesRef.current = []
       setMessages(prev => {
         const updated = [...prev]
         const last = { ...updated[updated.length - 1] }
         if (remaining) last.content += remaining
+        for (const upd of pendingUpdates) upd(last)
         last.isStreaming = false
         updated[updated.length - 1] = last
         return updated
@@ -571,19 +620,9 @@ export default function ChatSidebar({ isOpen, onClose }) {
   }
 
   function handleSseEvent(event) {
-    const updateLast = (updater) => {
-      setMessages(prev => {
-        const updated = [...prev]
-        const last = { ...updated[updated.length - 1] }
-        updater(last)
-        updated[updated.length - 1] = last
-        return updated
-      })
-    }
-
     switch (event.type) {
       case 'thinking':
-        updateLast(last => { last.toolStatus = 'Thinking\u2026' })
+        queueStreamUpdate(last => { last.toolStatus = 'Thinking\u2026' })
         break
 
       case 'tool_start': {
@@ -603,23 +642,22 @@ export default function ChatSidebar({ isOpen, onClose }) {
           create_learning_path: 'Building your journey\u2026',
         }
         const label = labels[event.tool] || 'Working\u2026'
-        updateLast(last => { last.toolStatus = label })
+        queueStreamUpdate(last => { last.toolStatus = label })
         break
       }
 
       case 'text':
-        // Buffer text in a ref and flush once per animation frame
         appendStreamText(event.content)
         break
 
       case 'whiskeys':
-        updateLast(last => {
+        queueStreamUpdate(last => {
           last.whiskeys = [...(last.whiskeys || []), ...event.whiskeys]
         })
         break
 
       case 'map':
-        updateLast(last => {
+        queueStreamUpdate(last => {
           last.genUI = [...(last.genUI || []), {
             type: 'map',
             stores: event.stores,
@@ -629,7 +667,7 @@ export default function ChatSidebar({ isOpen, onClose }) {
         break
 
       case 'comparison':
-        updateLast(last => {
+        queueStreamUpdate(last => {
           last.genUI = [...(last.genUI || []), {
             type: 'comparison',
             whiskeys: event.whiskeys,
@@ -639,7 +677,7 @@ export default function ChatSidebar({ isOpen, onClose }) {
         break
 
       case 'flight':
-        updateLast(last => {
+        queueStreamUpdate(last => {
           last.genUI = [...(last.genUI || []), {
             type: 'flight',
             story: event.story,
@@ -649,7 +687,7 @@ export default function ChatSidebar({ isOpen, onClose }) {
         break
 
       case 'palate_profile':
-        updateLast(last => {
+        queueStreamUpdate(last => {
           last.genUI = [...(last.genUI || []), {
             type: 'palate_profile',
             profile: event.profile,
@@ -658,7 +696,7 @@ export default function ChatSidebar({ isOpen, onClose }) {
         break
 
       case 'price_alternatives':
-        updateLast(last => {
+        queueStreamUpdate(last => {
           last.genUI = [...(last.genUI || []), {
             type: 'price_alternatives',
             reference: event.reference,
@@ -668,7 +706,7 @@ export default function ChatSidebar({ isOpen, onClose }) {
         break
 
       case 'done':
-        updateLast(last => { last.isStreaming = false })
+        queueStreamUpdate(last => { last.isStreaming = false })
         break
 
       default:
@@ -782,32 +820,8 @@ export default function ChatSidebar({ isOpen, onClose }) {
             </div>
           )}
 
-          {messages.map((msg, i) => (
-            <div key={`${msg.role}-${i}`} className={`sb-bubble-wrap sb-bubble-wrap--${msg.role}`}>
-              <div className={`sb-bubble sb-bubble--${msg.role}`}>
-                {msg.content && (
-                  <p className="sb-bubble-text">
-                    {msg.content}
-                    {msg.isStreaming && <span className="sb-cursor" />}
-                  </p>
-                )}
-                {msg.isStreaming && !msg.content && (
-                  <ThinkingIndicator toolStatus={msg.toolStatus} />
-                )}
-
-                {/* Generative UI blocks */}
-                {(msg.genUI || []).map((item, j) => renderGenUI(item, j))}
-
-                {/* Whiskey cards */}
-                {(msg.whiskeys || []).length > 0 && (
-                  <div className="sb-cards">
-                    {msg.whiskeys.slice(0, 6).map(w => (
-                      <SidebarWhiskeyCard key={w.id} whiskey={w} />
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
+          {messages.map(msg => (
+            <MessageBubble key={msg.id} msg={msg} renderGenUI={renderGenUI} />
           ))}
 
           <div ref={bottomRef} />

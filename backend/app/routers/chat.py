@@ -299,6 +299,9 @@ async def _stream_agent(messages: list[ChatMessage], user_id: str, user_location
     - on_tool_end           ->  generative UI events (maps, comparisons, flights, etc.)
                                 + whiskey card data
     """
+    # Yield thinking immediately so the user sees feedback before DB queries
+    yield _sse({"type": "thinking"})
+
     lc_messages = [{"role": m.role, "content": m.content} for m in messages]
     memory = await _load_user_memory(user_id)
 
@@ -310,8 +313,6 @@ async def _stream_agent(messages: list[ChatMessage], user_id: str, user_location
     if user_location:
         configurable["user_lat"] = user_location["lat"]
         configurable["user_lng"] = user_location["lng"]
-
-    yield _sse({"type": "thinking"})
 
     try:
         async for event in agent_graph.astream_events(
