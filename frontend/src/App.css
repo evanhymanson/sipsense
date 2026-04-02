@@ -2468,25 +2468,6 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
 .browse-marquee {
   position: relative;
 }
-/* Fade edges */
-.browse-marquee::before,
-.browse-marquee::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 3rem;
-  z-index: 2;
-  pointer-events: none;
-}
-.browse-marquee::before {
-  left: 0;
-  background: linear-gradient(to right, var(--bg, #111), transparent);
-}
-.browse-marquee::after {
-  right: 0;
-  background: linear-gradient(to left, var(--bg, #111), transparent);
-}
 /* Scrollable container — hides native scrollbar, allows drag/touch scroll */
 .browse-marquee-scroll {
   overflow-x: auto;
