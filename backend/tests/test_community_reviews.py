@@ -175,7 +175,7 @@ def test_ratings_sort_by_lowest(client, auth_headers, second_auth_headers, sampl
 
 
 def test_ratings_sort_by_helpful(client, auth_headers, second_auth_headers, sample_whiskeys):
-    """Sort by helpful orders by toast count descending."""
+    """Sort by helpful orders by helpful vote count descending."""
     w = sample_whiskeys[0]
     # User 1 rates
     r1 = client.post(
@@ -183,14 +183,14 @@ def test_ratings_sort_by_helpful(client, auth_headers, second_auth_headers, samp
     ).json()["rating"]["id"]
     # User 2 rates
     client.post(f"/whiskeys/{w.id}/rate", json={"score": 4.0}, headers=second_auth_headers)
-    # User 2 toasts user 1's rating
-    client.post(f"/ratings/{r1}/toast", headers=second_auth_headers)
+    # User 2 marks user 1's rating as helpful
+    client.post(f"/ratings/{r1}/helpful", headers=second_auth_headers)
 
     resp = client.get(f"/whiskeys/{w.id}/ratings?sort_by=helpful")
     ratings = resp.json()
-    # User 1's rating (1 toast) should come first
+    # User 1's rating (1 helpful vote) should come first
     assert ratings[0]["user_id"] == "testuser"
-    assert ratings[0]["toast_count"] == 1
+    assert ratings[0]["helpful_count"] == 1
 
 
 def test_ratings_include_username_and_tags(client, auth_headers, sample_whiskeys):
