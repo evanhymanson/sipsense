@@ -178,6 +178,7 @@ def iter_wikiliq_whiskeys(data_dir: str) -> list[dict]:
             country = (row.get("Country") or row.get("country") or "").strip()
             abv_str = (row.get("ABV") or row.get("abv") or row.get("Alcohol") or "").strip()
             rating_str = (row.get("Rating") or row.get("rating") or "").strip()
+            rate_count_str = (row.get("Rate Count") or row.get("rate_count") or "").strip()
             price_str = (row.get("Price") or row.get("price") or "").strip()
             description = (row.get("Description") or row.get("description") or "").strip()
 
@@ -195,7 +196,12 @@ def iter_wikiliq_whiskeys(data_dir: str) -> list[dict]:
 
             category = _infer_category(categories, name)
             abv = _parse_abv(abv_str)
-            rating = _parse_rating(rating_str)
+            # Only trust ratings that have real user reviews behind them
+            try:
+                rate_count = int(rate_count_str) if rate_count_str else 0
+            except (ValueError, TypeError):
+                rate_count = 0
+            rating = _parse_rating(rating_str) if rate_count > 0 else None
             price = _parse_price(price_str)
             region = _country_to_region(country)
 
