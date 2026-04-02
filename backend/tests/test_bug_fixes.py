@@ -95,8 +95,12 @@ class TestNoDuplicateMathImport:
 # ── Bug 2: Journal image_url format must be /uploads/... ────────────────────
 
 class TestJournalImageUrl:
-    def test_journal_image_url_format(self, client, auth_headers, seeded_whiskey):
+    def test_journal_image_url_format(self, client, auth_headers, seeded_whiskey, monkeypatch):
         """image_url returned by /journal/me must start with /uploads/, not /api/uploads/."""
+        # Ensure CDN is disabled so we test the raw path logic
+        import app.storage as storage_mod
+        monkeypatch.setattr(storage_mod, "CDN_BASE_URL", None)
+
         wid = seeded_whiskey.id
 
         # Create a rating
