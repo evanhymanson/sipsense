@@ -47,7 +47,15 @@ def update_whiskey(
     if "image_url" in changes and changes["image_url"] == "":
         changes["image_url"] = None
 
+    # Only allow updating explicitly permitted fields (prevent mass assignment)
+    _ALLOWED_FIELDS = {
+        "name", "distillery", "category", "region", "country", "age", "abv",
+        "price_usd", "price_is_estimated", "description", "image_url",
+        "flavor_profile", "flavor_x", "flavor_y", "buy_links", "upc",
+    }
     for key, value in changes.items():
+        if key not in _ALLOWED_FIELDS:
+            raise HTTPException(status_code=400, detail=f"Field '{key}' cannot be updated via admin API")
         setattr(whiskey, key, value)
 
     db.commit()

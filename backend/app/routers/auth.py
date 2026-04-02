@@ -198,10 +198,29 @@ def google_oauth(body: schemas.OAuthLoginRequest, db: Session = Depends(get_db))
     Creates an account on first login; returns JWT on subsequent logins.
     """
     import os
-    # In production, verify the Google ID token with Google's API
-    # For now, we trust the client-provided fields as a scaffolding implementation
     if not body.token:
         raise HTTPException(status_code=400, detail="OAuth token is required")
+
+    # Verify the Google ID token server-side
+    google_client_id = os.getenv("GOOGLE_OAUTH_CLIENT_ID", "")
+    if google_client_id:
+        try:
+            from google.oauth2 import id_token as google_id_token
+            from google.auth.transport import requests as google_requests
+            idinfo = google_id_token.verify_oauth2_token(
+                body.token, google_requests.Request(), google_client_id
+            )
+            # Override client-provided fields with verified data
+            verified_email = idinfo.get("email")
+            verified_sub = idinfo.get("sub")
+            if verified_email:
+                body.email = verified_email
+            if verified_sub:
+                body.oauth_id = verified_sub
+        except ValueError:
+            raise HTTPException(status_code=401, detail="Invalid or expired Google token")
+    else:
+        logger.warning("GOOGLE_OAUTH_CLIENT_ID not set — skipping token verification")
 
     # Check for existing OAuth user
     existing = (

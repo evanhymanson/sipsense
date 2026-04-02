@@ -17,8 +17,12 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY . .
 
-# Create uploads directory
-RUN mkdir -p uploads
+# Create uploads directory and non-root user
+RUN useradd -m -u 1000 appuser \
+    && mkdir -p uploads \
+    && chown -R appuser:appuser /opt/sipsense/backend
+
+USER appuser
 
 EXPOSE 8000
 

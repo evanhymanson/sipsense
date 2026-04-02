@@ -158,6 +158,7 @@ def _summarize_and_extract_sync(
             messages=[
                 {"role": "user", "content": f"{_SUMMARIZE_PROMPT}\n\n<conversation>\n{transcript}\n</conversation>"}
             ],
+            timeout=30.0,
         )
         raw = response.content[0].text.strip()
         # Strip markdown code fences if present

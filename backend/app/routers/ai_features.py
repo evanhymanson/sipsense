@@ -107,6 +107,7 @@ Be specific and evocative. Reference the actual flavor profile. Write as if you'
             model=os.environ.get("CLAUDE_MODEL_SMALL", "claude-haiku-4-5-20251001"),
             max_tokens=400,
             messages=[{"role": "user", "content": prompt}],
+            timeout=30.0,
         )
         text = response.content[0].text.strip()
         notes = json.loads(text)
@@ -211,6 +212,7 @@ Do not use any markdown formatting — no bold, no italics, no asterisks, no hea
             model=os.environ.get("CLAUDE_MODEL_SMALL", "claude-haiku-4-5-20251001"),
             max_tokens=500,
             messages=[{"role": "user", "content": prompt}],
+            timeout=30.0,
         )
         narrative = response.content[0].text.strip()
         return {"narrative": narrative}
@@ -383,6 +385,7 @@ Be specific, scientific but accessible. Reference the actual flavor profile."""
             model=os.environ.get("CLAUDE_MODEL_SMALL", "claude-haiku-4-5-20251001"),
             max_tokens=400,
             messages=[{"role": "user", "content": prompt}],
+            timeout=30.0,
         )
         text = response.content[0].text.strip()
         coaching = json.loads(text)
@@ -478,6 +481,7 @@ Return exactly this JSON (no markdown, no extra text):
             model=os.environ.get("CLAUDE_MODEL_SMALL", "claude-haiku-4-5-20251001"),
             max_tokens=500,
             messages=[{"role": "user", "content": prompt}],
+            timeout=30.0,
         )
         text = response.content[0].text.strip()
         cocktail = json.loads(text)
@@ -594,6 +598,7 @@ Be warm, specific, and reference actual bottles from their collection."""
             model=os.environ.get("CLAUDE_MODEL_SMALL", "claude-haiku-4-5-20251001"),
             max_tokens=500,
             messages=[{"role": "user", "content": prompt}],
+            timeout=30.0,
         )
         text = response.content[0].text.strip()
         insight = json.loads(text)
@@ -729,6 +734,7 @@ async def scan_label(
                     {"type": "text", "text": prompt},
                 ],
             }],
+            timeout=30.0,
         )
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"AI service error: {str(e)}")
@@ -882,6 +888,7 @@ async def scan_menu(
                     {"type": "text", "text": prompt},
                 ],
             }],
+            timeout=30.0,
         )
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"AI service error: {str(e)}")

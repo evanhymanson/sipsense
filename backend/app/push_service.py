@@ -151,7 +151,7 @@ def _should_push(user_id: str, push_type: str) -> bool:
             .first()
         )
         if not pref:
-            return True  # No preferences row = all defaults (opted in)
+            return False  # No preferences row = default opt-out (require explicit opt-in)
 
         mapping = {
             "social": pref.push_social,
