@@ -36,3 +36,7 @@ ACTION_PREMIUM_VIEW = "premium_view"
 # Journeys
 ACTION_JOURNEY_START = "journey_start"
 ACTION_JOURNEY_COMPLETE = "journey_complete"
+
+# Recommendation tracking
+ACTION_CHAT_TOOL_CALL = "chat_tool_call"
+ACTION_REC_IMPRESSION = "rec_impression"

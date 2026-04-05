@@ -204,6 +204,28 @@
   line-height: 1.45;
 }
 
+.tq-share-btn {
+  background: transparent;
+  color: var(--amber);
+  border: 1px solid var(--amber);
+  padding: 0.7rem 2rem;
+  border-radius: var(--radius);
+  font-size: 0.95rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+  margin-top: 0.5rem;
+}
+.tq-share-btn:hover {
+  background: var(--amber);
+  color: #ffffff;
+}
+.tq-share-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .tq-cta {
   background: var(--amber);
   color: #ffffff;

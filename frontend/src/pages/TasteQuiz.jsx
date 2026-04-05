@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
 import { api, isLoggedIn } from '../api/client'
+import { trackEvent } from '../api/analytics'
 import './TasteQuiz.css'
 
 const QUESTIONS = [
@@ -105,10 +106,12 @@ export default function TasteQuiz() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [buyLinksMap, setBuyLinksMap] = useState({})
+  const [sharing, setSharing] = useState(false)
 
-  // Fetch buy links for all quiz results
+  // Fetch buy links for all quiz results + track impression
   useEffect(() => {
     if (!results || results.length === 0) return
+    trackEvent('rec_impression', { source: 'quiz' })
     results.forEach((rec) => {
       api.getBuyLinks(rec.whiskey.id)
         .then(links => setBuyLinksMap(prev => ({ ...prev, [rec.whiskey.id]: links })))
@@ -214,6 +217,35 @@ export default function TasteQuiz() {
                 )
               })}
             </div>
+          )}
+
+          {!loading && results && results.length > 0 && (
+            <button
+              className="tq-share-btn"
+              disabled={sharing}
+              onClick={async () => {
+                setSharing(true)
+                try {
+                  const ids = results.map(r => r.whiskey.id)
+                  const url = api.getQuizShareCardUrl(ids)
+                  const res = await fetch(url)
+                  const blob = await res.blob()
+                  const file = new File([blob], 'sipsense-quiz-results.png', { type: 'image/png' })
+                  if (navigator.share && navigator.canShare?.({ files: [file] })) {
+                    await navigator.share({ title: 'My SipSense Quiz Results', files: [file] })
+                  } else {
+                    const a = document.createElement('a')
+                    a.href = URL.createObjectURL(blob)
+                    a.download = 'sipsense-quiz-results.png'
+                    a.click()
+                    URL.revokeObjectURL(a.href)
+                  }
+                } catch { /* user cancelled share */ }
+                setSharing(false)
+              }}
+            >
+              {sharing ? 'Generating...' : 'Share My Results'}
+            </button>
           )}
 
           {!loading && (

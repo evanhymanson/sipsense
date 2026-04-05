@@ -339,6 +339,214 @@ def get_performance(
     }
 
 
+# ── Recommendation Funnel ─────────────────────────────────────────────
+
+
+_AI_SOURCES = {"chat", "quiz", "for_you", "daily_discovery", "next_bottle", "post_checkin"}
+_NON_AI_SOURCES = {"detail", "search", "feed", "video"}
+
+
+@router.get("/recommendation-funnel")
+def get_recommendation_funnel(
+    days: int = Query(30, ge=1, le=365),
+    _admin: models.User = Depends(_require_admin),
+    db: Session = Depends(get_db),
+):
+    """Recommendation → purchase funnel: clicks by source, impressions, CTR."""
+    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+
+    # ── Affiliate clicks by source ──
+    click_rows = (
+        db.query(
+            models.AffiliateClick.source,
+            func.count(models.AffiliateClick.id),
+        )
+        .filter(models.AffiliateClick.clicked_at >= cutoff)
+        .group_by(models.AffiliateClick.source)
+        .all()
+    )
+    clicks_by_source = {src: cnt for src, cnt in click_rows}
+
+    # ── Recommendation impressions by source (from frontend tracking) ──
+    impression_rows = (
+        db.query(
+            models.UserAction.category,
+            func.count(models.UserAction.id),
+        )
+        .filter(
+            models.UserAction.action == "rec_impression",
+            models.UserAction.timestamp >= cutoff,
+            models.UserAction.category.isnot(None),
+        )
+        .group_by(models.UserAction.category)
+        .all()
+    )
+    impressions_by_source = {src: cnt for src, cnt in impression_rows}
+
+    # ── Build funnel table ──
+    all_sources = sorted(set(clicks_by_source.keys()) | set(impressions_by_source.keys()))
+    funnel = []
+    for src in all_sources:
+        clicks = clicks_by_source.get(src, 0)
+        impressions = impressions_by_source.get(src, 0)
+        ctr = round(clicks / impressions * 100, 1) if impressions > 0 else None
+        funnel.append({
+            "source": src,
+            "impressions": impressions,
+            "clicks": clicks,
+            "ctr_pct": ctr,
+        })
+
+    # ── AI vs non-AI aggregate ──
+    ai_clicks = sum(clicks_by_source.get(s, 0) for s in _AI_SOURCES)
+    non_ai_clicks = sum(clicks_by_source.get(s, 0) for s in _NON_AI_SOURCES)
+    total_clicks = sum(clicks_by_source.values())
+
+    # ── Top converting whiskeys ──
+    top_converting = (
+        db.query(
+            models.AffiliateClick.whiskey_id,
+            func.count(models.AffiliateClick.id).label("clicks"),
+        )
+        .filter(models.AffiliateClick.clicked_at >= cutoff)
+        .group_by(models.AffiliateClick.whiskey_id)
+        .order_by(func.count(models.AffiliateClick.id).desc())
+        .limit(20)
+        .all()
+    )
+    wids = [row[0] for row in top_converting]
+    wmap = {}
+    if wids:
+        ws = db.query(models.Whiskey).filter(models.Whiskey.id.in_(wids)).all()
+        wmap = {w.id: w for w in ws}
+
+    top_whiskeys = [
+        {
+            "whiskey_id": wid,
+            "name": wmap[wid].name if wid in wmap else "Unknown",
+            "clicks": cnt,
+        }
+        for wid, cnt in top_converting
+    ]
+
+    return {
+        "funnel": funnel,
+        "ai_clicks": ai_clicks,
+        "non_ai_clicks": non_ai_clicks,
+        "total_clicks": total_clicks,
+        "ai_pct": round(ai_clicks / total_clicks * 100, 1) if total_clicks else 0,
+        "top_converting_whiskeys": top_whiskeys,
+    }
+
+
+# ── Data Asset Metrics ────────────────────────────────────────────────
+
+
+@router.get("/data-asset")
+def get_data_asset(
+    _admin: models.User = Depends(_require_admin),
+    db: Session = Depends(get_db),
+):
+    """Key metrics an acquirer cares about: taste profiles, ratings depth, rec accuracy, AI conversion."""
+    # ── 1. Taste profiles ──
+    total_users = db.query(func.count(models.User.id)).scalar() or 0
+    taste_profiles = (
+        db.query(func.count(models.User.id))
+        .filter(models.User.quiz_completed == True)
+        .scalar() or 0
+    )
+
+    # ── 2. Ratings depth ──
+    total_ratings = db.query(func.count(models.UserRating.id)).scalar() or 0
+    users_with_ratings = (
+        db.query(func.count(distinct(models.UserRating.user_id))).scalar() or 0
+    )
+    avg_per_user = round(total_ratings / users_with_ratings, 1) if users_with_ratings else 0
+
+    # Ratings per user distribution
+    from sqlalchemy import literal_column
+    rating_counts = (
+        db.query(
+            models.UserRating.user_id,
+            func.count(models.UserRating.id).label("cnt"),
+        )
+        .group_by(models.UserRating.user_id)
+        .subquery()
+    )
+    distribution = {"1-5": 0, "6-10": 0, "11-20": 0, "21-50": 0, "50+": 0}
+    rows = db.query(rating_counts.c.cnt).all()
+    for (cnt,) in rows:
+        if cnt <= 5:
+            distribution["1-5"] += 1
+        elif cnt <= 10:
+            distribution["6-10"] += 1
+        elif cnt <= 20:
+            distribution["11-20"] += 1
+        elif cnt <= 50:
+            distribution["21-50"] += 1
+        else:
+            distribution["50+"] += 1
+
+    # ── 3. Recommendation accuracy (AI-clicked whiskeys vs organic ratings) ──
+    # Whiskeys the user clicked buy links for from AI sources, then rated
+    ai_rated = (
+        db.query(func.avg(models.UserRating.score))
+        .join(
+            models.AffiliateClick,
+            (models.AffiliateClick.user_id == models.UserRating.user_id)
+            & (models.AffiliateClick.whiskey_id == models.UserRating.whiskey_id),
+        )
+        .filter(models.AffiliateClick.source.in_(list(_AI_SOURCES)))
+        .scalar()
+    )
+    # All other ratings
+    organic_rated = (
+        db.query(func.avg(models.UserRating.score))
+        .scalar()
+    )
+    ai_avg = round(float(ai_rated), 2) if ai_rated else None
+    organic_avg = round(float(organic_rated), 2) if organic_rated else None
+    accuracy_lift = round(ai_avg - organic_avg, 2) if ai_avg and organic_avg else None
+
+    # ── 4. AI conversion premium (click rates from AI vs non-AI sources) ──
+    ai_clicks = (
+        db.query(func.count(models.AffiliateClick.id))
+        .filter(models.AffiliateClick.source.in_(list(_AI_SOURCES)))
+        .scalar() or 0
+    )
+    non_ai_clicks = (
+        db.query(func.count(models.AffiliateClick.id))
+        .filter(models.AffiliateClick.source.in_(list(_NON_AI_SOURCES)))
+        .scalar() or 0
+    )
+
+    return {
+        "taste_profiles": {
+            "total": taste_profiles,
+            "total_users": total_users,
+            "pct_of_users": round(taste_profiles / total_users * 100, 1) if total_users else 0,
+        },
+        "ratings": {
+            "total": total_ratings,
+            "users_with_ratings": users_with_ratings,
+            "avg_per_user": avg_per_user,
+            "distribution": [
+                {"bucket": k, "count": v} for k, v in distribution.items()
+            ],
+        },
+        "recommendation_accuracy": {
+            "avg_rating_ai_recommended": ai_avg,
+            "avg_rating_all": organic_avg,
+            "lift": accuracy_lift,
+        },
+        "ai_conversion": {
+            "ai_clicks": ai_clicks,
+            "non_ai_clicks": non_ai_clicks,
+            "ai_pct": round(ai_clicks / (ai_clicks + non_ai_clicks) * 100, 1) if (ai_clicks + non_ai_clicks) else 0,
+        },
+    }
+
+
 # ── Frontend Event Tracking ──────────────────────────────────────────────
 
 # Rate limit for anonymous tracking endpoint
@@ -420,5 +628,19 @@ async def track_frontend_event(request: Request, db: Session = Depends(get_db)):
                 event.user_id = decode_access_token(auth[7:])
             db.add(event)
             db.commit()
+
+    elif event_type == "rec_impression":
+        # Track recommendation impressions for conversion funnel
+        source = str(body.get("data", {}).get("source", ""))[:50]
+        if source:
+            from ..track import track_action
+            user_id = None
+            auth = request.headers.get("authorization", "")
+            if auth.startswith("Bearer "):
+                from ..auth import decode_access_token
+                user_id = decode_access_token(auth[7:])
+            if user_id:
+                track_action(db, user_id, "rec_impression", category=source)
+                db.commit()
 
     return {"status": "ok"}

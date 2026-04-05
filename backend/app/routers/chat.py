@@ -33,7 +33,7 @@ from .. import models
 from ..ml.agent import agent_graph
 from ..auth import decode_access_token as _decode_token
 from ..track import track_action
-from ..analytics_constants import ACTION_CHAT_MESSAGE
+from ..analytics_constants import ACTION_CHAT_MESSAGE, ACTION_CHAT_TOOL_CALL
 from ..rate_limit import chat_rate_limiter
 
 logger = logging.getLogger(__name__)
@@ -290,6 +290,29 @@ def _emit_gen_ui_events(parsed: dict):
     return events
 
 
+_REC_TOOLS = frozenset({
+    "search_whiskeys", "get_recommendations", "get_similar_whiskeys",
+    "get_top_rated", "find_value_picks", "get_by_occasion",
+    "build_tasting_flight", "compare_whiskeys", "find_gift_recommendation",
+    "find_cheaper_alternatives",
+})
+
+
+def _track_tool_call_bg(user_id: str, tool_name: str, whiskey_ids: list[int]):
+    """Fire-and-forget background tracking for chat tool calls."""
+    db = SessionLocal()
+    try:
+        track_action(
+            db, user_id, ACTION_CHAT_TOOL_CALL,
+            detail={"tool": tool_name, "whiskey_ids": whiskey_ids[:20]},
+        )
+        db.commit()
+    except Exception:
+        db.rollback()
+    finally:
+        db.close()
+
+
 async def _stream_agent(messages: list[ChatMessage], user_id: str, user_location: dict | None = None):
     """
     Async generator that runs the LangGraph agent and yields SSE strings.
@@ -347,6 +370,7 @@ async def _stream_agent(messages: list[ChatMessage], user_id: str, user_location
                     yield _sse({"type": "tool_start", "tool": tool_name})
 
             elif event_type == "on_tool_end":
+                tool_name = event.get("name", "")
                 tool_output = event["data"].get("output", "")
                 if hasattr(tool_output, "content"):
                     tool_output = tool_output.content
@@ -355,6 +379,16 @@ async def _stream_agent(messages: list[ChatMessage], user_id: str, user_location
                     if isinstance(parsed, dict):
                         for sse_event in _emit_gen_ui_events(parsed):
                             yield sse_event
+
+                        # Track recommendation tool calls for conversion funnel
+                        if tool_name in _REC_TOOLS and not user_id.startswith("anon_"):
+                            whiskey_ids = [
+                                w.get("id") for w in parsed.get("whiskeys", [])
+                                if isinstance(w, dict) and w.get("id")
+                            ]
+                            asyncio.create_task(
+                                asyncio.to_thread(_track_tool_call_bg, user_id, tool_name, whiskey_ids)
+                            )
                 except (json.JSONDecodeError, TypeError):
                     pass
 

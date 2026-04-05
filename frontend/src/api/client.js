@@ -371,6 +371,8 @@ export const api = {
   getShareCardUrl: (ratingId) => `${BASE}/share/rating/${ratingId}`,
   getWhiskeyShareCardUrl: (whiskeyId) => `${BASE}/share/whiskey/${whiskeyId}`,
   getPalateDnaCardUrl: (username) => `${BASE}/share/palate/${username}`,
+  getQuizShareCardUrl: (whiskeyIds, title = 'My Whiskey Picks') =>
+    `${BASE}/share/quiz?whiskey_ids=${whiskeyIds.join(',')}&title=${encodeURIComponent(title)}`,
 
   // ── Label scan ─────────────────────────────────────────────────────────
   scanLabel: (imageFile) => {
@@ -495,6 +497,9 @@ export const api = {
     request(`/analytics/feature-adoption?days=${days}`),
   getAnalyticsPerformance: (days = 7) =>
     request(`/analytics/performance?days=${days}`),
+  getRecommendationFunnel: (days = 30) =>
+    request(`/analytics/recommendation-funnel?days=${days}`),
+  getDataAsset: () => request('/analytics/data-asset'),
 
   // ── Match Scores ────────────────────────────────────────────────────────
   getMatchScores: (whiskeyIds) =>

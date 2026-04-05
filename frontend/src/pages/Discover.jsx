@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api, isLoggedIn } from '../api/client'
 import { getCategoryEmoji } from '../constants'
+import { trackEvent } from '../api/analytics'
 import './Discover.css'
 
 const CATEGORIES_MAP = [
@@ -40,6 +41,7 @@ export default function Discover() {
     api.getDailyDiscovery()
       .then(data => {
         setDaily(data)
+        trackEvent('rec_impression', { source: 'daily_discovery' })
         if (data?.whiskey?.id) {
           api.getBuyLinks(data.whiskey.id)
             .then(setDailyBuyLinks)

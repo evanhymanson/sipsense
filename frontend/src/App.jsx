@@ -109,14 +109,12 @@ class ErrorBoundary extends Component {
 
 const PUBLIC_LINKS = [
   { to: '/',         label: 'Browse',   end: true },
-  { to: '/learn',    label: 'Learn' },
+  { to: '/quiz',     label: 'Quiz' },
 ]
 
 const AUTH_LINKS = [
   { to: '/discover', label: 'Discover' },
-  { to: '/scan',     label: 'Scan' },
   { to: '/feed',     label: 'Feed' },
-  { to: '/videos',   label: 'Videos' },
   { to: '/me',       label: 'My Profile' },
 ]
 
