@@ -38,6 +38,8 @@ export default function AdminDashboard() {
   const [topWhiskeys, setTopWhiskeys] = useState(null)
   const [adoption, setAdoption] = useState(null)
   const [performance, setPerformance] = useState(null)
+  const [dataAsset, setDataAsset] = useState(null)
+  const [recFunnel, setRecFunnel] = useState(null)
   const [error, setError] = useState(null)
   const [loading, setLoading] = useState(true)
 
@@ -48,13 +50,17 @@ export default function AdminDashboard() {
       api.getAnalyticsTopWhiskeys(),
       api.getAnalyticsFeatureAdoption(),
       api.getAnalyticsPerformance(),
+      api.getDataAsset(),
+      api.getRecommendationFunnel(),
     ])
-      .then(([ov, fn, tw, ad, pf]) => {
+      .then(([ov, fn, tw, ad, pf, da, rf]) => {
         setOverview(ov)
         setFunnel(fn)
         setTopWhiskeys(tw)
         setAdoption(ad)
         setPerformance(pf)
+        setDataAsset(da)
+        setRecFunnel(rf)
       })
       .catch(err => setError(err.message))
       .finally(() => setLoading(false))
@@ -96,6 +102,93 @@ export default function AdminDashboard() {
             <MetricCard label="Avg Response" value={`${overview.avg_response_time_ms}ms`} />
             <MetricCard label="Error Rate" value={`${overview.error_rate_pct}%`} />
           </div>
+        </section>
+      )}
+
+      {/* Data Asset — the 4 numbers an acquirer cares about */}
+      {dataAsset && (
+        <section className="admin-section">
+          <h2>Data Asset</h2>
+          <div className="admin-metrics-grid">
+            <MetricCard
+              label="Taste Profiles"
+              value={dataAsset.taste_profiles.total}
+              sub={`${dataAsset.taste_profiles.pct_of_users}% of ${dataAsset.taste_profiles.total_users} users`}
+            />
+            <MetricCard
+              label="Total Ratings"
+              value={dataAsset.ratings.total}
+              sub={`${dataAsset.ratings.avg_per_user} avg/user across ${dataAsset.ratings.users_with_ratings} users`}
+            />
+            <MetricCard
+              label="Rec Accuracy Lift"
+              value={dataAsset.recommendation_accuracy.lift != null
+                ? `+${dataAsset.recommendation_accuracy.lift}`
+                : 'N/A'}
+              sub={dataAsset.recommendation_accuracy.avg_rating_ai_recommended != null
+                ? `AI: ${dataAsset.recommendation_accuracy.avg_rating_ai_recommended}/5 vs All: ${dataAsset.recommendation_accuracy.avg_rating_all}/5`
+                : 'Need more AI-driven ratings'}
+            />
+            <MetricCard
+              label="AI Click Share"
+              value={`${dataAsset.ai_conversion.ai_pct}%`}
+              sub={`${dataAsset.ai_conversion.ai_clicks} AI / ${dataAsset.ai_conversion.non_ai_clicks} organic clicks`}
+            />
+          </div>
+          {dataAsset.ratings.distribution?.length > 0 && (
+            <>
+              <h3 style={{ marginTop: '1.5rem' }}>Ratings per User Distribution</h3>
+              <BarChart
+                data={dataAsset.ratings.distribution}
+                labelKey="bucket"
+                valueKey="count"
+              />
+            </>
+          )}
+        </section>
+      )}
+
+      {/* Recommendation Performance */}
+      {recFunnel && (
+        <section className="admin-section">
+          <h2>Recommendation Performance (30d)</h2>
+          <div className="admin-metrics-grid">
+            <MetricCard label="Total Clicks" value={recFunnel.total_clicks} />
+            <MetricCard label="AI-Driven" value={`${recFunnel.ai_pct}%`} sub={`${recFunnel.ai_clicks} clicks`} />
+            <MetricCard label="Organic" value={recFunnel.non_ai_clicks} sub="detail + search + feed" />
+          </div>
+          {recFunnel.funnel?.length > 0 && (
+            <>
+              <h3 style={{ marginTop: '1.5rem' }}>Click-Through by Source</h3>
+              <div className="admin-table-wrap">
+                <table className="admin-table">
+                  <thead>
+                    <tr><th>Source</th><th>Impressions</th><th>Clicks</th><th>CTR</th></tr>
+                  </thead>
+                  <tbody>
+                    {recFunnel.funnel.map((row, i) => (
+                      <tr key={i}>
+                        <td>{row.source}</td>
+                        <td>{row.impressions}</td>
+                        <td>{row.clicks}</td>
+                        <td>{row.ctr_pct != null ? `${row.ctr_pct}%` : '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
+          {recFunnel.top_converting_whiskeys?.length > 0 && (
+            <>
+              <h3 style={{ marginTop: '1.5rem' }}>Top Converting Whiskeys</h3>
+              <BarChart
+                data={recFunnel.top_converting_whiskeys.slice(0, 10)}
+                labelKey="name"
+                valueKey="clicks"
+              />
+            </>
+          )}
         </section>
       )}
 

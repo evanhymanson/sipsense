@@ -4,7 +4,7 @@ Share card generation — create branded shareable PNG images for ratings and pa
 import io
 from collections import Counter
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
@@ -196,6 +196,99 @@ def generate_whiskey_share_card(whiskey_id: int, db: Session = Depends(get_db)):
         buf,
         media_type="image/png",
         headers={"Content-Disposition": f"inline; filename=sipsense-{whiskey_id}.png"},
+    )
+
+
+@router.get("/quiz")
+def generate_quiz_share_card(
+    whiskey_ids: str = Query(..., description="Comma-separated whiskey IDs (max 3)"),
+    title: str = Query("My Whiskey Picks", description="Card title"),
+    db: Session = Depends(get_db),
+):
+    """Generate a branded PNG share card for quiz results."""
+    from PIL import Image, ImageDraw
+
+    # Parse and limit to 3 IDs
+    try:
+        ids = [int(x.strip()) for x in whiskey_ids.split(",") if x.strip()][:3]
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid whiskey_ids format")
+    if not ids:
+        raise HTTPException(status_code=400, detail="At least one whiskey_id required")
+
+    whiskeys = (
+        db.query(models.Whiskey).filter(models.Whiskey.id.in_(ids)).all()
+    )
+    if not whiskeys:
+        raise HTTPException(status_code=404, detail="No whiskeys found")
+
+    # Preserve original order from query param
+    id_order = {wid: i for i, wid in enumerate(ids)}
+    whiskeys.sort(key=lambda w: id_order.get(w.id, 99))
+
+    font_lg, font_md, font_sm = _load_fonts()
+    QUIZ_W, QUIZ_H = 600, 480
+    img = Image.new("RGB", (QUIZ_W, QUIZ_H), BG_COLOR)
+    draw = ImageDraw.Draw(img)
+
+    # Top bar with branding
+    draw.rectangle([(0, 0), (QUIZ_W, 56)], fill=SURFACE_COLOR)
+    draw.text((20, 14), "SipSense", fill=AMBER_COLOR, font=font_md)
+    draw.text((QUIZ_W - 120, 18), "Taste Quiz", fill=MUTED_COLOR, font=font_sm)
+
+    # Title
+    card_title = title[:40] if len(title) > 40 else title
+    draw.text((30, 76), card_title, fill=TEXT_COLOR, font=font_lg)
+
+    # Subtitle
+    draw.text((30, 114), "Matched to my taste preferences", fill=MUTED_COLOR, font=font_sm)
+
+    # Divider
+    draw.line([(30, 144), (QUIZ_W - 30, 144)], fill=MUTED_COLOR, width=1)
+
+    # Whiskey list
+    y = 164
+    for i, w in enumerate(whiskeys):
+        # Number badge
+        draw.text((30, y), f"{i + 1}.", fill=AMBER_COLOR, font=font_lg)
+
+        # Name (truncate if long)
+        name = w.name if len(w.name) <= 32 else w.name[:29] + "..."
+        draw.text((65, y), name, fill=TEXT_COLOR, font=font_lg)
+
+        # Details line
+        details = w.distillery or ""
+        if w.category:
+            details += f" \u00b7 {w.category}" if details else w.category
+        if w.price_usd:
+            details += f" \u00b7 ${w.price_usd}"
+        draw.text((65, y + 32), details, fill=MUTED_COLOR, font=font_sm)
+
+        # Flavor tags
+        if w.flavor_profile:
+            flavors = [f.strip() for f in w.flavor_profile.split(",") if f.strip()][:3]
+            if flavors:
+                draw.text((65, y + 50), " \u00b7 ".join(flavors), fill=AMBER_COLOR, font=font_sm)
+
+        y += 86
+
+    # Bottom bar
+    draw.rectangle([(0, QUIZ_H - 40), (QUIZ_W, QUIZ_H)], fill=SURFACE_COLOR)
+    draw.text(
+        (20, QUIZ_H - 32),
+        "Take the quiz at sipsense.ai/quiz",
+        fill=AMBER_COLOR,
+        font=font_sm,
+    )
+
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    buf.seek(0)
+
+    return StreamingResponse(
+        buf,
+        media_type="image/png",
+        headers={"Content-Disposition": "inline; filename=sipsense-quiz-results.png"},
     )
 
 

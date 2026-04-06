@@ -7,6 +7,7 @@ import WhiskeyCard from '../components/WhiskeyCard'
 import SkeletonCard from '../components/SkeletonCard'
 import CompareDrawer from '../components/CompareDrawer'
 import { WHISKEY_CATEGORIES, getCategoryEmoji } from '../constants'
+import { trackEvent } from '../api/analytics'
 
 function Marquee({ children, reverse }) {
   const outerRef = useRef(null)
@@ -342,9 +343,10 @@ export default function Browse() {
     return () => controller.abort()
   }, [specialMode])
 
-  // Fetch buy links for "For You" recommendations
+  // Fetch buy links for "For You" recommendations + track impression
   useEffect(() => {
     if (specialMode !== 'foryou' || forYouData.length === 0) return
+    trackEvent('rec_impression', { source: 'for_you' })
     forYouData.forEach(({ whiskey }) => {
       api.getBuyLinks(whiskey.id)
         .then(links => setForYouBuyLinks(prev => ({ ...prev, [whiskey.id]: links })))
