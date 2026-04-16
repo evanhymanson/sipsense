@@ -233,7 +233,11 @@ def get_ncf_recommendations(
     whiskeys_map = {
         w.id: w
         for w in db.query(models.Whiskey)
-        .filter(models.Whiskey.id.in_(whiskey_ids_to_load))
+        .filter(
+            models.Whiskey.id.in_(whiskey_ids_to_load),
+            models.Whiskey.image_url.isnot(None),
+            models.Whiskey.image_url != "",
+        )
         .all()
     } if whiskey_ids_to_load else {}
 

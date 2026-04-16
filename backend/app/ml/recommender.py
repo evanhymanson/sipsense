@@ -19,6 +19,11 @@ from sqlalchemy import or_
 from sqlalchemy.orm import Session
 from .. import models
 
+
+def _has_image():
+    """Only return whiskeys with images (which also have verified prices)."""
+    return [models.Whiskey.image_url.isnot(None), models.Whiskey.image_url != ""]
+
 # Hard cap on candidate set size for vector scoring to prevent loading
 # the entire whiskeys table into memory on every request.
 _MAX_CANDIDATES = 500
@@ -89,7 +94,7 @@ def content_based_recommendations(
 
     if not liked_ratings:
         # Cold start: return highest-rated whiskeys the user hasn't touched
-        q = db.query(models.Whiskey).order_by(models.Whiskey.rating_avg.desc())
+        q = db.query(models.Whiskey).filter(*_has_image()).order_by(models.Whiskey.rating_avg.desc())
         if rated_ids:
             q = q.filter(models.Whiskey.id.notin_(rated_ids))
         unrated = q.limit(top_n).all()
@@ -124,7 +129,7 @@ def content_based_recommendations(
     for token in top_flavor_tokens:
         prefilters.append(models.Whiskey.flavor_profile.ilike(f"%{token}%"))
 
-    candidate_q = db.query(models.Whiskey)
+    candidate_q = db.query(models.Whiskey).filter(*_has_image())
     if rated_ids:
         candidate_q = candidate_q.filter(models.Whiskey.id.notin_(rated_ids))
     if prefilters:
@@ -134,7 +139,7 @@ def content_based_recommendations(
 
     # Broaden if prefilter yields too few results
     if len(candidates) < top_n:
-        broad_q = db.query(models.Whiskey).order_by(models.Whiskey.rating_avg.desc())
+        broad_q = db.query(models.Whiskey).filter(*_has_image()).order_by(models.Whiskey.rating_avg.desc())
         if rated_ids:
             broad_q = broad_q.filter(models.Whiskey.id.notin_(rated_ids))
         candidates = broad_q.limit(_MAX_CANDIDATES).all()
@@ -274,7 +279,7 @@ def similar_whiskeys(
     target = _whiskey_vector(whiskey)
 
     # Prefilter: same category or region first, then broaden if needed
-    base = db.query(models.Whiskey).filter(models.Whiskey.id != whiskey.id)
+    base = db.query(models.Whiskey).filter(models.Whiskey.id != whiskey.id, *_has_image())
     prefilters = []
     if whiskey.category:
         prefilters.append(models.Whiskey.category == whiskey.category)
@@ -316,7 +321,7 @@ def quiz_recommendations(
     target = _quiz_vector(answers)
 
     # SQL prefilter based on quiz answers
-    q = db.query(models.Whiskey)
+    q = db.query(models.Whiskey).filter(*_has_image())
     prefilters = []
     if answers.style and answers.style != "any":
         prefilters.append(models.Whiskey.category.ilike(f"%{answers.style}%"))
@@ -340,7 +345,7 @@ def quiz_recommendations(
     # Broaden if needed
     if len(candidates) < top_n:
         candidates = (
-            db.query(models.Whiskey)
+            db.query(models.Whiskey).filter(*_has_image())
             .order_by(models.Whiskey.rating_avg.desc())
             .limit(_MAX_CANDIDATES)
             .all()

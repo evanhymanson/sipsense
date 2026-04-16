@@ -41,6 +41,11 @@ def _escape_like(s: str) -> str:
 _MAX_TOOL_RESULTS = 12  # hard cap on results returned by any single tool call
 
 
+def _has_image():
+    """Only return whiskeys with images (which also have verified prices)."""
+    return [models.Whiskey.image_url.isnot(None), models.Whiskey.image_url != ""]
+
+
 # ── Glossary ─────────────────────────────────────────────────────────────────
 
 WHISKEY_GLOSSARY = {
@@ -143,7 +148,7 @@ def search_whiskeys(
     Returns results sorted by rating."""
     db = SessionLocal()
     try:
-        q = db.query(models.Whiskey)
+        q = db.query(models.Whiskey).filter(*_has_image())
         if query:
             pat = f"%{query}%"
             q = q.filter(
@@ -267,10 +272,12 @@ def get_database_stats() -> str:
     or regions are available, or any general question about the database contents."""
     db = SessionLocal()
     try:
-        total = db.query(models.Whiskey).count()
+        img = _has_image()
+        total = db.query(models.Whiskey).filter(*img).count()
 
         category_rows = (
             db.query(models.Whiskey.category, sqlfunc.count(models.Whiskey.id))
+            .filter(*img)
             .group_by(models.Whiskey.category)
             .order_by(sqlfunc.count(models.Whiskey.id).desc())
             .all()
@@ -279,7 +286,7 @@ def get_database_stats() -> str:
 
         region_rows = (
             db.query(models.Whiskey.region, sqlfunc.count(models.Whiskey.id))
-            .filter(models.Whiskey.region.isnot(None), models.Whiskey.region != "")
+            .filter(*img, models.Whiskey.region.isnot(None), models.Whiskey.region != "")
             .group_by(models.Whiskey.region)
             .order_by(sqlfunc.count(models.Whiskey.id).desc())
             .limit(15)
@@ -291,7 +298,7 @@ def get_database_stats() -> str:
             sqlfunc.min(models.Whiskey.price_usd),
             sqlfunc.max(models.Whiskey.price_usd),
             sqlfunc.avg(models.Whiskey.price_usd),
-        ).filter(models.Whiskey.price_usd.isnot(None)).first()
+        ).filter(*img, models.Whiskey.price_usd.isnot(None)).first()
 
         avg_rating_row = db.query(sqlfunc.avg(models.Whiskey.rating_avg)).scalar()
 
@@ -333,7 +340,7 @@ def get_top_rated(
     Use this for 'best', 'top', 'highest rated', 'most popular' type questions."""
     db = SessionLocal()
     try:
-        q = db.query(models.Whiskey).filter(models.Whiskey.rating_count > 0)
+        q = db.query(models.Whiskey).filter(models.Whiskey.rating_count > 0, *_has_image())
         if category:
             q = q.filter(models.Whiskey.category.ilike(f"%{_escape_like(category)}%"))
         if region:
@@ -460,6 +467,7 @@ def find_value_picks(
         q = (
             db.query(models.Whiskey)
             .filter(
+                *_has_image(),
                 models.Whiskey.price_usd.isnot(None),
                 models.Whiskey.price_usd > 0,
                 models.Whiskey.rating_avg.isnot(None),
@@ -631,6 +639,7 @@ def find_gift_recommendation(
             fallback = (
                 db.query(models.Whiskey)
                 .filter(
+                    *_has_image(),
                     models.Whiskey.price_usd <= budget,
                     models.Whiskey.rating_avg >= 3.5,
                 )
@@ -645,6 +654,7 @@ def find_gift_recommendation(
             })
 
         q = db.query(models.Whiskey).filter(
+            *_has_image(),
             models.Whiskey.id != ref.id,
             models.Whiskey.price_usd <= budget,
             models.Whiskey.price_usd >= (ref.price_usd or 0),
@@ -658,6 +668,7 @@ def find_gift_recommendation(
             results = (
                 db.query(models.Whiskey)
                 .filter(
+                    *_has_image(),
                     models.Whiskey.price_usd <= budget,
                     models.Whiskey.rating_avg >= 3.5,
                     models.Whiskey.id != ref.id,
@@ -714,7 +725,7 @@ def get_by_occasion(occasion: str, budget: float = 0.0) -> str:
         )
         effective_budget = budget if budget > 0 else (price_hint or 0)
 
-        q = db.query(models.Whiskey)
+        q = db.query(models.Whiskey).filter(*_has_image())
         if flavors:
             q = q.filter(or_(*[models.Whiskey.flavor_profile.ilike(f"%{_escape_like(f)}%") for f in flavors]))
         if category_hint:
@@ -728,7 +739,7 @@ def get_by_occasion(occasion: str, budget: float = 0.0) -> str:
         results = q.order_by(models.Whiskey.rating_avg.desc()).limit(6).all()
 
         if not results:
-            q2 = db.query(models.Whiskey)
+            q2 = db.query(models.Whiskey).filter(*_has_image())
             if category_hint:
                 q2 = q2.filter(models.Whiskey.category.ilike(f"%{_escape_like(category_hint)}%"))
             if effective_budget > 0:
@@ -1133,7 +1144,7 @@ def suggest_next_step(stretch: bool = False, *, config: RunnableConfig) -> str:
         tried_ids = {r.whiskey_id for r in ratings} | fav_ids
 
         def base_q():
-            q = db.query(models.Whiskey).filter(models.Whiskey.rating_avg >= 3.8)
+            q = db.query(models.Whiskey).filter(models.Whiskey.rating_avg >= 3.8, *_has_image())
             if tried_ids:
                 q = q.filter(~models.Whiskey.id.in_(tried_ids))
             return q
@@ -1311,7 +1322,7 @@ def create_learning_path(goal: str, budget_per_bottle: float = 0.0) -> str:
         bottles = []
         seen_ids: set = set()
         for cat, region, flavor_terms, lesson in path["steps"]:
-            q = db.query(models.Whiskey).filter(models.Whiskey.rating_avg >= 3.5)
+            q = db.query(models.Whiskey).filter(models.Whiskey.rating_avg >= 3.5, *_has_image())
             if cat:
                 q = q.filter(models.Whiskey.category.ilike(f"%{_escape_like(cat)}%"))
             if region:
@@ -1701,7 +1712,8 @@ def identify_bottle(description: str) -> str:
                     continue
                 hits = db.query(models.Whiskey).filter(
                     models.Whiskey.name.ilike(f"%{_escape_like(phrase)}%")
-                    | models.Whiskey.distillery.ilike(f"%{_escape_like(phrase)}%")
+                    | models.Whiskey.distillery.ilike(f"%{_escape_like(phrase)}%"),
+                    *_has_image(),
                 ).limit(5).all()
                 candidates.extend(hits)
 
@@ -1715,7 +1727,7 @@ def identify_bottle(description: str) -> str:
         detected_flavors = [f for f in flavor_keywords if f in description.lower()]
 
         if detected_cat or detected_flavors:
-            q = db.query(models.Whiskey)
+            q = db.query(models.Whiskey).filter(*_has_image())
             if detected_cat:
                 q = q.filter(models.Whiskey.category.ilike(f"%{_escape_like(detected_cat)}%"))
             for fl in detected_flavors[:2]:
@@ -1774,6 +1786,7 @@ def find_cheaper_alternatives(whiskey_name: str, max_results: int = 5) -> str:
 
         # Find similar whiskeys that cost less
         q = db.query(models.Whiskey).filter(
+            *_has_image(),
             models.Whiskey.id != target.id,
             models.Whiskey.price_usd.isnot(None),
             models.Whiskey.price_usd > 0,
@@ -1788,6 +1801,7 @@ def find_cheaper_alternatives(whiskey_name: str, max_results: int = 5) -> str:
         if not results:
             # Fall back to any category
             results = db.query(models.Whiskey).filter(
+                *_has_image(),
                 models.Whiskey.id != target.id,
                 models.Whiskey.price_usd.isnot(None),
                 models.Whiskey.price_usd < target.price_usd,
