@@ -151,7 +151,7 @@ def forgot_password(
             from ..email_service import send_email
             from ..email_templates import password_reset_email
             subject, html, text = password_reset_email(user.username, reset_url)
-            background_tasks.add_task(send_email, user.email, subject, html, text, user.username, "reset")
+            background_tasks.add_task(send_email, user.email, subject, html, text, user.username, "password_reset")
         except Exception:
             logger.debug("Reset email skipped (SES not configured)")
 
