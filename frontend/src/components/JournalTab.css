@@ -1,0 +1,158 @@
+/* ── Journal Tab ──────────────────────────────────── */
+.prof-journal-top {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 1rem;
+}
+.prof-journal-count { font-size: 0.85rem; color: var(--text-muted); margin: 0; }
+.prof-journal-log-btn {
+  padding: 0.4rem 0.9rem; background: var(--amber-dim); color: var(--amber);
+  border: 1px solid var(--amber); border-radius: 999px; font-size: 0.78rem;
+  font-weight: 600; cursor: pointer; white-space: nowrap;
+}
+.prof-journal-log-btn:hover { background: var(--amber); color: #1a1a1a; }
+.prof-journal-month h3 {
+  font-size: 0.88rem; color: var(--amber); margin: 1rem 0 0.5rem;
+  padding-bottom: 0.3rem; border-bottom: 1px solid var(--border);
+}
+.prof-journal-entries { display: flex; flex-direction: column; gap: 0.75rem; }
+
+/* ── Journal tasting card ──────────────────────── */
+.prof-journal-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  transition: border-color 0.15s;
+}
+.prof-journal-card:hover { border-color: var(--amber, #d4a24e); }
+.prof-journal-card-photo {
+  width: 100%; height: 160px; object-fit: cover; display: block;
+}
+.prof-journal-card-body { padding: 0.85rem; }
+.prof-journal-card-top {
+  display: flex; justify-content: space-between; align-items: flex-start; gap: 0.5rem;
+}
+.prof-journal-card-info { flex: 1; min-width: 0; }
+.prof-journal-card-name {
+  font-weight: 700; font-size: 0.95rem; color: var(--amber-light);
+  text-decoration: none; display: block;
+}
+.prof-journal-card-name:hover { text-decoration: underline; }
+.prof-journal-card-dist {
+  font-size: 0.78rem; color: var(--text-muted); margin-top: 0.1rem;
+}
+.prof-journal-card-score {
+  display: flex; flex-direction: column; align-items: center;
+  flex-shrink: 0;
+}
+.prof-journal-card-num {
+  font-size: 1.5rem; font-weight: 800; color: var(--amber); line-height: 1;
+}
+.prof-journal-card-stars {
+  font-size: 0.7rem; color: var(--amber); letter-spacing: 1px;
+}
+.prof-journal-card-notes {
+  margin: 0.6rem 0 0; padding: 0.5rem 0.65rem;
+  background: var(--surface-2); border-radius: var(--radius-sm);
+  font-size: 0.85rem; color: var(--text-soft); line-height: 1.5;
+  border-left: 3px solid var(--amber-dim, #3d3224);
+}
+.prof-journal-card-tags {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem;
+  margin-top: 0.6rem;
+}
+.prof-journal-tag {
+  padding: 0.15rem 0.5rem; background: var(--surface-2); border-radius: 999px;
+  font-size: 0.72rem; color: var(--text-soft);
+}
+.prof-journal-card-date {
+  font-size: 0.72rem; color: var(--text-muted); margin-left: auto;
+}
+
+/* ── Journal: Log a Tasting panel ──────────────── */
+.jlog-panel {
+  background: var(--surface);
+  border: 1px solid var(--amber);
+  border-radius: var(--radius);
+  padding: 0.85rem;
+  margin-bottom: 1rem;
+}
+.jlog-search {
+  width: 100%; padding: 0.6rem 0.75rem;
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); color: var(--text); font-size: 0.88rem;
+}
+.jlog-search:focus { border-color: var(--amber); outline: none; }
+.jlog-hint { font-size: 0.78rem; color: var(--text-muted); margin: 0.5rem 0 0; }
+.jlog-results {
+  display: flex; flex-direction: column; gap: 0.25rem; margin-top: 0.5rem;
+}
+.jlog-result {
+  display: flex; flex-direction: column; text-align: left;
+  padding: 0.5rem 0.65rem; background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); cursor: pointer; transition: border-color 0.12s;
+}
+.jlog-result:hover { border-color: var(--amber); }
+.jlog-result-name { font-weight: 600; font-size: 0.88rem; color: var(--text); }
+.jlog-result-meta { font-size: 0.75rem; color: var(--text-muted); }
+
+/* Log form (after selecting a whiskey) */
+.jlog-form { display: flex; flex-direction: column; gap: 0.6rem; }
+.jlog-selected {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 0.5rem 0.65rem; background: var(--amber-dim); border-radius: var(--radius-sm);
+}
+.jlog-selected-name { font-weight: 700; font-size: 0.92rem; color: var(--amber-light); display: block; }
+.jlog-selected-meta { font-size: 0.75rem; color: var(--text-muted); }
+.jlog-change {
+  background: none; border: 1px solid var(--border); border-radius: 999px;
+  padding: 0.25rem 0.6rem; font-size: 0.72rem; color: var(--text-muted); cursor: pointer;
+}
+.jlog-change:hover { border-color: var(--amber); color: var(--amber); }
+
+.jlog-stars { display: flex; gap: 0.3rem; }
+.jlog-star {
+  background: none; border: none; font-size: 1.6rem; color: var(--border);
+  cursor: pointer; padding: 0; line-height: 1; transition: color 0.1s;
+}
+.jlog-star--filled { color: var(--amber); }
+.jlog-star:hover { color: var(--amber-light); }
+
+.jlog-servings { display: flex; gap: 0.3rem; flex-wrap: wrap; }
+.jlog-serving {
+  padding: 0.3rem 0.6rem; background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: 999px; font-size: 0.78rem; color: var(--text-soft); cursor: pointer;
+}
+.jlog-serving--active { border-color: var(--amber); color: var(--amber-light); background: var(--amber-dim); }
+
+.jlog-notes {
+  width: 100%; padding: 0.5rem 0.65rem; background: var(--surface-2);
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  color: var(--text); font-size: 0.85rem; resize: vertical;
+}
+.jlog-notes:focus { border-color: var(--amber); outline: none; }
+
+.jlog-submit {
+  align-self: flex-start; padding: 0.5rem 1.25rem;
+  background: var(--amber); color: #1a1a1a; border: none;
+  border-radius: 999px; font-weight: 600; font-size: 0.85rem; cursor: pointer;
+}
+.jlog-submit:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ── Journal: Filter bar ───────────────────────── */
+.jfilter-bar {
+  display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+.jfilter-search {
+  flex: 1; min-width: 140px; padding: 0.4rem 0.65rem;
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); color: var(--text); font-size: 0.82rem;
+}
+.jfilter-search:focus { border-color: var(--amber); outline: none; }
+.jfilter-scores { display: flex; gap: 0.25rem; }
+.jfilter-pill {
+  padding: 0.3rem 0.6rem; background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: 999px; font-size: 0.72rem; color: var(--text-soft); cursor: pointer;
+}
+.jfilter-pill--active { border-color: var(--amber); color: var(--amber-light); background: var(--amber-dim); }

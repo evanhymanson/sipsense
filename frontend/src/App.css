@@ -2925,13 +2925,6 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
 .usr-name { font-size: 0.9rem; font-weight: 600; }
 .usr-meta { font-size: 0.75rem; color: var(--text-muted); }
 
-/* Profile page: wider search */
-.prof-find-people {
-  margin-top: 1rem;
-  padding-top: 1rem;
-  border-top: 1px solid var(--border);
-}
-.prof-find-people .user-search { width: 100%; }
 
 /* ─── Star Display (shared) ─────────────────────────────── */
 .star-display { color: var(--amber); font-size: 1rem; white-space: nowrap; }

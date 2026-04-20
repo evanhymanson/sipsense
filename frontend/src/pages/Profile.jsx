@@ -1,27 +1,24 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useNavigate, useSearchParams, Link } from 'react-router-dom'
 import { api, getUsername } from '../api/client'
 import { useToast } from '../components/Toast'
 import BadgeGrid from '../components/BadgeGrid'
 import WhiskeyCard from '../components/WhiskeyCard'
-import UserSearch from '../components/UserSearch'
 import UserLevel from '../components/UserLevel'
+import CollectionTab from '../components/CollectionTab'
+import JournalTab from '../components/JournalTab'
 import './Profile.css'
 import './UserProfile.css'
 
 const TABS = [
   { id: 'palate',     label: 'Palate',     emoji: '\u{1F445}' },
   { id: 'foryou',     label: 'For You',    emoji: '\u2728' },
-  { id: 'favorites',  label: 'Favorites',  emoji: '\u2661' },
   { id: 'collection', label: 'Collection', emoji: '\u{1F37E}' },
   { id: 'journal',    label: 'Journal',    emoji: '\u{1F4DD}' },
-  { id: 'badges',     label: 'Badges',     emoji: '\u{1F3C6}' },
 ]
 
-const SERVING_EMOJI = { neat: '🥃', rocks: '🧊', cocktail: '🍸', highball: '🥛' }
-
-const STATUS_LABELS = { all: 'All', sealed: 'Sealed', opened: 'Opened', finished: 'Finished' }
-const STATUS_COLORS = { sealed: '#4ade80', opened: '#facc15', finished: '#94a3b8' }
+// Map old tab IDs to new ones for backward compat
+const TAB_REDIRECTS = { favorites: 'foryou', badges: 'palate' }
 
 // ── Shared sub-components ───────────────────────────────────────────────────
 
@@ -36,22 +33,9 @@ function BarRow({ label, count, max }) {
   )
 }
 
-function FavCard({ whiskey }) {
-  return (
-    <Link to={`/whiskey/${whiskey.id}`} className="prof-fav-card">
-      <div className="prof-fav-name">{whiskey.name}</div>
-      <div className="prof-fav-dist">{whiskey.distillery}</div>
-      <div className="prof-fav-meta">
-        <span>{whiskey.category}</span>
-        {whiskey.price_usd && <span>{whiskey.price_is_estimated ? '~' : ''}${Number(whiskey.price_usd).toFixed(2)}{whiskey.price_is_estimated ? ' Est.' : ''}</span>}
-      </div>
-    </Link>
-  )
-}
-
 // ── Palate Tab ──────────────────────────────────────────────────────────────
 
-function PalateTab({ palateData }) {
+function PalateTab({ palateData, personality }) {
   const [aiSummary, setAiSummary] = useState(null)
   const [aiLoading, setAiLoading] = useState(false)
   const [evolution, setEvolution] = useState(null)
@@ -64,9 +48,11 @@ function PalateTab({ palateData }) {
 
   if (!palateData) return <p className="prof-empty">Rate some whiskeys to start building your taste portrait.</p>
 
-  const { narrative, stats, top_categories = [], top_flavors = [], recent_ratings = [], favorites = [] } = palateData
+  const { narrative, stats, top_categories = [], top_flavors = [] , recent_ratings = [] } = palateData
+  const badges = palateData.badges || []
   const maxCat = top_categories[0]?.count || 1
   const maxFlavor = top_flavors[0]?.count || 1
+  const isNewcomer = personality?.type === 'curious_newcomer'
 
   async function loadAiSummary() {
     setAiLoading(true)
@@ -87,6 +73,26 @@ function PalateTab({ palateData }) {
 
   return (
     <div className="prof-palate">
+      {/* ── Flavor DNA + Go-To Styles (moved from hero) ── */}
+      {!isNewcomer && personality?.top_flavors?.length > 0 && (
+        <div className="prof-dna">
+          <div className="prof-dna-section">
+            <span className="prof-dna-label">Flavor DNA</span>
+            <div className="prof-dna-tags">
+              {personality.top_flavors.map(f => <span key={f} className="prof-dna-tag">{f}</span>)}
+            </div>
+          </div>
+          {personality.top_categories?.length > 0 && (
+            <div className="prof-dna-section">
+              <span className="prof-dna-label">Go-To Styles</span>
+              <div className="prof-dna-tags">
+                {personality.top_categories.map(c => <span key={c} className="prof-dna-tag prof-dna-tag--cat">{c}</span>)}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="prof-narrative">
         <p>{aiSummary || narrative}</p>
         {!aiSummary && !aiLoading && (
@@ -215,21 +221,24 @@ function PalateTab({ palateData }) {
         </div>
       )}
 
-      {favorites.length > 0 && (
+      {/* ── Badges (merged from standalone tab) ────────────────── */}
+      {badges.length > 0 && (
         <div className="prof-section">
-          <h3>Saved Favorites</h3>
-          <div className="prof-fav-grid">{favorites.map(w => <FavCard key={w.id} whiskey={w} />)}</div>
+          <h3>Badges</h3>
+          <BadgeGrid badges={badges} showDate />
         </div>
       )}
     </div>
   )
 }
 
-// ── For You Tab ─────────────────────────────────────────────────────────────
+// ── For You Tab (now includes Favorites) ────────────────────────────────────
 
 function ForYouTab() {
   const [recs, setRecs] = useState([])
+  const [favs, setFavs] = useState([])
   const [loading, setLoading] = useState(true)
+  const [favsLoading, setFavsLoading] = useState(true)
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -241,11 +250,16 @@ function ForYouTab() {
           .catch(() => setRecs([]))
       )
       .finally(() => setLoading(false))
+
+    api.getFavorites()
+      .then(setFavs)
+      .catch(() => setFavs([]))
+      .finally(() => setFavsLoading(false))
   }, [])
 
   if (loading) return <p className="prof-loading">Finding your next bottles...</p>
 
-  if (recs.length === 0) {
+  if (recs.length === 0 && favs.length === 0 && !favsLoading) {
     return (
       <div className="prof-empty-state">
         <div className="prof-empty-icon">✦</div>
@@ -258,617 +272,31 @@ function ForYouTab() {
 
   return (
     <div className="prof-foryou">
-      <p className="prof-foryou-subtitle">Picked for your palate</p>
-      <div className="prof-foryou-grid">
-        {recs.map(({ whiskey, score, reason }) => (
-          <div key={whiskey.id} className="prof-foryou-item">
-            <WhiskeyCard whiskey={whiskey} score={score} />
-            {reason && <div className="prof-foryou-reason">{reason}</div>}
+      {recs.length > 0 && (
+        <>
+          <p className="prof-foryou-subtitle">Picked for your palate</p>
+          <div className="prof-foryou-grid">
+            {recs.map(({ whiskey, score, reason }) => (
+              <div key={whiskey.id} className="prof-foryou-item">
+                <WhiskeyCard whiskey={whiskey} score={score} />
+                {reason && <div className="prof-foryou-reason">{reason}</div>}
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-// ── Favorites Tab ───────────────────────────────────────────────────────────
-
-function FavoritesTab() {
-  const [favs, setFavs] = useState([])
-  const [loading, setLoading] = useState(true)
-  const navigate = useNavigate()
-
-  useEffect(() => {
-    api.getFavorites()
-      .then(setFavs)
-      .catch(() => setFavs([]))
-      .finally(() => setLoading(false))
-  }, [])
-
-  if (loading) return <p className="prof-loading">Loading favorites...</p>
-
-  if (favs.length === 0) {
-    return (
-      <div className="prof-empty-state">
-        <div className="prof-empty-icon">♡</div>
-        <h2>No favorites yet</h2>
-        <p>Bottles you're interested in — heart any whiskey to save it here.</p>
-        <button className="prof-cta-btn" onClick={() => navigate('/')}>Browse Whiskeys</button>
-      </div>
-    )
-  }
-
-  return (
-    <div className="prof-favorites">
-      <p className="prof-foryou-subtitle">{favs.length} bottle{favs.length !== 1 ? 's' : ''} on your wishlist</p>
-      <div className="prof-foryou-grid">
-        {favs.map(w => (
-          <WhiskeyCard key={w.id} whiskey={w} />
-        ))}
-      </div>
-    </div>
-  )
-}
-
-// ── Collection Tab ──────────────────────────────────────────────────────────
-
-function CollectionTab({ initialStats = null }) {
-  const navigate = useNavigate()
-  const [items, setItems] = useState([])
-  const [stats, setStats] = useState(initialStats)
-  const [filter, setFilter] = useState('all')
-  const [loading, setLoading] = useState(true)
-  const [searchText, setSearchText] = useState('')
-
-  const addToast = useToast()
-  const [confirmRemoveId, setConfirmRemoveId] = useState(null)
-  const [editingId, setEditingId] = useState(null)
-  const [editNotes, setEditNotes] = useState('')
-  const [editPrice, setEditPrice] = useState('')
-
-  // ── Add bottle state ──
-  const [showAdd, setShowAdd] = useState(false)
-  const [addSearch, setAddSearch] = useState('')
-  const [addResults, setAddResults] = useState([])
-  const [addSearchLoading, setAddSearchLoading] = useState(false)
-
-  const loadItems = useCallback(() => {
-    setLoading(true)
-    const statusParam = filter !== 'all' ? filter : null
-    api.getCollection(statusParam)
-      .then(setItems)
-      .catch(() => addToast('Failed to load collection', 'error'))
-      .finally(() => setLoading(false))
-  }, [filter, addToast])
-
-  const refreshStats = useCallback(() => {
-    api.getCollectionStats()
-      .then(setStats)
-      .catch(() => {})
-  }, [])
-
-  useEffect(() => { loadItems() }, [loadItems])
-
-  // ── Debounced search for adding bottles ──
-  useEffect(() => {
-    if (!addSearch.trim()) { setAddResults([]); return }
-    const timeout = setTimeout(() => {
-      setAddSearchLoading(true)
-      api.listWhiskeys({ q: addSearch.trim(), limit: 6 })
-        .then(data => setAddResults(Array.isArray(data) ? data : data.items || []))
-        .catch(() => { setAddResults([]); addToast('Search failed', 'error') })
-        .finally(() => setAddSearchLoading(false))
-    }, 400)
-    return () => clearTimeout(timeout)
-  }, [addSearch, addToast])
-
-  async function handleAddToCollection(whiskey) {
-    try {
-      await api.addToCollection({ whiskey_id: whiskey.id, status: 'sealed' })
-      addToast(`Added ${whiskey.name} to collection`, 'success')
-      setShowAdd(false)
-      setAddSearch('')
-      setAddResults([])
-      loadItems(); refreshStats()
-    } catch (err) {
-      addToast(err.message || 'Failed to add bottle', 'error')
-    }
-  }
-
-  async function handleUpdate(itemId, update) {
-    try { await api.updateCollectionItem(itemId, update); loadItems(); refreshStats() }
-    catch { addToast('Failed to update item', 'error') }
-  }
-
-  async function handleRemove(itemId) {
-    if (confirmRemoveId !== itemId) {
-      setConfirmRemoveId(itemId)
-      setTimeout(() => setConfirmRemoveId(null), 3000)
-      return
-    }
-    try { await api.removeFromCollection(itemId); loadItems(); refreshStats(); setConfirmRemoveId(null) }
-    catch { addToast('Failed to remove item', 'error') }
-  }
-
-  function startEditing(item) {
-    setEditingId(item.id)
-    setEditNotes(item.personal_notes || '')
-    setEditPrice(item.purchase_price ? String(item.purchase_price) : '')
-  }
-
-  async function saveEdit(itemId) {
-    const update = { personal_notes: editNotes.trim() || null }
-    const price = parseFloat(editPrice)
-    if (!isNaN(price) && price > 0) update.purchase_price = price
-    else if (!editPrice.trim()) update.purchase_price = null
-    try {
-      await api.updateCollectionItem(itemId, update)
-      setEditingId(null)
-      loadItems()
-    } catch { addToast('Failed to save changes', 'error') }
-  }
-
-  // ── Client-side search filter ──
-  const filtered = items.filter(item => {
-    if (!searchText.trim()) return true
-    const q = searchText.toLowerCase()
-    const w = item.whiskey
-    if (!w) return false
-    return (w.name || '').toLowerCase().includes(q) ||
-           (w.distillery || '').toLowerCase().includes(q) ||
-           (w.category || '').toLowerCase().includes(q)
-  })
-
-  return (
-    <div className="prof-collection">
-      {/* ── Top bar: add + search ── */}
-      <div className="prof-shelf-top">
-        <button className="prof-shelf-add-btn" onClick={() => setShowAdd(!showAdd)}>
-          {showAdd ? 'Cancel' : '+ Add Bottle'}
-        </button>
-        {stats && stats.total_spent > 0 && (
-          <span className="prof-shelf-spent">${stats.total_spent} invested</span>
-        )}
-      </div>
-
-      {/* ── Add bottle panel ── */}
-      {showAdd && (
-        <div className="prof-shelf-add-panel">
-          <input
-            type="search"
-            className="prof-shelf-add-search"
-            placeholder="Search for a whiskey to add..."
-            value={addSearch}
-            onChange={e => setAddSearch(e.target.value)}
-            autoFocus
-          />
-          {addSearchLoading && <p className="prof-shelf-add-hint">Searching...</p>}
-          {!addSearchLoading && addSearch.trim() && addResults.length === 0 && (
-            <p className="prof-shelf-add-hint">No whiskeys found.</p>
-          )}
-          {addResults.length > 0 && (
-            <div className="prof-shelf-add-results">
-              {addResults.map(w => (
-                <button key={w.id} className="prof-shelf-add-result" onClick={() => handleAddToCollection(w)}>
-                  <span className="prof-shelf-add-result-name">{w.name}</span>
-                  <span className="prof-shelf-add-result-meta">{w.distillery}{w.category ? ` · ${w.category}` : ''}</span>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
+        </>
       )}
 
-      {/* ── Stats as clickable filters ── */}
-      {stats && stats.total > 0 && (
-        <div className="prof-shelf-stat-filters">
-          <button
-            className={`prof-shelf-sf${filter === 'all' ? ' prof-shelf-sf--active' : ''}`}
-            onClick={() => setFilter('all')}
-          >
-            <span className="prof-shelf-sf-val">{stats.total}</span>
-            <span className="prof-shelf-sf-label">All</span>
-          </button>
-          {['sealed', 'opened', 'finished'].map(status => (
-            <button
-              key={status}
-              className={`prof-shelf-sf${filter === status ? ' prof-shelf-sf--active' : ''}`}
-              onClick={() => setFilter(filter === status ? 'all' : status)}
-            >
-              <span className="prof-shelf-sf-val" style={{ color: filter === status ? STATUS_COLORS[status] : undefined }}>
-                {stats[status]}
-              </span>
-              <span className="prof-shelf-sf-label">{STATUS_LABELS[status]}</span>
-            </button>
-          ))}
-        </div>
-      )}
-
-      {/* ── Search within collection ── */}
-      {items.length > 3 && (
-        <input
-          type="search"
-          className="prof-shelf-search"
-          placeholder="Search your collection..."
-          value={searchText}
-          onChange={e => setSearchText(e.target.value)}
-        />
-      )}
-
-      {loading && <p className="prof-loading">Loading...</p>}
-
-      {!loading && items.length === 0 && !showAdd && (
-        <div className="prof-empty-state">
-          <div className="prof-empty-icon">🍾</div>
-          <h2>Your shelf is empty</h2>
-          <p>Track bottles you own — sealed, opened, or finished.</p>
-          <button className="prof-cta-btn" onClick={() => setShowAdd(true)}>Add Your First Bottle</button>
-        </div>
-      )}
-
-      {!loading && items.length > 0 && searchText.trim() && filtered.length === 0 && (
-        <p className="prof-empty" style={{ textAlign: 'center', padding: '1.5rem 0' }}>No matching bottles.</p>
-      )}
-
-      <div className="prof-shelf-grid">
-        {filtered.map(item => {
-          const w = item.whiskey
-          if (!w) return null
-          const isEditing = editingId === item.id
-          return (
-            <div key={item.id} className="prof-shelf-card">
-              <div className="prof-shelf-card-header" onClick={() => navigate(`/whiskey/${w.id}`)}>
-                <div className="prof-shelf-card-name">{w.name}</div>
-                <div className="prof-shelf-card-dist">{w.distillery}</div>
-              </div>
-              <div className="prof-shelf-card-meta">
-                <span className="prof-shelf-badge">{w.category}</span>
-                {w.price_usd && (
-                  <span className={`prof-shelf-badge${w.price_is_estimated ? ' prof-shelf-badge--estimated' : ''}`}>
-                    {w.price_is_estimated ? '~' : ''}${Number(w.price_usd).toFixed(2)}{w.price_is_estimated ? ' Est.' : ''}
-                  </span>
-                )}
-                {!isEditing && item.purchase_price && (
-                  <span className="prof-shelf-badge prof-shelf-badge--paid">Paid ${item.purchase_price}</span>
-                )}
-              </div>
-
-              {/* ── Status segment buttons ── */}
-              <div className="prof-shelf-status-row">
-                <div className="prof-shelf-segments">
-                  {['sealed', 'opened', 'finished'].map(s => (
-                    <button
-                      key={s}
-                      className={`prof-shelf-seg${item.status === s ? ' prof-shelf-seg--active' : ''}`}
-                      style={item.status === s ? { borderColor: STATUS_COLORS[s], color: STATUS_COLORS[s] } : undefined}
-                      onClick={() => handleUpdate(item.id, { status: s })}
-                    >
-                      {s.charAt(0).toUpperCase() + s.slice(1)}
-                    </button>
-                  ))}
-                </div>
-                <div className="prof-shelf-actions">
-                  <button
-                    className="prof-shelf-edit"
-                    onClick={() => isEditing ? setEditingId(null) : startEditing(item)}
-                    title={isEditing ? 'Cancel edit' : 'Edit notes & price'}
-                  >
-                    {isEditing ? '✕' : '✎'}
-                  </button>
-                  <button
-                    className="prof-shelf-remove"
-                    onClick={() => handleRemove(item.id)}
-                    title={confirmRemoveId === item.id ? 'Tap again to confirm' : 'Remove'}
-                  >
-                    {confirmRemoveId === item.id ? 'Remove?' : '🗑'}
-                  </button>
-                </div>
-              </div>
-
-              {/* ── Inline edit panel ── */}
-              {isEditing && (
-                <div className="prof-shelf-edit-panel">
-                  <div className="prof-shelf-edit-row">
-                    <label>Paid</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      placeholder="$0.00"
-                      value={editPrice}
-                      onChange={e => setEditPrice(e.target.value)}
-                      className="prof-shelf-edit-input prof-shelf-edit-price"
-                    />
-                  </div>
-                  <textarea
-                    className="prof-shelf-edit-notes"
-                    placeholder="Personal notes..."
-                    value={editNotes}
-                    onChange={e => setEditNotes(e.target.value)}
-                    rows={2}
-                  />
-                  <button className="prof-shelf-edit-save" onClick={() => saveEdit(item.id)}>Save</button>
-                </div>
-              )}
-
-              {/* ── Read-only notes (when not editing) ── */}
-              {!isEditing && item.personal_notes && (
-                <div className="prof-shelf-notes">{item.personal_notes}</div>
-              )}
-            </div>
-          )
-        })}
-      </div>
-    </div>
-  )
-}
-
-// ── Journal Tab ─────────────────────────────────────────────────────────────
-
-function groupByMonth(entries) {
-  const groups = {}
-  for (const entry of entries) {
-    const d = new Date(entry.created_at)
-    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
-    const label = d.toLocaleDateString('en-US', { year: 'numeric', month: 'long' })
-    if (!groups[key]) groups[key] = { label, entries: [] }
-    groups[key].entries.push(entry)
-  }
-  return Object.values(groups)
-}
-
-function relativeDate(dateStr) {
-  const d = new Date(dateStr)
-  const now = new Date()
-  const diffMs = now - d
-  const diffDays = Math.floor(diffMs / 86400000)
-  if (diffDays === 0) return 'Today'
-  if (diffDays === 1) return 'Yesterday'
-  if (diffDays < 7) return `${diffDays} days ago`
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-}
-
-const SCORE_FILTERS = [
-  { key: 'all', label: 'All' },
-  { key: 'top', label: '4-5\u2605' },
-  { key: 'mid', label: '3\u2605' },
-  { key: 'low', label: '1-2\u2605' },
-]
-
-function JournalTab({ initialEntries = null }) {
-  const [entries, setEntries] = useState(initialEntries || [])
-  const [loading, setLoading] = useState(!initialEntries)
-  const [error, setError] = useState(null)
-  const addToast = useToast()
-
-  // ── Log a Tasting state ────────────────────────────
-  const [showLog, setShowLog] = useState(false)
-  const [searchText, setSearchText] = useState('')
-  const [searchResults, setSearchResults] = useState([])
-  const [searchLoading, setSearchLoading] = useState(false)
-  const [selectedWhiskey, setSelectedWhiskey] = useState(null)
-  const [logScore, setLogScore] = useState(0)
-  const [logServing, setLogServing] = useState(null)
-  const [logNotes, setLogNotes] = useState('')
-  const [logSubmitting, setLogSubmitting] = useState(false)
-
-  // ── Filter state ───────────────────────────────────
-  const [filterText, setFilterText] = useState('')
-  const [scoreFilter, setScoreFilter] = useState('all')
-
-  const loadJournal = useCallback(() => {
-    setLoading(true)
-    api.getJournal().then(data => setEntries(data.entries || []))
-      .catch(e => { setError(e.message || 'Failed to load journal'); addToast('Failed to load journal', 'error') })
-      .finally(() => setLoading(false))
-  }, [addToast])
-
-  useEffect(() => { if (!initialEntries) loadJournal() }, []) // eslint-disable-line react-hooks/exhaustive-deps
-
-  // ── Debounced whiskey search ───────────────────────
-  useEffect(() => {
-    if (!searchText.trim()) { setSearchResults([]); return }
-    const timeout = setTimeout(() => {
-      setSearchLoading(true)
-      api.listWhiskeys({ q: searchText.trim(), limit: 6 })
-        .then(data => setSearchResults(Array.isArray(data) ? data : data.items || []))
-        .catch(() => setSearchResults([]))
-        .finally(() => setSearchLoading(false))
-    }, 400)
-    return () => clearTimeout(timeout)
-  }, [searchText])
-
-  // ── Submit check-in ────────────────────────────────
-  async function handleLogSubmit() {
-    if (!selectedWhiskey || logScore === 0) return
-    setLogSubmitting(true)
-    try {
-      const body = { score: logScore }
-      if (logNotes.trim()) body.notes = logNotes.trim()
-      if (logServing) body.serving_style = logServing
-      await api.rateWhiskey(selectedWhiskey.id, body)
-      addToast('Check-in saved!', 'success')
-      // Reset log state
-      setShowLog(false)
-      setSearchText('')
-      setSearchResults([])
-      setSelectedWhiskey(null)
-      setLogScore(0)
-      setLogServing(null)
-      setLogNotes('')
-      // Refresh journal
-      loadJournal()
-    } catch (err) {
-      addToast(err.message || 'Failed to save check-in', 'error')
-    } finally {
-      setLogSubmitting(false)
-    }
-  }
-
-  // ── Filter entries client-side ─────────────────────
-  const filteredEntries = entries.filter(entry => {
-    // Score filter
-    if (scoreFilter === 'top' && entry.score < 4) return false
-    if (scoreFilter === 'mid' && (entry.score < 3 || entry.score >= 4)) return false
-    if (scoreFilter === 'low' && entry.score >= 3) return false
-    // Text filter
-    if (filterText.trim()) {
-      const q = filterText.toLowerCase()
-      const name = (entry.whiskey?.name || '').toLowerCase()
-      const dist = (entry.whiskey?.distillery || '').toLowerCase()
-      const notes = (entry.notes || '').toLowerCase()
-      if (!name.includes(q) && !dist.includes(q) && !notes.includes(q)) return false
-    }
-    return true
-  })
-  const hasFilters = scoreFilter !== 'all' || filterText.trim()
-  const months = useMemo(() => groupByMonth(filteredEntries), [filteredEntries])
-
-  if (loading) return <p className="prof-loading">Loading journal...</p>
-
-  if (error) return (
-    <div className="prof-empty-state">
-      <p className="status error">{error}</p>
-      <button className="retry-btn" style={{ marginTop: '0.5rem' }} onClick={() => window.location.reload()}>Retry</button>
-    </div>
-  )
-
-  return (
-    <div className="prof-journal">
-      {/* ── Top bar ─────────────────────────────────── */}
-      <div className="prof-journal-top">
-        <p className="prof-journal-count">{entries.length} tasting{entries.length !== 1 ? 's' : ''} recorded</p>
-        <button className="prof-journal-log-btn" onClick={() => setShowLog(!showLog)}>
-          {showLog ? 'Cancel' : '+ Log a Tasting'}
-        </button>
-      </div>
-
-      {/* ── Inline log panel ────────────────────────── */}
-      {showLog && (
-        <div className="jlog-panel">
-          {!selectedWhiskey ? (
-            <>
-              <input
-                type="search"
-                className="jlog-search"
-                placeholder="Search for a whiskey..."
-                value={searchText}
-                onChange={e => setSearchText(e.target.value)}
-                autoFocus
-              />
-              {searchLoading && <p className="jlog-hint">Searching...</p>}
-              {!searchLoading && searchText.trim() && searchResults.length === 0 && (
-                <p className="jlog-hint">No whiskeys found. Try a different name.</p>
-              )}
-              {searchResults.length > 0 && (
-                <div className="jlog-results">
-                  {searchResults.map(w => (
-                    <button key={w.id} className="jlog-result" onClick={() => setSelectedWhiskey(w)}>
-                      <span className="jlog-result-name">{w.name}</span>
-                      <span className="jlog-result-meta">{w.distillery}{w.category ? ` \u00b7 ${w.category}` : ''}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </>
-          ) : (
-            <div className="jlog-form">
-              <div className="jlog-selected">
-                <div>
-                  <span className="jlog-selected-name">{selectedWhiskey.name}</span>
-                  <span className="jlog-selected-meta">{selectedWhiskey.distillery}</span>
-                </div>
-                <button className="jlog-change" onClick={() => { setSelectedWhiskey(null); setLogScore(0); setLogServing(null); setLogNotes('') }}>Change</button>
-              </div>
-              <div className="jlog-stars" role="radiogroup" aria-label="Rating">
-                {[1, 2, 3, 4, 5].map(n => (
-                  <button key={n} type="button" className={`jlog-star ${n <= logScore ? 'jlog-star--filled' : ''}`} onClick={() => setLogScore(n)}>★</button>
-                ))}
-              </div>
-              <div className="jlog-servings">
-                {Object.entries(SERVING_EMOJI).map(([style, emoji]) => (
-                  <button key={style} type="button" className={`jlog-serving ${logServing === style ? 'jlog-serving--active' : ''}`} onClick={() => setLogServing(logServing === style ? null : style)}>
-                    {emoji} {style}
-                  </button>
-                ))}
-              </div>
-              <textarea className="jlog-notes" placeholder="Tasting notes (optional)" value={logNotes} onChange={e => setLogNotes(e.target.value)} rows={2} />
-              <button className="jlog-submit" onClick={handleLogSubmit} disabled={logScore === 0 || logSubmitting}>
-                {logSubmitting ? 'Saving...' : 'Check In'}
-              </button>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ── Filters (only when there are entries) ──── */}
-      {entries.length > 0 && (
-        <div className="jfilter-bar">
-          <input
-            type="search"
-            className="jfilter-search"
-            placeholder="Search your tastings..."
-            value={filterText}
-            onChange={e => setFilterText(e.target.value)}
-          />
-          <div className="jfilter-scores">
-            {SCORE_FILTERS.map(f => (
-              <button key={f.key} className={`jfilter-pill${scoreFilter === f.key ? ' jfilter-pill--active' : ''}`} onClick={() => setScoreFilter(f.key)}>
-                {f.label}
-              </button>
+      {/* ── Saved Favorites ── */}
+      {!favsLoading && favs.length > 0 && (
+        <div className="prof-section" style={recs.length > 0 ? { marginTop: '1.5rem' } : undefined}>
+          <h3>Saved ({favs.length})</h3>
+          <div className="prof-foryou-grid">
+            {favs.map(w => (
+              <WhiskeyCard key={w.id} whiskey={w} />
             ))}
           </div>
         </div>
       )}
-
-      {/* ── Empty state ─────────────────────────────── */}
-      {entries.length === 0 && !showLog && (
-        <div className="prof-empty-state">
-          <div className="prof-empty-icon">📝</div>
-          <h2>No tastings yet</h2>
-          <p>Tap "+ Log a Tasting" above to record your first check-in.</p>
-          <button className="prof-cta-btn" onClick={() => setShowLog(true)}>Log a Tasting</button>
-        </div>
-      )}
-
-      {/* ── No filter results ───────────────────────── */}
-      {entries.length > 0 && hasFilters && filteredEntries.length === 0 && (
-        <p className="prof-empty" style={{ textAlign: 'center', padding: '1.5rem 0' }}>No matching entries.</p>
-      )}
-
-      {/* ── Timeline ────────────────────────────────── */}
-      {months.map(group => (
-        <div key={group.label} className="prof-journal-month">
-          <h3>{group.label}</h3>
-          <div className="prof-journal-entries">
-            {group.entries.map(entry => (
-              <div key={entry.id} className="prof-journal-card">
-                {entry.image_url && (
-                  <img src={entry.image_url} alt={`Tasting photo of ${entry.whiskey?.name || 'whiskey'}`} className="prof-journal-card-photo" loading="lazy" />
-                )}
-                <div className="prof-journal-card-body">
-                  <div className="prof-journal-card-top">
-                    <div className="prof-journal-card-info">
-                      <Link to={`/whiskey/${entry.whiskey?.id}`} className="prof-journal-card-name">{entry.whiskey?.name}</Link>
-                      <span className="prof-journal-card-dist">{entry.whiskey?.distillery}{entry.whiskey?.category ? ` \u00b7 ${entry.whiskey.category}` : ''}</span>
-                    </div>
-                    <div className="prof-journal-card-score">
-                      <span className="prof-journal-card-num">{entry.score}</span>
-                      <span className="prof-journal-card-stars">{'★'.repeat(Math.min(5, Math.max(0, Math.round(entry.score || 0))))}{'☆'.repeat(Math.max(0, 5 - Math.min(5, Math.round(entry.score || 0))))}</span>
-                    </div>
-                  </div>
-                  {entry.notes && <p className="prof-journal-card-notes">{entry.notes}</p>}
-                  <div className="prof-journal-card-tags">
-                    {entry.serving_style && <span className="prof-journal-tag">{SERVING_EMOJI[entry.serving_style] || ''} {entry.serving_style}</span>}
-                    {entry.location_note && <span className="prof-journal-tag">{entry.location_note}</span>}
-                    <span className="prof-journal-card-date">{relativeDate(entry.created_at)}</span>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      ))}
     </div>
   )
 }
@@ -882,12 +310,15 @@ export default function Profile() {
   const [currentUser] = useState(() => {
     try { return localStorage.getItem('sipsense_user') } catch { return null }
   })
-  const tabFromUrl = searchParams.get('tab')
+
+  // Resolve tab from URL with backward compat
+  const rawTab = searchParams.get('tab')
+  const resolvedTab = TAB_REDIRECTS[rawTab] || rawTab
   const [activeTab, setActiveTabRaw] = useState(
-    TABS.some(t => t.id === tabFromUrl) ? tabFromUrl : 'palate'
+    TABS.some(t => t.id === resolvedTab) ? resolvedTab : 'palate'
   )
   const [visitedTabs, setVisitedTabs] = useState(() => new Set([
-    TABS.some(t => t.id === tabFromUrl) ? tabFromUrl : 'palate'
+    TABS.some(t => t.id === resolvedTab) ? resolvedTab : 'palate'
   ]))
   const setActiveTab = useCallback((id) => {
     setActiveTabRaw(id)
@@ -905,15 +336,12 @@ export default function Profile() {
   const [listModal, setListModal] = useState(null)
   const [listUsers, setListUsers] = useState([])
   const [listLoading, setListLoading] = useState(false)
-  const [suggested, setSuggested] = useState([])
   const [profileData, setProfileData] = useState(null)
+  const [showPrefs, setShowPrefs] = useState(false)
   const [emailPrefs, setEmailPrefs] = useState(null)
   const [emailPrefsSaving, setEmailPrefsSaving] = useState(false)
 
   useEffect(() => {
-    api.getSuggestedUsers(5)
-      .then(data => setSuggested(data || []))
-      .catch(() => {})
     api.getEmailPreferences()
       .then(setEmailPrefs)
       .catch(() => {})
@@ -950,22 +378,13 @@ export default function Profile() {
       setInitialColStats(colStats)
       setInitialJournal(journal)
       setTabCounts({
-        favorites: pal?.stats?.total_favorites ?? 0,
         collection: colStats?.total ?? 0,
         journal: Array.isArray(journal?.entries) ? journal.entries.length : (journal?.total ?? 0),
-        badges: pal?.badges?.length ?? 0,
       })
     })
 
     return () => controller.abort()
   }, [currentUser])
-
-  async function handleFollowSuggested(username) {
-    try {
-      await api.followUser(username)
-      setSuggested(prev => prev.filter(u => u.username !== username))
-    } catch { /* ignore */ }
-  }
 
   async function openList(type) {
     setListModal(type)
@@ -1014,43 +433,34 @@ export default function Profile() {
     <div className="profile-page">
       {/* ── Hero: Personality Card ───────────────────────────── */}
       <div className="prof-hero">
-        {personality && (
-          <div className="prof-personality">
-            <span className="prof-personality-emoji">{personality.emoji}</span>
-            <div className="prof-personality-info">
-              <h1>{personality.title}</h1>
-              <p className="prof-personality-tagline">{personality.tagline}</p>
-              {personality.spirit_bottle && (
-                <span className="prof-spirit">Spirit bottle: {personality.spirit_bottle}</span>
-              )}
+        <div className="prof-hero-top">
+          {personality && (
+            <div className="prof-personality">
+              <span className="prof-personality-emoji">{personality.emoji}</span>
+              <div className="prof-personality-info">
+                <h1>{personality.title}</h1>
+                <p className="prof-personality-tagline">{personality.tagline}</p>
+                {personality.spirit_bottle && (
+                  <span className="prof-spirit">Spirit bottle: {personality.spirit_bottle}</span>
+                )}
+              </div>
             </div>
-          </div>
-        )}
+          )}
+          <button
+            className="prof-gear-btn"
+            onClick={() => setShowPrefs(!showPrefs)}
+            title="Notification preferences"
+            aria-label="Notification preferences"
+          >
+            ⚙
+          </button>
+        </div>
 
         {profileData?.level && (
           <UserLevel level={profileData.level} showProgress />
         )}
 
-        {!isNewcomer && personality?.top_flavors?.length > 0 && (
-          <div className="prof-dna">
-            <div className="prof-dna-section">
-              <span className="prof-dna-label">Flavor DNA</span>
-              <div className="prof-dna-tags">
-                {personality.top_flavors.map(f => <span key={f} className="prof-dna-tag">{f}</span>)}
-              </div>
-            </div>
-            {personality.top_categories?.length > 0 && (
-              <div className="prof-dna-section">
-                <span className="prof-dna-label">Go-To Styles</span>
-                <div className="prof-dna-tags">
-                  {personality.top_categories.map(c => <span key={c} className="prof-dna-tag prof-dna-tag--cat">{c}</span>)}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Stats row — shows immediately with follower counts, Rated/Favorites fill in from palate */}
+        {/* Stats row */}
         <div className="prof-stats">
           <div className="prof-stat"><span className="prof-stat-val">{stats ? stats.total_rated : profileData?.total_checkins ?? '–'}</span><span>Rated</span></div>
           <div className="prof-stat"><span className="prof-stat-val">{stats?.total_favorites ?? '–'}</span><span>Favorites</span></div>
@@ -1062,30 +472,68 @@ export default function Profile() {
           </div>
         </div>
 
-        <div className="prof-find-people">
-          <UserSearch />
-        </div>
-
-        {suggested.length > 0 && (
-          <div className="prof-suggested">
-            <h3 className="prof-suggested-title">People Like You</h3>
-            <div className="prof-suggested-scroll">
-              {suggested.map(u => (
-                <div key={u.username} className="prof-suggested-card">
-                  <Link to={`/user/${u.username}`} className="prof-suggested-name">{u.username}</Link>
-                  <span className="prof-suggested-match">{u.match_score}% match</span>
-                  <span className="prof-suggested-reason">{u.reason}</span>
-                  <button className="prof-suggested-follow" onClick={() => handleFollowSuggested(u.username)}>Follow</button>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
         {isNewcomer && (
           <div className="prof-cta">
             <p>Rate a few whiskeys and your personality will emerge!</p>
             <button onClick={() => navigate('/discover')}>Start Exploring</button>
+          </div>
+        )}
+
+        {/* ── Notification Preferences (collapsible) ── */}
+        {showPrefs && emailPrefs && (
+          <div className="prof-prefs-panel">
+            <h3>Email Preferences</h3>
+            <div className="prof-email-prefs">
+              {[
+                { key: 'weekly_digest', label: 'Weekly Digest' },
+                { key: 're_engagement', label: 'Re-engagement Tips' },
+                { key: 'onboarding_drip', label: 'Onboarding Emails' },
+                { key: 'marketing', label: 'Marketing & News' },
+              ].map(({ key, label }) => (
+                <div key={key} className="prof-email-toggle">
+                  <span className="prof-email-label">{label}</span>
+                  <input
+                    type="checkbox"
+                    checked={emailPrefs[key] ?? true}
+                    disabled={emailPrefsSaving}
+                    onChange={async (e) => {
+                      const updated = { ...emailPrefs, [key]: e.target.checked }
+                      setEmailPrefs(updated)
+                      setEmailPrefsSaving(true)
+                      try { await api.updateEmailPreferences(updated) }
+                      catch { setEmailPrefs(emailPrefs) }
+                      finally { setEmailPrefsSaving(false) }
+                    }}
+                  />
+                </div>
+              ))}
+            </div>
+            <h3 style={{ marginTop: '1.2rem' }}>Push Notifications</h3>
+            <div className="prof-email-prefs">
+              {[
+                { key: 'push_social', label: 'Follows & Comments' },
+                { key: 'push_price_drop', label: 'Price Drop Alerts' },
+                { key: 'push_streak', label: 'Streak Reminders' },
+                { key: 'push_weekly', label: 'Weekly Highlights' },
+              ].map(({ key, label }) => (
+                <div key={key} className="prof-email-toggle">
+                  <span className="prof-email-label">{label}</span>
+                  <input
+                    type="checkbox"
+                    checked={emailPrefs[key] ?? true}
+                    disabled={emailPrefsSaving}
+                    onChange={async (e) => {
+                      const updated = { ...emailPrefs, [key]: e.target.checked }
+                      setEmailPrefs(updated)
+                      setEmailPrefsSaving(true)
+                      try { await api.updateEmailPreferences(updated) }
+                      catch { setEmailPrefs(emailPrefs) }
+                      finally { setEmailPrefsSaving(false) }
+                    }}
+                  />
+                </div>
+              ))}
+            </div>
           </div>
         )}
       </div>
@@ -1114,83 +562,11 @@ export default function Profile() {
 
       {/* ── Tab Content ──────────────────────────────────────── */}
       <div className="prof-tab-content" role="tabpanel">
-        {visitedTabs.has('palate') && <div style={{ display: activeTab === 'palate' ? undefined : 'none' }}><PalateTab palateData={palateData} /></div>}
+        {visitedTabs.has('palate') && <div style={{ display: activeTab === 'palate' ? undefined : 'none' }}><PalateTab palateData={palateData} personality={personality} /></div>}
         {visitedTabs.has('foryou') && <div style={{ display: activeTab === 'foryou' ? undefined : 'none' }}><ForYouTab /></div>}
-        {visitedTabs.has('favorites') && <div style={{ display: activeTab === 'favorites' ? undefined : 'none' }}><FavoritesTab /></div>}
         {visitedTabs.has('collection') && <div style={{ display: activeTab === 'collection' ? undefined : 'none' }}><CollectionTab initialStats={initialColStats} /></div>}
         {visitedTabs.has('journal') && <div style={{ display: activeTab === 'journal' ? undefined : 'none' }}><JournalTab initialEntries={initialJournal?.entries} /></div>}
-        {visitedTabs.has('badges') && (
-          <div style={{ display: activeTab === 'badges' ? undefined : 'none' }}>
-            {palateData?.badges?.length > 0
-              ? <BadgeGrid badges={palateData.badges} showDate />
-              : <div className="prof-empty-state">
-                  <div className="prof-empty-icon">🏆</div>
-                  <h2>No badges yet</h2>
-                  <p>Rate whiskeys and explore to earn achievements!</p>
-                  <button className="prof-cta-btn" onClick={() => navigate('/')}>Browse Whiskeys</button>
-                </div>
-            }
-          </div>
-        )}
       </div>
-
-      {/* ── Notification Preferences ────────────────────────── */}
-      {emailPrefs && (
-        <div className="prof-section" style={{ marginTop: '1.5rem' }}>
-          <h3>Email Preferences</h3>
-          <div className="prof-email-prefs">
-            {[
-              { key: 'weekly_digest', label: 'Weekly Digest' },
-              { key: 're_engagement', label: 'Re-engagement Tips' },
-              { key: 'onboarding_drip', label: 'Onboarding Emails' },
-              { key: 'marketing', label: 'Marketing & News' },
-            ].map(({ key, label }) => (
-              <div key={key} className="prof-email-toggle">
-                <span className="prof-email-label">{label}</span>
-                <input
-                  type="checkbox"
-                  checked={emailPrefs[key] ?? true}
-                  disabled={emailPrefsSaving}
-                  onChange={async (e) => {
-                    const updated = { ...emailPrefs, [key]: e.target.checked }
-                    setEmailPrefs(updated)
-                    setEmailPrefsSaving(true)
-                    try { await api.updateEmailPreferences(updated) }
-                    catch { setEmailPrefs(emailPrefs) }
-                    finally { setEmailPrefsSaving(false) }
-                  }}
-                />
-              </div>
-            ))}
-          </div>
-          <h3 style={{ marginTop: '1.2rem' }}>Push Notifications</h3>
-          <div className="prof-email-prefs">
-            {[
-              { key: 'push_social', label: 'Follows & Comments' },
-              { key: 'push_price_drop', label: 'Price Drop Alerts' },
-              { key: 'push_streak', label: 'Streak Reminders' },
-              { key: 'push_weekly', label: 'Weekly Highlights' },
-            ].map(({ key, label }) => (
-              <div key={key} className="prof-email-toggle">
-                <span className="prof-email-label">{label}</span>
-                <input
-                  type="checkbox"
-                  checked={emailPrefs[key] ?? true}
-                  disabled={emailPrefsSaving}
-                  onChange={async (e) => {
-                    const updated = { ...emailPrefs, [key]: e.target.checked }
-                    setEmailPrefs(updated)
-                    setEmailPrefsSaving(true)
-                    try { await api.updateEmailPreferences(updated) }
-                    catch { setEmailPrefs(emailPrefs) }
-                    finally { setEmailPrefsSaving(false) }
-                  }}
-                />
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* ── Followers / Following Modal ──────────────────────── */}
       {listModal && (
