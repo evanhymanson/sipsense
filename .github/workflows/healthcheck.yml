@@ -1,10 +1,7 @@
 name: Health Check
 
 on:
-  schedule:
-    # Every 15 minutes — GitHub emails you when a workflow fails
-    - cron: "*/15 * * * *"
-  workflow_dispatch: # Allow manual trigger for testing
+  workflow_dispatch: # Disabled scheduled run — re-enable when instance is back up
 
 jobs:
   check:
